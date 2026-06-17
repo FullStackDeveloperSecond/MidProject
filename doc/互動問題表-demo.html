@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>餐飲地圖系統 - 互動問題表 Demo</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0d1117;
+      --panel: #151b23;
+      --panel-soft: #1d2633;
+      --text: #e6edf3;
+      --muted: #9aa7b5;
+      --line: #303a46;
+      --brand: #2f81f7;
+      --brand-dark: #1f6feb;
+      --ok: #238636;
+      --wait: #b7791f;
+      --skip: #6e7681;
+      --field: #0f141b;
+      --field-focus: #162033;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Microsoft JhengHei", "Noto Sans TC", Arial, sans-serif;
+      line-height: 1.5;
+    }
+
+    header {
+      background: #111827;
+      border-bottom: 1px solid var(--line);
+      color: #fff;
+      padding: 18px 24px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
+    main {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .status-counts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .status-counts span {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 6px 10px;
+    }
+
+    button {
+      border: 1px solid transparent;
+      border-radius: 6px;
+      padding: 8px 12px;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 700;
+      color: #fff;
+      background: var(--brand);
+    }
+
+    button:hover {
+      background: var(--brand-dark);
+    }
+
+    .question-card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      margin-bottom: 14px;
+      overflow: hidden;
+    }
+
+    .question-head {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      align-items: start;
+    }
+
+    .category {
+      margin-bottom: 4px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .question {
+      font-size: 17px;
+      font-weight: 700;
+    }
+
+    .badge {
+      border-radius: 999px;
+      padding: 5px 10px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+      white-space: nowrap;
+    }
+
+    .badge.pending {
+      background: var(--wait);
+    }
+
+    .badge.decided {
+      background: var(--ok);
+    }
+
+    .badge.skipped {
+      background: var(--skip);
+    }
+
+    .question-body {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+      padding: 16px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    textarea,
+    input,
+    select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 9px 10px;
+      color: var(--text);
+      background: var(--field);
+      font: inherit;
+    }
+
+    textarea:focus,
+    input:focus,
+    select:focus {
+      outline: 2px solid rgba(47, 129, 247, 0.35);
+      border-color: var(--brand);
+      background: var(--field-focus);
+    }
+
+    textarea {
+      min-height: 86px;
+      resize: vertical;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 180px 1fr;
+      gap: 12px;
+    }
+
+    .output {
+      margin-top: 18px;
+      background: #111827;
+      color: #e5e7eb;
+      border-radius: 8px;
+      padding: 14px;
+    }
+
+    .output textarea {
+      min-height: 220px;
+      color: #e5e7eb;
+      background: #111827;
+      border-color: #374151;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 13px;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    @media (max-width: 720px) {
+      main {
+        padding: 16px;
+      }
+
+      .question-head,
+      .row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>餐飲地圖系統 - 互動問題表 Demo</h1>
+  </header>
+
+  <main>
+    <div class="toolbar">
+      <div class="status-counts" id="statusCounts"></div>
+      <div>
+        <button type="button" id="exportButton">匯出 JSON</button>
+        <button type="button" id="copyButton">複製結果</button>
+      </div>
+    </div>
+
+    <section id="questionList"></section>
+
+    <section class="output hidden" id="outputPanel">
+      <label for="outputText">匯出結果</label>
+      <textarea id="outputText" readonly></textarea>
+    </section>
+  </main>
+
+  <script>
+    const questions = [
+      {
+        id: "restaurant-tags",
+        category: "餐廳資料與首頁",
+        question: "餐廳分類或標籤要有哪些？",
+        answer: "",
+        status: "待處理",
+        note: ""
+      },
+      {
+        id: "business-hours-format",
+        category: "餐廳資料與首頁",
+        question: "營業時間要只存文字，還是要存成能判斷目前是否營業的格式？",
+        answer: "",
+        status: "待處理",
+        note: ""
+      },
+      {
+        id: "review-like-login",
+        category: "評論系統",
+        question: "評論按讚是否需要登入？",
+        answer: "",
+        status: "待處理",
+        note: ""
+      },
+      {
+        id: "favorite-delete-mode",
+        category: "收藏系統",
+        question: "收藏取消後是刪除收藏資料，還是使用軟刪除？",
+        answer: "",
+        status: "待處理",
+        note: ""
+      }
+    ];
+
+    const statusClass = {
+      "已決議": "decided",
+      "待處理": "pending",
+      "略過": "skipped"
+    };
+
+    const questionList = document.getElementById("questionList");
+    const statusCounts = document.getElementById("statusCounts");
+    const outputPanel = document.getElementById("outputPanel");
+    const outputText = document.getElementById("outputText");
+
+    function renderQuestions() {
+      questionList.innerHTML = "";
+
+      questions.forEach((item, index) => {
+        const card = document.createElement("article");
+        card.className = "question-card";
+        card.innerHTML = `
+          <div class="question-head">
+            <div>
+              <div class="category">${item.category}</div>
+              <div class="question">${index + 1}. ${item.question}</div>
+            </div>
+            <span class="badge ${statusClass[item.status]}">${item.status}</span>
+          </div>
+          <div class="question-body">
+            <div>
+              <label for="${item.id}-answer">回答</label>
+              <textarea id="${item.id}-answer" data-field="answer" data-id="${item.id}">${item.answer}</textarea>
+            </div>
+            <div class="row">
+              <div>
+                <label for="${item.id}-status">狀態</label>
+                <select id="${item.id}-status" data-field="status" data-id="${item.id}">
+                  ${["已決議", "待處理", "略過"].map(status => `
+                    <option value="${status}" ${status === item.status ? "selected" : ""}>${status}</option>
+                  `).join("")}
+                </select>
+              </div>
+              <div>
+                <label for="${item.id}-note">備註</label>
+                <input id="${item.id}-note" data-field="note" data-id="${item.id}" value="${item.note}">
+              </div>
+            </div>
+          </div>
+        `;
+        questionList.appendChild(card);
+      });
+
+      updateCounts();
+    }
+
+    function updateCounts() {
+      const counts = questions.reduce((acc, item) => {
+        acc[item.status] = (acc[item.status] || 0) + 1;
+        return acc;
+      }, {});
+
+      statusCounts.innerHTML = ["已決議", "待處理", "略過"]
+        .map(status => `<span>${status}: ${counts[status] || 0}</span>`)
+        .join("");
+    }
+
+    function updateItem(event) {
+      const target = event.target;
+      const id = target.dataset.id;
+      const field = target.dataset.field;
+
+      if (!id || !field) {
+        return;
+      }
+
+      const item = questions.find(question => question.id === id);
+      item[field] = target.value;
+      renderQuestions();
+    }
+
+    function exportJson() {
+      outputPanel.classList.remove("hidden");
+      outputText.value = JSON.stringify(questions, null, 2);
+      outputText.focus();
+      outputText.select();
+    }
+
+    async function copyOutput() {
+      if (!outputText.value) {
+        exportJson();
+      }
+
+      try {
+        await navigator.clipboard.writeText(outputText.value);
+        alert("已複製 JSON，貼回 Codex 就可以。");
+      } catch {
+        alert("瀏覽器不允許直接複製，請手動複製下方 JSON。");
+      }
+    }
+
+    questionList.addEventListener("input", updateItem);
+    questionList.addEventListener("change", updateItem);
+    document.getElementById("exportButton").addEventListener("click", exportJson);
+    document.getElementById("copyButton").addEventListener("click", copyOutput);
+
+    renderQuestions();
+  </script>
+</body>
+</html>
