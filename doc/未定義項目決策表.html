@@ -1,0 +1,455 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>餐飲地圖系統 - 未定義項目決策表</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0d1117;
+      --panel: #151b23;
+      --panel-soft: #1d2633;
+      --text: #e6edf3;
+      --muted: #9aa7b5;
+      --line: #303a46;
+      --brand: #2f81f7;
+      --brand-dark: #1f6feb;
+      --ok: #238636;
+      --wait: #b7791f;
+      --skip: #6e7681;
+      --field: #0f141b;
+      --field-focus: #162033;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Microsoft JhengHei", "Noto Sans TC", Arial, sans-serif;
+      line-height: 1.5;
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      background: #111827;
+      border-bottom: 1px solid var(--line);
+      color: #fff;
+      padding: 16px 24px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 0;
+    }
+
+    main {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .status-counts,
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .status-counts span,
+    .filters button {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 6px 10px;
+      color: var(--muted);
+    }
+
+    button {
+      border: 1px solid transparent;
+      border-radius: 6px;
+      padding: 8px 12px;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 700;
+      color: #fff;
+      background: var(--brand);
+    }
+
+    button:hover {
+      background: var(--brand-dark);
+    }
+
+    .filters button.active {
+      color: #fff;
+      border-color: var(--brand);
+      background: #12345c;
+    }
+
+    .question-card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      margin-bottom: 14px;
+      overflow: hidden;
+    }
+
+    .question-head {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      align-items: start;
+    }
+
+    .category {
+      margin-bottom: 4px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .question {
+      font-size: 17px;
+      font-weight: 700;
+    }
+
+    .hint {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .badge {
+      border-radius: 999px;
+      padding: 5px 10px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #fff;
+      white-space: nowrap;
+    }
+
+    .badge.pending {
+      background: var(--wait);
+    }
+
+    .badge.decided {
+      background: var(--ok);
+    }
+
+    .badge.skipped {
+      background: var(--skip);
+    }
+
+    .question-body {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+      padding: 16px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    textarea,
+    input,
+    select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 9px 10px;
+      color: var(--text);
+      background: var(--field);
+      font: inherit;
+    }
+
+    textarea {
+      min-height: 82px;
+      resize: vertical;
+    }
+
+    textarea:focus,
+    input:focus,
+    select:focus {
+      outline: 2px solid rgba(47, 129, 247, 0.35);
+      border-color: var(--brand);
+      background: var(--field-focus);
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 180px 1fr;
+      gap: 12px;
+    }
+
+    .output {
+      margin-top: 18px;
+      background: #070b12;
+      color: #e5e7eb;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 14px;
+    }
+
+    .output textarea {
+      min-height: 240px;
+      color: #e5e7eb;
+      background: #070b12;
+      border-color: #374151;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 13px;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    @media (max-width: 720px) {
+      main {
+        padding: 16px;
+      }
+
+      .question-head,
+      .row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>餐飲地圖系統 - 未定義項目決策表</h1>
+  </header>
+
+  <main>
+    <div class="toolbar">
+      <div class="status-counts" id="statusCounts"></div>
+      <div>
+        <button type="button" id="exportButton">匯出 JSON</button>
+        <button type="button" id="copyButton">複製結果</button>
+      </div>
+    </div>
+
+    <div class="toolbar">
+      <div class="filters" id="filters"></div>
+    </div>
+
+    <section id="questionList"></section>
+
+    <section class="output hidden" id="outputPanel">
+      <label for="outputText">匯出結果</label>
+      <textarea id="outputText" readonly></textarea>
+    </section>
+  </main>
+
+  <script>
+    const questions = [
+      { id: "restaurant-tags", category: "餐廳資料與首頁", item: "餐廳分類 / 標籤", question: "要有哪些分類或標籤？", hint: "例如：台式、日式、韓式、義式、火鍋、甜點、飲料。", answer: "", status: "待處理", note: "" },
+      { id: "tag-storage", category: "餐廳資料與首頁", item: "標籤儲存方式", question: "標籤要用文字欄位、多選欄位、獨立 Tags / Categories 表，還是 RestaurantTags 關聯表？", hint: "初學團隊可先考慮簡單欄位；若要多選與篩選更乾淨，可用關聯表。", answer: "", status: "待處理", note: "" },
+      { id: "district-source", category: "餐廳資料與首頁", item: "地區選擇", question: "地區選擇要從地址判斷，還是額外建立地區欄位？", hint: "例如：Restaurant.District = 台北市中山區。", answer: "", status: "待處理", note: "" },
+      { id: "business-hours-format", category: "餐廳資料與首頁", item: "營業時間格式", question: "營業時間要只存文字，還是存成可判斷目前是否營業的結構化資料？", hint: "若首頁要自動判斷營業中，通常需要結構化欄位。", answer: "", status: "待處理", note: "" },
+      { id: "open-status-rule", category: "餐廳資料與首頁", item: "營業狀態判斷", question: "首頁營業中 / 未營業要如何判斷？", hint: "例如：依每週營業時段與目前時間判斷；或 MVP 先用手動狀態。", answer: "", status: "待處理", note: "" },
+      { id: "restaurant-image-count", category: "餐廳資料與首頁", item: "餐廳圖片數量", question: "餐廳圖片只做單張主圖，還是保留多張圖片？", hint: "多張圖片會影響 RestaurantImages 表是否必要。", answer: "", status: "待處理", note: "" },
+      { id: "hero-main-image", category: "餐廳資料與首頁", item: "背景圖與主圖", question: "餐廳背景圖和餐廳主圖是否拆成兩個欄位？", hint: "例如：BackgroundImageUrl 與 ImageUrl。", answer: "", status: "待處理", note: "" },
+      { id: "favorite-count", category: "餐廳資料與首頁", item: "收藏數", question: "收藏數要查詢時計算，還是存進 Restaurants.FavoriteCount？", hint: "查詢時計算較不怕資料不一致；存欄位顯示快但要同步更新。", answer: "", status: "待處理", note: "" },
+      { id: "average-rating-column", category: "餐廳資料與首頁", item: "AverageRating 欄位", question: "平均星等已決定查詢時計算，是否仍保留 Restaurants.AverageRating？", hint: "如果查詢時計算，通常可不保留欄位。", answer: "", status: "待處理", note: "" },
+      { id: "home-pagination", category: "餐廳資料與首頁", item: "首頁分頁", question: "首頁是否需要分頁？每頁幾筆？", hint: "例如：每頁 10 筆或 12 筆。", answer: "", status: "待處理", note: "" },
+      { id: "keyword-fields", category: "餐廳資料與首頁", item: "關鍵字搜尋欄位", question: "關鍵字搜尋要搜尋哪些欄位？", hint: "例如：名稱、地址、標籤、簡介。", answer: "", status: "待處理", note: "" },
+      { id: "average-price", category: "餐廳資料與首頁", item: "平均消費", question: "是否要做 AveragePrice 或均消篩選？", hint: "如果 MVP 不需要，可以直接標略過或 Later。", answer: "", status: "待處理", note: "" },
+
+      { id: "review-like-login", category: "評論系統", item: "評論按讚權限", question: "評論按讚是否需要登入？", hint: "若要防止重複按讚，通常需要登入。", answer: "", status: "待處理", note: "" },
+      { id: "review-like-once", category: "評論系統", item: "評論按讚限制", question: "同一位使用者是否只能對同一則評論按讚一次？", hint: "若是，可能需要 ReviewLikes 表。", answer: "", status: "待處理", note: "" },
+      { id: "review-unlike", category: "評論系統", item: "取消讚", question: "是否支援取消讚？", hint: "支援取消讚會比較像一般互動功能。", answer: "", status: "待處理", note: "" },
+      { id: "review-delete-mode", category: "評論系統", item: "評論刪除策略", question: "評論刪除要軟刪除還是直接刪除？", hint: "軟刪除較符合目前專案方向。", answer: "", status: "待處理", note: "" },
+      { id: "deleted-review-rating", category: "評論系統", item: "刪除後平均星等", question: "被刪除評論是否影響平均星等？", hint: "常見做法是不計入平均。", answer: "", status: "待處理", note: "" },
+      { id: "duplicate-review-average", category: "評論系統", item: "重複評論平均計算", question: "同一使用者多則評論是否全部計入平均？", hint: "你已決定可重複評論，這題決定統計方式。", answer: "", status: "待處理", note: "" },
+      { id: "review-sort-fallback", category: "評論系統", item: "排序備案", question: "除了星等高到低，是否需要依時間排序？", hint: "可以做成下拉排序，也可以 MVP 固定星等排序。", answer: "", status: "待處理", note: "" },
+
+      { id: "favorite-button-guest", category: "收藏系統", item: "未登入收藏按鈕", question: "未登入時收藏按鈕要如何顯示？", hint: "例如：顯示但點擊導向登入，或隱藏。", answer: "", status: "待處理", note: "" },
+      { id: "favorite-delete-mode", category: "收藏系統", item: "取消收藏策略", question: "取消收藏是刪除資料還是軟刪除？", hint: "收藏通常可直接刪除關聯，也可依專案軟刪除規則保留紀錄。", answer: "", status: "待處理", note: "" },
+      { id: "favorite-unique", category: "收藏系統", item: "重複收藏限制", question: "同一人同餐廳只能收藏一次，要用程式檢查還是資料庫唯一限制？", hint: "資料庫唯一限制較保險。", answer: "", status: "待處理", note: "" },
+      { id: "favorite-card-fields", category: "收藏系統", item: "個人頁收藏卡片", question: "個人頁收藏卡片需要顯示哪些餐廳資訊？", hint: "例如：圖片、名稱、地址、星等、營業時間。", answer: "", status: "待處理", note: "" },
+      { id: "favorite-deleted-restaurant", category: "收藏系統", item: "餐廳軟刪除後收藏", question: "餐廳軟刪除後，個人收藏是否仍顯示該餐廳？", hint: "常見做法是不顯示。", answer: "", status: "待處理", note: "" },
+
+      { id: "final-tables", category: "資料庫與 Seed Data", item: "最終資料表", question: "是否加入 ReviewLikes、Tags、Categories、RestaurantTags？", hint: "這會影響 DbContext 與 Migration。", answer: "", status: "待處理", note: "" },
+      { id: "soft-delete-scope", category: "資料庫與 Seed Data", item: "軟刪除套用範圍", question: "哪些資料表需要 IsDeleted？", hint: "例如：Restaurants、Reviews。", answer: "", status: "待處理", note: "" },
+      { id: "seed-users", category: "資料庫與 Seed Data", item: "Seed 測試帳號", question: "Seed Data 是否需要包含測試帳號？", hint: "Demo 通常建議要有。", answer: "", status: "待處理", note: "" },
+      { id: "seed-reviews", category: "資料庫與 Seed Data", item: "Seed 評論", question: "Seed Data 是否需要包含評論資料？", hint: "有評論資料，首頁平均星等與詳情頁較好展示。", answer: "", status: "待處理", note: "" },
+      { id: "seed-favorites", category: "資料庫與 Seed Data", item: "Seed 收藏", question: "Seed Data 是否需要包含收藏資料？", hint: "有收藏資料，預設收藏數排序才看得出效果。", answer: "", status: "待處理", note: "" },
+      { id: "restaurant-data-owner", category: "資料庫與 Seed Data", item: "餐廳資料整理", question: "20 間以上餐廳資料由誰整理？", hint: "可指定餐廳管理負責人或組長協助。", answer: "", status: "待處理", note: "" },
+      { id: "all-restaurants-coordinates", category: "資料庫與 Seed Data", item: "經緯度完整性", question: "每間餐廳是否都必須有經緯度？", hint: "地圖功能會需要。", answer: "", status: "待處理", note: "" },
+      { id: "all-restaurants-hours", category: "資料庫與 Seed Data", item: "營業時間完整性", question: "每間餐廳是否都必須有營業時間資料？", hint: "首頁營業狀態會需要。", answer: "", status: "待處理", note: "" },
+      { id: "sql-connection", category: "資料庫與 Seed Data", item: "SQL Server 連線", question: "團隊每個人的連線字串如何統一？", hint: "例如：各自用本機 DB，appsettings 不提交個人密碼。", answer: "", status: "待處理", note: "" },
+      { id: "db-troubleshooting", category: "資料庫與 Seed Data", item: "資料庫跑不起來", question: "不同電腦資料庫跑不起來時怎麼處理？", hint: "例如：刪 DB 重跑 migration + seed。", answer: "", status: "待處理", note: "" },
+
+      { id: "visual-style", category: "前端與 UI", item: "網站整體風格", question: "網站整體風格、色系、版面密度要怎麼定？", hint: "例如：簡潔食記風、深色地圖風、Bootstrap 乾淨版。", answer: "", status: "待處理", note: "" },
+      { id: "bootstrap-owner", category: "前端與 UI", item: "Bootstrap 共用版型", question: "由誰先建立 Bootstrap 共用樣式？", hint: "可指定組長或前端較熟的人。", answer: "", status: "待處理", note: "" },
+      { id: "form-errors", category: "前端與 UI", item: "表單驗證錯誤", question: "表單驗證錯誤訊息要怎麼顯示？", hint: "例如：欄位下方文字、Bootstrap invalid-feedback、頁首 summary。", answer: "", status: "待處理", note: "" },
+      { id: "mobile-home-layout", category: "前端與 UI", item: "手機版首頁", question: "手機版首頁中，餐廳列表和右側地圖要如何排列？", hint: "例如：地圖在上、列表在下；或地圖收合。", answer: "", status: "待處理", note: "" },
+      { id: "closed-card-readable", category: "前端與 UI", item: "未營業卡片", question: "卡片變暗時，文字是否仍要清楚可讀？", hint: "如果要，避免 opacity 套整張卡造成文字太淡。", answer: "", status: "待處理", note: "" },
+      { id: "mobile-map", category: "前端與 UI", item: "手機版地圖", question: "手機版地圖仍顯示在首頁，還是改成獨立區塊？", hint: "手機螢幕小，地圖和列表同時顯示會擠。", answer: "", status: "待處理", note: "" },
+
+      { id: "weekly-demo-flow", category: "整合與 Demo", item: "每週 Demo 檢查流程", question: "每週固定檢查哪些操作？", hint: "例如：登入、首頁、詳情、評論、收藏、地圖。", answer: "", status: "待處理", note: "" },
+      { id: "demo-account", category: "整合與 Demo", item: "Demo 測試帳號", question: "Demo 當天是否準備固定測試帳號？", hint: "建議準備，避免現場註冊卡住。", answer: "", status: "待處理", note: "" },
+      { id: "demo-restaurant", category: "整合與 Demo", item: "Demo 測試餐廳", question: "Demo 當天是否準備固定測試餐廳？", hint: "建議準備幾間資料完整的展示餐廳。", answer: "", status: "待處理", note: "" },
+      { id: "handoff-checklist", category: "整合與 Demo", item: "功能交付條件", question: "每個功能負責人交給組長整合前要確認哪些項目？", hint: "例如：能跑、無明顯錯誤、資料表欄位說明、測試帳號。", answer: "", status: "待處理", note: "" },
+      { id: "merge-checklist", category: "整合與 Demo", item: "Merge 最低條件", question: "組長 merge 前要檢查哪些最低條件？", hint: "例如：可 build、可進頁面、沒有破壞主流程。", answer: "", status: "待處理", note: "" }
+    ];
+
+    const statusClass = {
+      "已決議": "decided",
+      "待處理": "pending",
+      "略過": "skipped"
+    };
+
+    let activeCategory = "全部";
+
+    const questionList = document.getElementById("questionList");
+    const statusCounts = document.getElementById("statusCounts");
+    const outputPanel = document.getElementById("outputPanel");
+    const outputText = document.getElementById("outputText");
+    const filters = document.getElementById("filters");
+
+    function renderFilters() {
+      const categories = ["全部", ...new Set(questions.map(item => item.category))];
+      filters.innerHTML = categories.map(category => `
+        <button type="button" class="${category === activeCategory ? "active" : ""}" data-category="${category}">
+          ${category}
+        </button>
+      `).join("");
+    }
+
+    function renderQuestions() {
+      questionList.innerHTML = "";
+      const visibleQuestions = activeCategory === "全部"
+        ? questions
+        : questions.filter(item => item.category === activeCategory);
+
+      visibleQuestions.forEach((item, index) => {
+        const card = document.createElement("article");
+        card.className = "question-card";
+        card.innerHTML = `
+          <div class="question-head">
+            <div>
+              <div class="category">${item.category} / ${item.item}</div>
+              <div class="question">${index + 1}. ${item.question}</div>
+              <div class="hint">${item.hint}</div>
+            </div>
+            <span class="badge ${statusClass[item.status]}">${item.status}</span>
+          </div>
+          <div class="question-body">
+            <div>
+              <label for="${item.id}-answer">回答</label>
+              <textarea id="${item.id}-answer" data-field="answer" data-id="${item.id}">${item.answer}</textarea>
+            </div>
+            <div class="row">
+              <div>
+                <label for="${item.id}-status">狀態</label>
+                <select id="${item.id}-status" data-field="status" data-id="${item.id}">
+                  ${["已決議", "待處理", "略過"].map(status => `
+                    <option value="${status}" ${status === item.status ? "selected" : ""}>${status}</option>
+                  `).join("")}
+                </select>
+              </div>
+              <div>
+                <label for="${item.id}-note">備註</label>
+                <input id="${item.id}-note" data-field="note" data-id="${item.id}" value="${item.note}">
+              </div>
+            </div>
+          </div>
+        `;
+        questionList.appendChild(card);
+      });
+
+      updateCounts();
+    }
+
+    function updateCounts() {
+      const counts = questions.reduce((acc, item) => {
+        acc[item.status] = (acc[item.status] || 0) + 1;
+        return acc;
+      }, {});
+
+      statusCounts.innerHTML = ["已決議", "待處理", "略過"]
+        .map(status => `<span>${status}: ${counts[status] || 0}</span>`)
+        .join("");
+    }
+
+    function updateItem(event) {
+      const target = event.target;
+      const id = target.dataset.id;
+      const field = target.dataset.field;
+
+      if (!id || !field) {
+        return;
+      }
+
+      const item = questions.find(question => question.id === id);
+      item[field] = target.value;
+      renderQuestions();
+    }
+
+    function exportJson() {
+      outputPanel.classList.remove("hidden");
+      outputText.value = JSON.stringify(questions, null, 2);
+      outputText.focus();
+      outputText.select();
+    }
+
+    async function copyOutput() {
+      if (!outputText.value) {
+        exportJson();
+      }
+
+      try {
+        await navigator.clipboard.writeText(outputText.value);
+        alert("已複製 JSON，貼回 Codex 就可以。");
+      } catch {
+        alert("瀏覽器不允許直接複製，請手動複製下方 JSON。");
+      }
+    }
+
+    questionList.addEventListener("input", updateItem);
+    questionList.addEventListener("change", updateItem);
+    filters.addEventListener("click", event => {
+      if (!event.target.dataset.category) {
+        return;
+      }
+
+      activeCategory = event.target.dataset.category;
+      renderFilters();
+      renderQuestions();
+    });
+    document.getElementById("exportButton").addEventListener("click", exportJson);
+    document.getElementById("copyButton").addEventListener("click", copyOutput);
+
+    renderFilters();
+    renderQuestions();
+  </script>
+</body>
+</html>
