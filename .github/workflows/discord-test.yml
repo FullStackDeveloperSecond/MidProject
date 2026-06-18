@@ -1,0 +1,16 @@
+name: Discord Test Notification
+
+on:
+  workflow_dispatch:
+
+jobs:
+  send-test-message:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Send test message to Discord
+        run: |
+          curl -H "Content-Type: application/json" \
+            -X POST \
+            -d "{\"content\":\"✅ GitHub Actions 已成功連接到 Discord 私人頻道。\"}" \
+            "${{ secrets.DISCORD_WEBHOOK_URL }}"
