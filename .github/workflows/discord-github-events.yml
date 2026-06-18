@@ -88,6 +88,7 @@ jobs:
           **事件：** $EVENT_NAME
           **作者：** $ACTOR"
           fi
+          ────────────────────────────────────────
 
           jq -n --arg content "$MESSAGE" '{content: $content}' > payload.json
 
