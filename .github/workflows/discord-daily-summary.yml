@@ -144,4 +144,4 @@ jobs:
           curl -H "Content-Type: application/json" \
             -X POST \
             -d @payload.json \
-            "$DISCORD_WEBHOOK_URL"
+            "$DISCORD_SUMMAY_HOOK"
