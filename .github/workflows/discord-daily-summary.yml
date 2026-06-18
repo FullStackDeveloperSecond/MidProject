@@ -1,0 +1,147 @@
+name: Discord Daily GitHub Summary
+
+on:
+  schedule:
+    # UTC 14:00 = 台灣時間 22:00
+    - cron: "0 14 * * *"
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+
+jobs:
+  daily-summary:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Generate daily GitHub summary and send to Discord
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          set -e
+
+          OWNER_REPO="$REPOSITORY"
+
+          SINCE=$(date -u -d "24 hours ago" +"%Y-%m-%dT%H:%M:%SZ")
+          NOW_TW=$(TZ=Asia/Taipei date +"%Y/%m/%d %H:%M")
+
+          echo "Since: $SINCE"
+          echo "Repo: $OWNER_REPO"
+
+          # 今日 commits
+          COMMITS_JSON=$(curl -s \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "$SERVER_URL/api/v3/repos/$OWNER_REPO/commits?since=$SINCE&per_page=20")
+
+          COMMITS_TEXT=$(echo "$COMMITS_JSON" | jq -r '
+            if length == 0 then
+              "無"
+            else
+              [.[] | "- " + (.commit.author.name // .author.login // "unknown") + "：`" + (.sha[0:7]) + "` " + ((.commit.message | split("\n")[0]) // "")] | join("\n")
+            end
+          ')
+
+          # 今日 PR 動態：用 updated 排序抓近期 PR，再過濾 updated_at
+          PRS_JSON=$(curl -s \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "$SERVER_URL/api/v3/repos/$OWNER_REPO/pulls?state=all&sort=updated&direction=desc&per_page=20")
+
+          TODAY_PRS_TEXT=$(echo "$PRS_JSON" | jq -r --arg since "$SINCE" '
+            [ .[]
+              | select(.updated_at >= $since)
+              | "- #" + (.number|tostring) + " " + .title
+                + "｜狀態：" + .state
+                + (if .merged_at != null then " / merged" else "" end)
+                + "｜作者：" + .user.login
+                + "\n  " + .html_url
+            ]
+            | if length == 0 then "無" else join("\n") end
+          ')
+
+          # 目前 Open PR
+          OPEN_PRS_JSON=$(curl -s \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "$SERVER_URL/api/v3/repos/$OWNER_REPO/pulls?state=open&sort=updated&direction=desc&per_page=20")
+
+          OPEN_PRS_TEXT=$(echo "$OPEN_PRS_JSON" | jq -r '
+            if length == 0 then
+              "無"
+            else
+              [.[] | "- #" + (.number|tostring) + " " + .title
+                + "｜作者：" + .user.login
+                + "｜更新：" + .updated_at
+                + "\n  " + .html_url
+              ] | join("\n")
+            end
+          ')
+
+          # 可能需要 Review 的 PR
+          # 規則：
+          # 1. open
+          # 2. 今日有更新，或 review_comments == 0
+          NEED_REVIEW_TEXT=$(echo "$OPEN_PRS_JSON" | jq -r --arg since "$SINCE" '
+            [ .[]
+              | select(.updated_at >= $since or .review_comments == 0)
+              | "- #" + (.number|tostring) + " " + .title
+                + "\n  原因："
+                + (if .updated_at >= $since then "今日有更新" else "尚未看到 review comments" end)
+                + "\n  " + .html_url
+            ]
+            | if length == 0 then "無" else join("\n") end
+          ')
+
+          # 可能需要注意的 PR
+          # 規則：
+          # - open PR 超過 2 天未合併
+          # - draft PR
+          ATTENTION_TEXT=$(echo "$OPEN_PRS_JSON" | jq -r '
+            def days_old:
+              ((now - (.created_at | fromdateiso8601)) / 86400 | floor);
+
+            [ .[]
+              | select((days_old >= 2) or (.draft == true))
+              | "- #" + (.number|tostring) + " " + .title
+                + "\n  原因："
+                + (if .draft == true then "Draft PR" else "Open 超過 2 天" end)
+                + "\n  " + .html_url
+            ]
+            | if length == 0 then "無" else join("\n") end
+          ')
+
+          MESSAGE=$(cat <<EOF
+          📊 **每日 GitHub 摘要**
+          **Repo：** $OWNER_REPO
+          **時間：** $NOW_TW
+
+          ## 今日 Commits
+          $COMMITS_TEXT
+
+          ## 今日 PR 動態
+          $TODAY_PRS_TEXT
+
+          ## 目前 Open PR
+          $OPEN_PRS_TEXT
+
+          ## 可能需要 Review 的 PR
+          $NEED_REVIEW_TEXT
+
+          ## 可能需要你注意
+          $ATTENTION_TEXT
+          EOF
+          )
+
+          jq -n --arg content "$MESSAGE" '{content: $content}' > payload.json
+
+          curl -H "Content-Type: application/json" \
+            -X POST \
+            -d @payload.json \
+            "$DISCORD_WEBHOOK_URL"
