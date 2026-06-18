@@ -22,11 +22,11 @@ jobs:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPOSITORY: ${{ github.repository }}
-          SERVER_URL: ${{ github.server_url }}
         run: |
           set -e
 
           OWNER_REPO="$REPOSITORY"
+          API_BASE="https://api.github.com/repos/$OWNER_REPO"
 
           SINCE=$(date -u -d "24 hours ago" +"%Y-%m-%dT%H:%M:%SZ")
           NOW_TW=$(TZ=Asia/Taipei date +"%Y/%m/%d %H:%M")
@@ -38,7 +38,14 @@ jobs:
           COMMITS_JSON=$(curl -s \
             -H "Authorization: Bearer $GITHUB_TOKEN" \
             -H "Accept: application/vnd.github+json" \
-            "$SERVER_URL/api/v3/repos/$OWNER_REPO/commits?since=$SINCE&per_page=20")
+            "$API_BASE/commits?since=$SINCE&per_page=20")
+
+          # 檢查 GitHub API 是否回傳錯誤
+          if echo "$COMMITS_JSON" | jq -e 'type == "object" and has("message")' > /dev/null; then
+            echo "GitHub API error when fetching commits:"
+            echo "$COMMITS_JSON"
+            exit 1
+          fi
 
           COMMITS_TEXT=$(echo "$COMMITS_JSON" | jq -r '
             if length == 0 then
@@ -48,11 +55,17 @@ jobs:
             end
           ')
 
-          # 今日 PR 動態：用 updated 排序抓近期 PR，再過濾 updated_at
+          # 今日 PR 動態
           PRS_JSON=$(curl -s \
             -H "Authorization: Bearer $GITHUB_TOKEN" \
             -H "Accept: application/vnd.github+json" \
-            "$SERVER_URL/api/v3/repos/$OWNER_REPO/pulls?state=all&sort=updated&direction=desc&per_page=20")
+            "$API_BASE/pulls?state=all&sort=updated&direction=desc&per_page=20")
+
+          if echo "$PRS_JSON" | jq -e 'type == "object" and has("message")' > /dev/null; then
+            echo "GitHub API error when fetching PRs:"
+            echo "$PRS_JSON"
+            exit 1
+          fi
 
           TODAY_PRS_TEXT=$(echo "$PRS_JSON" | jq -r --arg since "$SINCE" '
             [ .[]
@@ -70,7 +83,13 @@ jobs:
           OPEN_PRS_JSON=$(curl -s \
             -H "Authorization: Bearer $GITHUB_TOKEN" \
             -H "Accept: application/vnd.github+json" \
-            "$SERVER_URL/api/v3/repos/$OWNER_REPO/pulls?state=open&sort=updated&direction=desc&per_page=20")
+            "$API_BASE/pulls?state=open&sort=updated&direction=desc&per_page=20")
+
+          if echo "$OPEN_PRS_JSON" | jq -e 'type == "object" and has("message")' > /dev/null; then
+            echo "GitHub API error when fetching open PRs:"
+            echo "$OPEN_PRS_JSON"
+            exit 1
+          fi
 
           OPEN_PRS_TEXT=$(echo "$OPEN_PRS_JSON" | jq -r '
             if length == 0 then
@@ -85,9 +104,6 @@ jobs:
           ')
 
           # 可能需要 Review 的 PR
-          # 規則：
-          # 1. open
-          # 2. 今日有更新，或 review_comments == 0
           NEED_REVIEW_TEXT=$(echo "$OPEN_PRS_JSON" | jq -r --arg since "$SINCE" '
             [ .[]
               | select(.updated_at >= $since or .review_comments == 0)
@@ -100,9 +116,6 @@ jobs:
           ')
 
           # 可能需要注意的 PR
-          # 規則：
-          # - open PR 超過 2 天未合併
-          # - draft PR
           ATTENTION_TEXT=$(echo "$OPEN_PRS_JSON" | jq -r '
             def days_old:
               ((now - (.created_at | fromdateiso8601)) / 86400 | floor);
