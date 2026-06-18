@@ -1,0 +1,97 @@
+name: Discord GitHub Event Notification
+
+on:
+  push:
+    branches:
+      - "**"
+
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - closed
+      - ready_for_review
+
+jobs:
+  notify-discord:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Send GitHub event notification to Discord
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          EVENT_NAME: ${{ github.event_name }}
+          ACTOR: ${{ github.actor }}
+          REPOSITORY: ${{ github.repository }}
+          REF_NAME: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
+          SERVER_URL: ${{ github.server_url }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          if [ "$EVENT_NAME" = "push" ]; then
+            COMMIT_MSG=$(jq -r '.head_commit.message // "No commit message"' "$GITHUB_EVENT_PATH")
+            COMMIT_URL=$(jq -r '.head_commit.url // ""' "$GITHUB_EVENT_PATH")
+            BRANCH="$REF_NAME"
+
+            MESSAGE="📌 **GitHub Push Event**
+          **Repo：** $REPOSITORY
+          **作者：** $ACTOR
+          **分支：** $BRANCH
+          **Commit：** $COMMIT_MSG
+          **連結：** $COMMIT_URL"
+
+          elif [ "$EVENT_NAME" = "pull_request" ]; then
+            ACTION=$(jq -r '.action' "$GITHUB_EVENT_PATH")
+            PR_NUMBER=$(jq -r '.pull_request.number' "$GITHUB_EVENT_PATH")
+            PR_TITLE=$(jq -r '.pull_request.title' "$GITHUB_EVENT_PATH")
+            PR_URL=$(jq -r '.pull_request.html_url' "$GITHUB_EVENT_PATH")
+            PR_STATE=$(jq -r '.pull_request.state' "$GITHUB_EVENT_PATH")
+            PR_MERGED=$(jq -r '.pull_request.merged' "$GITHUB_EVENT_PATH")
+            BASE_BRANCH=$(jq -r '.pull_request.base.ref' "$GITHUB_EVENT_PATH")
+            HEAD_BRANCH=$(jq -r '.pull_request.head.ref' "$GITHUB_EVENT_PATH")
+
+            if [ "$ACTION" = "closed" ] && [ "$PR_MERGED" = "true" ]; then
+              STATUS="merged"
+              EMOJI="✅"
+            elif [ "$ACTION" = "closed" ]; then
+              STATUS="closed"
+              EMOJI="🚫"
+            elif [ "$ACTION" = "opened" ]; then
+              STATUS="opened"
+              EMOJI="🆕"
+            elif [ "$ACTION" = "synchronize" ]; then
+              STATUS="updated with new commits"
+              EMOJI="🔄"
+            elif [ "$ACTION" = "reopened" ]; then
+              STATUS="reopened"
+              EMOJI="♻️"
+            elif [ "$ACTION" = "ready_for_review" ]; then
+              STATUS="ready for review"
+              EMOJI="👀"
+            else
+              STATUS="$ACTION"
+              EMOJI="📌"
+            fi
+
+            MESSAGE="$EMOJI **GitHub PR Event**
+          **Repo：** $REPOSITORY
+          **PR：** #$PR_NUMBER $PR_TITLE
+          **狀態：** $STATUS
+          **作者：** $ACTOR
+          **分支：** $HEAD_BRANCH → $BASE_BRANCH
+          **連結：** $PR_URL"
+
+          else
+            MESSAGE="📌 **GitHub Event**
+          **Repo：** $REPOSITORY
+          **事件：** $EVENT_NAME
+          **作者：** $ACTOR"
+          fi
+
+          jq -n --arg content "$MESSAGE" '{content: $content}' > payload.json
+
+          curl -H "Content-Type: application/json" \
+            -X POST \
+            -d @payload.json \
+            "$DISCORD_WEBHOOK_URL"
