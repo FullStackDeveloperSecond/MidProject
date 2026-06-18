@@ -19,7 +19,7 @@ jobs:
     steps:
       - name: Generate daily GitHub summary and send to Discord
         env:
-          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_SUMMAY_HOOK }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPOSITORY: ${{ github.repository }}
           SERVER_URL: ${{ github.server_url }}
@@ -144,4 +144,4 @@ jobs:
           curl -H "Content-Type: application/json" \
             -X POST \
             -d @payload.json \
-            "$DISCORD_SUMMAY_HOOK"
+            "$DISCORD_WEBHOOK_URL"
