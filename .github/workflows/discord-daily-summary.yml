@@ -36,7 +36,7 @@ jobs:
 
           # 今日 commits
           COMMITS_JSON=$(curl -s \
-            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Authorization: Bearer *** \
             -H "Accept: application/vnd.github+json" \
             "$API_BASE/commits?since=$SINCE&per_page=20")
 
@@ -57,7 +57,7 @@ jobs:
 
           # 今日 PR 動態
           PRS_JSON=$(curl -s \
-            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Authorization: Bearer *** \
             -H "Accept: application/vnd.github+json" \
             "$API_BASE/pulls?state=all&sort=updated&direction=desc&per_page=20")
 
@@ -81,7 +81,7 @@ jobs:
 
           # 目前 Open PR
           OPEN_PRS_JSON=$(curl -s \
-            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Authorization: Bearer *** \
             -H "Accept: application/vnd.github+json" \
             "$API_BASE/pulls?state=open&sort=updated&direction=desc&per_page=20")
 
@@ -157,4 +157,4 @@ jobs:
           curl -H "Content-Type: application/json" \
             -X POST \
             -d @payload.json \
-            "$DISCORD_SUMMRY_CHATL"
+            "$DISCORD_WEBHOOK_URL"
