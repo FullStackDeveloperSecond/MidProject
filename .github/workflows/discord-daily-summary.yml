@@ -23,138 +23,213 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPOSITORY: ${{ github.repository }}
         run: |
-          set -e
+          python3 <<'PY'
+          import os
+          import json
+          import urllib.request
+          import urllib.parse
+          from datetime import datetime, timedelta, timezone
 
-          OWNER_REPO="$REPOSITORY"
-          API_BASE="https://api.github.com/repos/$OWNER_REPO"
+          discord_webhook_url = os.environ["DISCORD_WEBHOOK_URL"]
+          github_token = os.environ["GITHUB_TOKEN"]
+          repository = os.environ["REPOSITORY"]
 
-          SINCE=$(date -u -d "24 hours ago" +"%Y-%m-%dT%H:%M:%SZ")
-          NOW_TW=$(TZ=Asia/Taipei date +"%Y/%m/%d %H:%M")
+          api_base = f"https://api.github.com/repos/{repository}"
 
-          echo "Since: $SINCE"
-          echo "Repo: $OWNER_REPO"
+          now_utc = datetime.now(timezone.utc)
+          since_dt = now_utc - timedelta(hours=24)
+          since = since_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+          # 台灣時間 UTC+8
+          now_tw = now_utc.astimezone(timezone(timedelta(hours=8))).strftime("%Y/%m/%d %H:%M")
+
+          print(f"Since: {since}")
+          print(f"Repo: {repository}")
+
+          def github_get(path, params=None):
+              if params:
+                  query = urllib.parse.urlencode(params)
+                  url = f"{api_base}{path}?{query}"
+              else:
+                  url = f"{api_base}{path}"
+
+              req = urllib.request.Request(
+                  url,
+                  headers={
+                      "Authorization": f"Bearer {github_token}",
+                      "Accept": "application/vnd.github+json",
+                      "User-Agent": "github-actions-daily-summary",
+                  },
+              )
+
+              with urllib.request.urlopen(req) as response:
+                  body = response.read().decode("utf-8")
+                  data = json.loads(body)
+
+              if isinstance(data, dict) and "message" in data:
+                  raise RuntimeError(f"GitHub API error: {data}")
+
+              return data
+
+          def first_line(text):
+              if not text:
+                  return ""
+              return text.splitlines()[0]
 
           # 今日 commits
-          COMMITS_JSON=$(curl -s \
-            -H "Authorization: Bearer *** \
-            -H "Accept: application/vnd.github+json" \
-            "$API_BASE/commits?since=$SINCE&per_page=20")
-
-          # 檢查 GitHub API 是否回傳錯誤
-          if echo "$COMMITS_JSON" | jq -e 'type == "object" and has("message")' > /dev/null; then
-            echo "GitHub API error when fetching commits:"
-            echo "$COMMITS_JSON"
-            exit 1
-          fi
-
-          COMMITS_TEXT=$(echo "$COMMITS_JSON" | jq -r '
-            if length == 0 then
-              "無"
-            else
-              [.[] | "- " + (.commit.author.name // .author.login // "unknown") + "：`" + (.sha[0:7]) + "` " + ((.commit.message | split("\n")[0]) // "")] | join("\n")
-            end
-          ')
-
-          # 今日 PR 動態
-          PRS_JSON=$(curl -s \
-            -H "Authorization: Bearer *** \
-            -H "Accept: application/vnd.github+json" \
-            "$API_BASE/pulls?state=all&sort=updated&direction=desc&per_page=20")
-
-          if echo "$PRS_JSON" | jq -e 'type == "object" and has("message")' > /dev/null; then
-            echo "GitHub API error when fetching PRs:"
-            echo "$PRS_JSON"
-            exit 1
-          fi
-
-          TODAY_PRS_TEXT=$(echo "$PRS_JSON" | jq -r --arg since "$SINCE" '
-            [ .[]
-              | select(.updated_at >= $since)
-              | "- #" + (.number|tostring) + " " + .title
-                + "｜狀態：" + .state
-                + (if .merged_at != null then " / merged" else "" end)
-                + "｜作者：" + .user.login
-                + "\n  " + .html_url
-            ]
-            | if length == 0 then "無" else join("\n") end
-          ')
-
-          # 目前 Open PR
-          OPEN_PRS_JSON=$(curl -s \
-            -H "Authorization: Bearer *** \
-            -H "Accept: application/vnd.github+json" \
-            "$API_BASE/pulls?state=open&sort=updated&direction=desc&per_page=20")
-
-          if echo "$OPEN_PRS_JSON" | jq -e 'type == "object" and has("message")' > /dev/null; then
-            echo "GitHub API error when fetching open PRs:"
-            echo "$OPEN_PRS_JSON"
-            exit 1
-          fi
-
-          OPEN_PRS_TEXT=$(echo "$OPEN_PRS_JSON" | jq -r '
-            if length == 0 then
-              "無"
-            else
-              [.[] | "- #" + (.number|tostring) + " " + .title
-                + "｜作者：" + .user.login
-                + "｜更新：" + .updated_at
-                + "\n  " + .html_url
-              ] | join("\n")
-            end
-          ')
-
-          # 可能需要 Review 的 PR
-          NEED_REVIEW_TEXT=$(echo "$OPEN_PRS_JSON" | jq -r --arg since "$SINCE" '
-            [ .[]
-              | select(.updated_at >= $since or .review_comments == 0)
-              | "- #" + (.number|tostring) + " " + .title
-                + "\n  原因："
-                + (if .updated_at >= $since then "今日有更新" else "尚未看到 review comments" end)
-                + "\n  " + .html_url
-            ]
-            | if length == 0 then "無" else join("\n") end
-          ')
-
-          # 可能需要注意的 PR
-          ATTENTION_TEXT=$(echo "$OPEN_PRS_JSON" | jq -r '
-            def days_old:
-              ((now - (.created_at | fromdateiso8601)) / 86400 | floor);
-
-            [ .[]
-              | select((days_old >= 2) or (.draft == true))
-              | "- #" + (.number|tostring) + " " + .title
-                + "\n  原因："
-                + (if .draft == true then "Draft PR" else "Open 超過 2 天" end)
-                + "\n  " + .html_url
-            ]
-            | if length == 0 then "無" else join("\n") end
-          ')
-
-          MESSAGE=$(cat <<EOF
-          📊 **每日 GitHub 摘要**
-          **Repo：** $OWNER_REPO
-          **時間：** $NOW_TW
-
-          ## 今日 Commits
-          $COMMITS_TEXT
-
-          ## 今日 PR 動態
-          $TODAY_PRS_TEXT
-
-          ## 目前 Open PR
-          $OPEN_PRS_TEXT
-
-          ## 可能需要 Review 的 PR
-          $NEED_REVIEW_TEXT
-
-          ## 可能需要你注意
-          $ATTENTION_TEXT
-          EOF
+          commits = github_get(
+              "/commits",
+              {
+                  "since": since,
+                  "per_page": 20,
+              },
           )
 
-          jq -n --arg content "$MESSAGE" '{content: $content}' > payload.json
+          if not commits:
+              commits_text = "無"
+          else:
+              commit_lines = []
+              for c in commits:
+                  sha = c.get("sha", "")[:7]
+                  message = first_line(c.get("commit", {}).get("message", ""))
+                  author_name = (
+                      c.get("commit", {})
+                      .get("author", {})
+                      .get("name")
+                  )
+                  github_author = c.get("author", {}) or {}
+                  author = author_name or github_author.get("login") or "unknown"
+                  commit_lines.append(f"- {author}：`{sha}` {message}")
+              commits_text = "\n".join(commit_lines)
 
-          curl -H "Content-Type: application/json" \
-            -X POST \
-            -d @payload.json \
-            "$DISCORD_WEBHOOK_URL"
+          # 今日 PR 動態
+          all_prs = github_get(
+              "/pulls",
+              {
+                  "state": "all",
+                  "sort": "updated",
+                  "direction": "desc",
+                  "per_page": 20,
+              },
+          )
+
+          today_pr_lines = []
+          for pr in all_prs:
+              updated_at = pr.get("updated_at", "")
+              if updated_at >= since:
+                  number = pr.get("number")
+                  title = pr.get("title", "")
+                  state = pr.get("state", "")
+                  merged = " / merged" if pr.get("merged_at") else ""
+                  author = pr.get("user", {}).get("login", "unknown")
+                  url = pr.get("html_url", "")
+                  today_pr_lines.append(
+                      f"- #{number} {title}｜狀態：{state}{merged}｜作者：{author}\n  {url}"
+                  )
+
+          today_prs_text = "\n".join(today_pr_lines) if today_pr_lines else "無"
+
+          # 目前 Open PR
+          open_prs = github_get(
+              "/pulls",
+              {
+                  "state": "open",
+                  "sort": "updated",
+                  "direction": "desc",
+                  "per_page": 20,
+              },
+          )
+
+          if not open_prs:
+              open_prs_text = "無"
+          else:
+              open_lines = []
+              for pr in open_prs:
+                  number = pr.get("number")
+                  title = pr.get("title", "")
+                  author = pr.get("user", {}).get("login", "unknown")
+                  updated_at = pr.get("updated_at", "")
+                  url = pr.get("html_url", "")
+                  open_lines.append(
+                      f"- #{number} {title}｜作者：{author}｜更新：{updated_at}\n  {url}"
+                  )
+              open_prs_text = "\n".join(open_lines)
+
+          # 可能需要 Review 的 PR
+          need_review_lines = []
+          for pr in open_prs:
+              updated_at = pr.get("updated_at", "")
+              review_comments = pr.get("review_comments", 0)
+              if updated_at >= since or review_comments == 0:
+                  number = pr.get("number")
+                  title = pr.get("title", "")
+                  url = pr.get("html_url", "")
+                  reason = "今日有更新" if updated_at >= since else "尚未看到 review comments"
+                  need_review_lines.append(
+                      f"- #{number} {title}\n  原因：{reason}\n  {url}"
+                  )
+
+          need_review_text = "\n".join(need_review_lines) if need_review_lines else "無"
+
+          # 可能需要注意的 PR
+          attention_lines = []
+          for pr in open_prs:
+              created_at_raw = pr.get("created_at", "")
+              is_draft = pr.get("draft", False)
+
+              try:
+                  created_at = datetime.fromisoformat(created_at_raw.replace("Z", "+00:00"))
+                  days_old = (now_utc - created_at).days
+              except Exception:
+                  days_old = 0
+
+              if days_old >= 2 or is_draft:
+                  number = pr.get("number")
+                  title = pr.get("title", "")
+                  url = pr.get("html_url", "")
+                  reason = "Draft PR" if is_draft else "Open 超過 2 天"
+                  attention_lines.append(
+                      f"- #{number} {title}\n  原因：{reason}\n  {url}"
+                  )
+
+          attention_text = "\n".join(attention_lines) if attention_lines else "無"
+
+          message = f"""📊 **每日 GitHub 摘要**
+          **Repo：** {repository}
+          **時間：** {now_tw}
+
+          ## 今日 Commits
+          {commits_text}
+
+          ## 今日 PR 動態
+          {today_prs_text}
+
+          ## 目前 Open PR
+          {open_prs_text}
+
+          ## 可能需要 Review 的 PR
+          {need_review_text}
+
+          ## 可能需要你注意
+          {attention_text}
+          """
+
+          # Discord 單則訊息上限約 2000 字，先保守截斷
+          if len(message) > 1900:
+              message = message[:1850] + "\n\n...內容過長，已截斷。請到 GitHub 查看完整紀錄。"
+
+          payload = json.dumps({"content": message}).encode("utf-8")
+
+          req = urllib.request.Request(
+              discord_webhook_url,
+              data=payload,
+              headers={
+                  "Content-Type": "application/json",
+                  "User-Agent": "github-actions-discord-summary",
+              },
+              method="POST",
+          )
+
+          with urllib.request.urlopen(req) as response:
+              print(f"Discord response status: {response.status}")
+          PY
