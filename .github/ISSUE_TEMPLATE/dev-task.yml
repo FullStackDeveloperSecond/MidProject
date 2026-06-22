@@ -1,0 +1,76 @@
+name: 開發任務
+description: 用於建立功能、頁面、後台模組等開發任務
+title: "[開發任務] "
+labels: ["task"]
+assignees: []
+
+body:
+  - type: input
+    id: task_name
+    attributes:
+      label: 名稱
+      description: 這個任務的名稱是什麼？
+      placeholder: 例如：建立會員列表頁、餐廳新增功能、評論隱藏功能
+    validations:
+      required: true
+
+  - type: textarea
+    id: purpose
+    attributes:
+      label: 目的
+      description: 為什麼要做這個任務？這個任務要解決什麼？
+      placeholder: |
+        例如：
+        讓後台管理者可以查看所有會員資料，方便進行會員管理。
+    validations:
+      required: true
+
+  - type: input
+    id: owner
+    attributes:
+      label: 誰負責
+      description: 這個任務由誰負責？
+      placeholder: 例如：愷 / A / B / 組員名稱
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 完成條件
+      description: 怎樣才算這個任務完成？請列成可以檢查的項目。
+      placeholder: |
+        - [ ] 可以進入指定頁面
+        - [ ] 可以看到資料列表
+        - [ ] 可以新增資料
+        - [ ] 錯誤輸入時不會直接報錯
+    validations:
+      required: true
+
+  - type: textarea
+    id: test_steps
+    attributes:
+      label: 怎麼測試
+      description: Reviewer 要怎麼確認這個任務真的完成？
+      placeholder: |
+        1. 啟動專案
+        2. 進入 /Admin/Members
+        3. 確認會員列表正常顯示
+        4. 嘗試新增一筆測試資料
+        5. 確認資料成功出現在列表中
+    validations:
+      required: true
+
+  - type: textarea
+    id: related_risk
+    attributes:
+      label: 有無關聯風險
+      description: 這個任務是否會影響其他模組、資料表、共用畫面或 Demo 流程？
+      placeholder: |
+        例如：
+        - 無
+        - 會影響 Members 資料表
+        - 可能影響評論模組顯示會員名稱
+        - 會修改 Layout，可能影響所有後台頁面
+    validations:
+      required: true
