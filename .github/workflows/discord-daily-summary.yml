@@ -19,7 +19,7 @@ jobs:
     steps:
       - name: Generate daily GitHub summary and send to Discord
         env:
-          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_SUMMRY_CHAT }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_SUMMARY_CHAT }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPOSITORY: ${{ github.repository }}
         run: |
@@ -39,8 +39,6 @@ jobs:
           now_utc = datetime.now(timezone.utc)
           since_dt = now_utc - timedelta(hours=24)
           since = since_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
-
-          # 台灣時間 UTC+8
           now_tw = now_utc.astimezone(timezone(timedelta(hours=8))).strftime("%Y/%m/%d %H:%M")
 
           print(f"Since: {since}")
@@ -76,7 +74,25 @@ jobs:
                   return ""
               return text.splitlines()[0]
 
-          # 今日 commits
+          def labels_text(item):
+              labels = item.get("labels", [])
+              if not labels:
+                  return "無 label"
+              return ", ".join(label.get("name", "") for label in labels)
+
+          def assignees_text(item):
+              assignees = item.get("assignees", [])
+              if not assignees:
+                  return "未指派"
+              return ", ".join(user.get("login", "") for user in assignees)
+
+          def is_real_issue(item):
+              # GitHub /issues API 會包含 PR，要排除 PR
+              return "pull_request" not in item
+
+          # =========================
+          # Commits
+          # =========================
           commits = github_get(
               "/commits",
               {
@@ -92,17 +108,15 @@ jobs:
               for c in commits:
                   sha = c.get("sha", "")[:7]
                   message = first_line(c.get("commit", {}).get("message", ""))
-                  author_name = (
-                      c.get("commit", {})
-                      .get("author", {})
-                      .get("name")
-                  )
+                  author_name = c.get("commit", {}).get("author", {}).get("name")
                   github_author = c.get("author", {}) or {}
                   author = author_name or github_author.get("login") or "unknown"
                   commit_lines.append(f"- {author}：`{sha}` {message}")
               commits_text = "\n".join(commit_lines)
 
-          # 今日 PR 動態
+          # =========================
+          # Pull Requests
+          # =========================
           all_prs = github_get(
               "/pulls",
               {
@@ -129,7 +143,6 @@ jobs:
 
           today_prs_text = "\n".join(today_pr_lines) if today_pr_lines else "無"
 
-          # 目前 Open PR
           open_prs = github_get(
               "/pulls",
               {
@@ -155,7 +168,6 @@ jobs:
                   )
               open_prs_text = "\n".join(open_lines)
 
-          # 可能需要 Review 的 PR
           need_review_lines = []
           for pr in open_prs:
               updated_at = pr.get("updated_at", "")
@@ -171,8 +183,7 @@ jobs:
 
           need_review_text = "\n".join(need_review_lines) if need_review_lines else "無"
 
-          # 可能需要注意的 PR
-          attention_lines = []
+          attention_pr_lines = []
           for pr in open_prs:
               created_at_raw = pr.get("created_at", "")
               is_draft = pr.get("draft", False)
@@ -188,12 +199,112 @@ jobs:
                   title = pr.get("title", "")
                   url = pr.get("html_url", "")
                   reason = "Draft PR" if is_draft else "Open 超過 2 天"
-                  attention_lines.append(
+                  attention_pr_lines.append(
                       f"- #{number} {title}\n  原因：{reason}\n  {url}"
                   )
 
-          attention_text = "\n".join(attention_lines) if attention_lines else "無"
+          attention_pr_text = "\n".join(attention_pr_lines) if attention_pr_lines else "無"
 
+          # =========================
+          # Issues
+          # =========================
+          all_issue_items = github_get(
+              "/issues",
+              {
+                  "state": "all",
+                  "sort": "updated",
+                  "direction": "desc",
+                  "per_page": 100,
+              },
+          )
+
+          issues = [item for item in all_issue_items if is_real_issue(item)]
+
+          open_issues = [issue for issue in issues if issue.get("state") == "open"]
+          closed_issues = [issue for issue in issues if issue.get("state") == "closed"]
+
+          issue_stats_text = (
+              f"- Open Issues：{len(open_issues)}\n"
+              f"- 最近抓取 Closed Issues：{len(closed_issues)}"
+          )
+
+          # 今日 Issue 動態
+          today_issue_lines = []
+          for issue in issues:
+              updated_at = issue.get("updated_at", "")
+              if updated_at >= since:
+                  number = issue.get("number")
+                  title = issue.get("title", "")
+                  state = issue.get("state", "")
+                  author = issue.get("user", {}).get("login", "unknown")
+                  assignees = assignees_text(issue)
+                  labels = labels_text(issue)
+                  url = issue.get("html_url", "")
+                  today_issue_lines.append(
+                      f"- #{number} {title}｜狀態：{state}｜作者：{author}｜負責：{assignees}｜Label：{labels}\n  {url}"
+                  )
+
+          today_issues_text = "\n".join(today_issue_lines) if today_issue_lines else "無"
+
+          # 目前 Open Issues
+          if not open_issues:
+              open_issues_text = "無"
+          else:
+              open_issue_lines = []
+              for issue in open_issues[:20]:
+                  number = issue.get("number")
+                  title = issue.get("title", "")
+                  assignees = assignees_text(issue)
+                  labels = labels_text(issue)
+                  updated_at = issue.get("updated_at", "")
+                  url = issue.get("html_url", "")
+                  open_issue_lines.append(
+                      f"- #{number} {title}｜負責：{assignees}｜Label：{labels}｜更新：{updated_at}\n  {url}"
+                  )
+
+              if len(open_issues) > 20:
+                  open_issue_lines.append(f"...還有 {len(open_issues) - 20} 個 Open Issues 未列出")
+
+              open_issues_text = "\n".join(open_issue_lines)
+
+          # 可能需要注意的 Issues
+          attention_issue_lines = []
+          for issue in open_issues:
+              created_at_raw = issue.get("created_at", "")
+              updated_at_raw = issue.get("updated_at", "")
+              assignees = issue.get("assignees", [])
+              labels = issue.get("labels", [])
+
+              try:
+                  created_at = datetime.fromisoformat(created_at_raw.replace("Z", "+00:00"))
+                  days_old = (now_utc - created_at).days
+              except Exception:
+                  days_old = 0
+
+              reasons = []
+
+              if not assignees:
+                  reasons.append("未指派負責人")
+
+              if not labels:
+                  reasons.append("沒有 label")
+
+              if days_old >= 2 and updated_at_raw < since:
+                  reasons.append("Open 超過 2 天且今日未更新")
+
+              if reasons:
+                  number = issue.get("number")
+                  title = issue.get("title", "")
+                  url = issue.get("html_url", "")
+                  attention_issue_lines.append(
+                      f"- #{number} {title}\n  原因：{', '.join(reasons)}\n  {url}"
+                  )
+
+          attention_issues_text = "\n".join(attention_issue_lines) if attention_issue_lines else "無"
+
+          # =========================
+          # Discord message
+          # =========================
           message = f"""📊 **每日 GitHub 摘要**
           **Repo：** {repository}
           **時間：** {now_tw}
@@ -210,11 +321,22 @@ jobs:
           ## 可能需要 Review 的 PR
           {need_review_text}
 
-          ## 可能需要你注意
-          {attention_text}
+          ## 可能需要注意的 PR
+          {attention_pr_text}
+
+          ## Issue 統計
+          {issue_stats_text}
+
+          ## 今日 Issue 動態
+          {today_issues_text}
+
+          ## 目前 Open Issues
+          {open_issues_text}
+
+          ## 可能需要注意的 Issues
+          {attention_issues_text}
           """
 
-          # Discord 單則訊息上限約 2000 字，先保守截斷
           if len(message) > 1900:
               message = message[:1850] + "\n\n...內容過長，已截斷。請到 GitHub 查看完整紀錄。"
 
