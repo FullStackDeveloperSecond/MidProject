@@ -20,6 +20,9 @@ logs/
 .DS_Store
 Thumbs.db
 
+# Hermes local attachments / workspace metadata
+.hermes/
+
 # Secrets / local config
 appsettings.*.local.json
 .env
