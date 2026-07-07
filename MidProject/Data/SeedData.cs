@@ -52,7 +52,7 @@ public static class SeedData
             CreateMember("Caleb76", "凱勒", "caleb@example.com", "Suspended", levels[0].LevelID, 100, 10, now.AddDays(-30), "疑似惡意檢舉，永久停權"),
             CreateMember("Dylan09", "迪倫", "dylan@example.com", "Normal", levels[2].LevelID, 1680, 310, now.AddDays(-90)),
             CreateMember("Wyatt63", "懷特", "wyatt@example.com", "Normal", levels[1].LevelID, 840, 220, now.AddDays(-55)),
-            CreateMember("Gavin28", "加文", "gavin@example.com", "Deleted", levels[0].LevelID, 20, 0, now.AddDays(-120), "會員自行申請刪除", null, true, now.AddDays(-5), admin.MemberID)
+            CreateMember("Gavin28", "加文", "gavin@example.com", "Deleted", levels[0].LevelID, 20, 0, now.AddDays(-120), "會員自行申請刪除", null, true, now.AddDays(-5), null)
         };
         context.Members.AddRange(members);
         await context.SaveChangesAsync();
