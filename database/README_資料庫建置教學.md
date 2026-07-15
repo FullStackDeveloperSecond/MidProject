@@ -2,11 +2,26 @@
 
 > 用途：在另一台電腦建立 SQL Server 資料庫與資料表。  
 > 適用：Windows + SQL Server / SQL Server Express / Docker SQL Server / 遠端 SQL Server。  
-> 目前只建立資料庫結構，SeedData 尚未完成。
+> Initial Migration 與 Development SeedData 均已建立。Migration 是 Schema 的主要來源，SQL 檔提供無法使用 EF CLI 時的替代方案。
 
 ---
 
-## 1. 你需要的檔案
+## 1. 建議方式：EF Core Migration
+
+先依專案根目錄 `README.md` 設定 `DefaultConnection`，再執行：
+
+```bash
+dotnet tool restore
+dotnet ef database update \
+  --project MidProject/MidProject.csproj \
+  --startup-project MidProject/MidProject.csproj
+```
+
+這會依 `MidProject/Migrations` 建立或更新資料庫。
+
+---
+
+## 2. 替代方式：SQL 腳本
 
 請使用這個完整腳本：
 
@@ -33,7 +48,7 @@ database/MidProject_InitialCreate.sql
 
 ---
 
-## 2. Windows + SSMS 操作方式
+## 3. Windows + SSMS 操作方式
 
 ### Step 1：開啟 SQL Server Management Studio
 
@@ -114,7 +129,7 @@ __EFMigrationsHistory
 
 ---
 
-## 3. Azure Data Studio 操作方式
+## 4. Azure Data Studio 操作方式
 
 如果你用 Azure Data Studio：
 
@@ -127,7 +142,7 @@ __EFMigrationsHistory
 
 ---
 
-## 4. Docker SQL Server 操作方式
+## 5. Docker SQL Server 操作方式
 
 如果你在另一台電腦用 Docker 跑 SQL Server，可以先啟動：
 
@@ -173,64 +188,64 @@ MidProject_CreateDatabaseAndSchema.sql
 
 ---
 
-## 5. 專案連線字串設定
+## 6. 專案連線字串設定
 
-目前程式讀取的連線字串代名是：
-
-```text
-AlexConnectionString
-```
-
-位置：
+程式統一讀取的連線字串名稱是：
 
 ```text
-MidProject/appsettings.json
+DefaultConnection
 ```
 
-目前範例：
+請不要將實際連線字串寫入 `appsettings.json`。建議使用 .NET User Secrets：
 
-```json
-{
-  "ConnectionStrings": {
-    "AlexConnectionString": "Server=localhost;Database=MidProjectDb;User Id=sa;Password=Your_password123;TrustServerCertificate=True;MultipleActiveResultSets=true"
-  }
-}
+```bash
+dotnet user-secrets set "ConnectionStrings:DefaultConnection" \
+  "Server=localhost,1433;Database=MidProjectDb;User Id=sa;Password=YOUR_PASSWORD;TrustServerCertificate=True;MultipleActiveResultSets=true" \
+  --project MidProject/MidProject.csproj
 ```
 
 如果你的 SQL Server 是 Express，可能改成：
 
 ```json
-"AlexConnectionString": "Server=.\\SQLEXPRESS;Database=MidProjectDb;Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=true"
+"Server=.\\SQLEXPRESS;Database=MidProjectDb;Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=true"
 ```
 
 如果你用 Windows Authentication：
 
 ```json
-"AlexConnectionString": "Server=localhost;Database=MidProjectDb;Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=true"
+"Server=localhost;Database=MidProjectDb;Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=true"
 ```
 
 如果你用 SQL Server 帳密：
 
 ```json
-"AlexConnectionString": "Server=localhost;Database=MidProjectDb;User Id=sa;Password=你的密碼;TrustServerCertificate=True;MultipleActiveResultSets=true"
+"Server=localhost;Database=MidProjectDb;User Id=sa;Password=你的密碼;TrustServerCertificate=True;MultipleActiveResultSets=true"
 ```
 
 ---
 
-## 6. 跑 ASP.NET Core 專案
+## 7. SeedData 與專案啟動
 
 在 repo 根目錄執行：
 
 ```bash
-dotnet build
+dotnet build MidProject.sln
 dotnet run --project MidProject/MidProject.csproj
+```
+
+Development 環境預設執行 `SeedData.InitializeAsync`：
+
+```text
+1. 如果 Members 已有資料，直接結束，不重複新增。
+2. 如果 Members 沒有資料，建立會員等級、會員、餐廳、圖片路徑、評論、收藏、檢舉與通知 Demo 資料。
+3. SeedData 不會建立 Schema；必須先套用 Migration 或 SQL 腳本。
 ```
 
 如果成功，瀏覽器開啟終端機顯示的網址。
 
 ---
 
-## 7. 常見問題
+## 8. 常見問題
 
 ### Q1：出現 Login failed for user 'sa'
 
@@ -270,20 +285,22 @@ MidProject_CreateDatabaseAndSchema.sql
 
 ### Q4：資料表有了，但沒有測試資料
 
-目前正常，因為 SeedData 尚未完成。
+先確認目前環境為 `Development`，且 `appsettings.Development.json` 中：
 
-下一階段會建立：
-
-```text
-SeedData.cs
+```json
+"SeedData": {
+  "Enabled": true
+}
 ```
 
-到時候會補：
+接著重新啟動專案。若 `Members` 已經存在資料，SeedData 會刻意跳過，避免重複新增。
+
+---
+
+### Q5：出現 `DefaultConnection is not configured`
+
+代表尚未設定本機連線字串。請執行本文件第 6 節的 `dotnet user-secrets set`，或設定環境變數：
 
 ```text
-Admin 帳號
-會員假資料
-餐廳假資料
-評論 / 檢舉 / 通知假資料
-圖片路徑資料
+ConnectionStrings__DefaultConnection
 ```
