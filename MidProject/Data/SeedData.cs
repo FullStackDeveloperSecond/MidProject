@@ -291,6 +291,7 @@ public static class SeedData
             RestaurantID = restaurantId,
             ReviewID = reviewId,
             ImageID = imageId,
+            Category = "未分類",
             Reason = reason,
             Status = status,
             CreatedAt = createdAt ?? DateTime.Now,

@@ -208,6 +208,7 @@ public class AppDbContext : DbContext
             entity.HasKey(e => e.ReportID);
             entity.HasIndex(e => e.Status);
             entity.HasIndex(e => e.IsDeleted);
+            entity.Property(e => e.Category).HasMaxLength(10).IsRequired();
             entity.Property(e => e.Reason).HasMaxLength(500).IsRequired();
             entity.Property(e => e.Status).HasMaxLength(20).IsRequired().HasDefaultValue("Pending");
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETDATE()");
