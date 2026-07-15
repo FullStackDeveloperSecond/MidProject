@@ -1,9 +1,3 @@
-@{
-    var currentController = ViewContext.RouteData.Values["controller"]?.ToString() ?? "";
-    var currentAction = ViewContext.RouteData.Values["action"]?.ToString() ?? "";
-    var isRestaurantGroup = currentController is "Restaurants" or "Tags";
-    var isHome = currentController == "Home";
-}
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
@@ -12,47 +6,48 @@
     <title>@ViewData["Title"] - 美食地圖</title>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-    <link rel="stylesheet" href="~/css/app-shell.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/MidProject.styles.css" asp-append-version="true" />
     @await RenderSectionAsync("Styles", required: false)
 </head>
 <body>
-    <div class="app-shell">
-        <aside class="sidebar">
-            <a class="brand" asp-area="" asp-controller="Home" asp-action="Index">美食地圖</a>
-            <nav>
-                <a class="nav-item @(isHome ? "active" : "")" asp-area="" asp-controller="Home" asp-action="Index">基礎架構</a>
-
-                <button class="nav-group-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#navRestaurants"
-                        aria-expanded="@(isRestaurantGroup ? "true" : "false")" aria-controls="navRestaurants">
-                    餐廳
-                    <span class="chevron"></span>
+    <header>
+        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
+            <div class="container-fluid">
+                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">美食地圖</a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
+                        aria-expanded="false" aria-label="切換導覽列">
+                    <span class="navbar-toggler-icon"></span>
                 </button>
-                <div class="collapse nav-group @(isRestaurantGroup ? "show" : "")" id="navRestaurants">
-                    <a class="nav-item @(currentController == "Restaurants" && currentAction == "Index" ? "active" : "")"
-                       asp-controller="Restaurants" asp-action="Index">餐廳一覽</a>
-                    <a class="nav-item @(currentController == "Tags" ? "active" : "")"
-                       asp-controller="Tags" asp-action="Index">餐廳標籤一覽</a>
-                    <a class="nav-item @(currentController == "Restaurants" && currentAction == "Deleted" ? "active" : "")"
-                       asp-controller="Restaurants" asp-action="Deleted">停用餐廳一覽</a>
+                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
+                    <ul class="navbar-nav flex-grow-1">
+                        <li class="nav-item">
+                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">基礎架構</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-dark" asp-controller="Restaurants" asp-action="Index">餐廳一覽</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-dark" asp-controller="Tags" asp-action="Index">餐廳標籤一覽</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-dark" asp-controller="Restaurants" asp-action="Deleted">停用餐廳一覽</a>
+                        </li>
+                    </ul>
                 </div>
-
-                <span class="nav-item disabled" title="尚未開放，由負責的組員實作">會員管理</span>
-                <span class="nav-item disabled" title="尚未開放，由負責的組員實作">評論管理</span>
-                <span class="nav-item disabled" title="尚未開放，由負責的組員實作">檢舉管理</span>
-            </nav>
-        </aside>
-
-        <div class="main">
-            <main role="main">
-                @RenderBody()
-            </main>
-            <footer>
-                &copy; 2026 - 美食地圖
-            </footer>
-        </div>
+            </div>
+        </nav>
+    </header>
+    <div class="container">
+        <main role="main" class="pb-3">
+            @RenderBody()
+        </main>
     </div>
 
+    <footer class="border-top footer text-muted">
+        <div class="container">
+            &copy; 2026 - 美食地圖
+        </div>
+    </footer>
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
