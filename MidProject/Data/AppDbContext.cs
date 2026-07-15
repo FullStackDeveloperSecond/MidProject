@@ -1,0 +1,251 @@
+using Microsoft.EntityFrameworkCore;
+using MidProject.Models;
+
+namespace MidProject.Data;
+
+public class AppDbContext : DbContext
+{
+    public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
+    {
+    }
+
+    public DbSet<UserLevel> UserLevels => Set<UserLevel>();
+    public DbSet<Member> Members => Set<Member>();
+    public DbSet<Restaurant> Restaurants => Set<Restaurant>();
+    public DbSet<BusinessHour> BusinessHours => Set<BusinessHour>();
+    public DbSet<Tag> Tags => Set<Tag>();
+    public DbSet<RestaurantTag> RestaurantTags => Set<RestaurantTag>();
+    public DbSet<Image> Images => Set<Image>();
+    public DbSet<RestaurantImage> RestaurantImages => Set<RestaurantImage>();
+    public DbSet<Review> Reviews => Set<Review>();
+    public DbSet<ReviewImage> ReviewImages => Set<ReviewImage>();
+    public DbSet<FavoriteFolder> FavoriteFolders => Set<FavoriteFolder>();
+    public DbSet<Favorite> Favorites => Set<Favorite>();
+    public DbSet<Report> Reports => Set<Report>();
+    public DbSet<Notification> Notifications => Set<Notification>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<UserLevel>(entity =>
+        {
+            entity.HasKey(e => e.LevelID);
+            entity.HasIndex(e => e.LevelName).IsUnique();
+            entity.HasIndex(e => e.MinExp).IsUnique();
+            entity.Property(e => e.LevelName).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.Rewards).HasMaxLength(50);
+            entity.ToTable(table => table.HasCheckConstraint("CK_UserLevels_MinExp", "[MinExp] >= 0"));
+        });
+
+        modelBuilder.Entity<Member>(entity =>
+        {
+            entity.HasKey(e => e.MemberID);
+            entity.HasIndex(e => e.UserName).IsUnique();
+            entity.HasIndex(e => e.Email).IsUnique();
+            entity.HasIndex(e => e.IsDeleted);
+            entity.Property(e => e.UserName).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.NickName).HasMaxLength(50);
+            entity.Property(e => e.Email).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.PasswordHash).HasMaxLength(256).IsRequired();
+            entity.Property(e => e.Phone).HasMaxLength(20);
+            entity.Property(e => e.Role).HasMaxLength(10).IsRequired().HasDefaultValue("User");
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.Property(e => e.IsLocked).HasDefaultValue(false);
+            entity.Property(e => e.IsDeleted).HasDefaultValue(false);
+            entity.Property(e => e.Status).HasMaxLength(20).IsRequired().HasDefaultValue("Normal");
+            entity.Property(e => e.LevelID).HasDefaultValue(1);
+            entity.Property(e => e.Experience).HasDefaultValue(0);
+            entity.Property(e => e.Points).HasDefaultValue(0);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETDATE()");
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("GETDATE()");
+            entity.ToTable(table =>
+            {
+                table.HasCheckConstraint("CK_Members_Role", "[Role] IN ('User', 'Admin')");
+                table.HasCheckConstraint("CK_Members_Status", "[Status] IN ('Normal', 'Warning', 'Muted', 'Suspended', 'Deleted')");
+                table.HasCheckConstraint("CK_Members_Experience", "[Experience] >= 0");
+                table.HasCheckConstraint("CK_Members_Points", "[Points] >= 0");
+            });
+            entity.HasOne(e => e.Level).WithMany(e => e.Members).HasForeignKey(e => e.LevelID).OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne(e => e.AvatarImage).WithMany().HasForeignKey(e => e.AvatarImageID).OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne(e => e.DeletedByMember).WithMany().HasForeignKey(e => e.DeletedBy).OnDelete(DeleteBehavior.NoAction);
+        });
+
+        modelBuilder.Entity<Restaurant>(entity =>
+        {
+            entity.HasKey(e => e.RestaurantID);
+            entity.HasIndex(e => e.City);
+            entity.HasIndex(e => e.District);
+            entity.HasIndex(e => e.IsDeleted);
+            entity.Property(e => e.Name).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.City).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.District).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.DetailedAddress).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.Phone).HasMaxLength(20);
+            entity.Property(e => e.Note).HasMaxLength(1000);
+            entity.Property(e => e.Latitude).HasColumnType("decimal(9,6)");
+            entity.Property(e => e.Longitude).HasColumnType("decimal(9,6)");
+            entity.Property(e => e.AverageRating).HasColumnType("decimal(3,2)").HasDefaultValue(0m);
+            entity.Property(e => e.ReviewCount).HasDefaultValue(0);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETDATE()");
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("GETDATE()");
+            entity.Property(e => e.IsDeleted).HasDefaultValue(false);
+            entity.Property(e => e.DeleteReason).HasMaxLength(200);
+            entity.ToTable(table =>
+            {
+                table.HasCheckConstraint("CK_Restaurants_Latitude", "[Latitude] IS NULL OR ([Latitude] >= -90 AND [Latitude] <= 90)");
+                table.HasCheckConstraint("CK_Restaurants_Longitude", "[Longitude] IS NULL OR ([Longitude] >= -180 AND [Longitude] <= 180)");
+                table.HasCheckConstraint("CK_Restaurants_AverageRating", "[AverageRating] >= 0 AND [AverageRating] <= 5");
+                table.HasCheckConstraint("CK_Restaurants_ReviewCount", "[ReviewCount] >= 0");
+            });
+            entity.HasOne(e => e.Member).WithMany(e => e.Restaurants).HasForeignKey(e => e.MemberID).OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne(e => e.DeletedByMember).WithMany().HasForeignKey(e => e.DeletedBy).OnDelete(DeleteBehavior.NoAction);
+        });
+
+        modelBuilder.Entity<BusinessHour>(entity =>
+        {
+            entity.HasKey(e => e.BusinessHourID);
+            entity.ToTable(table => table.HasCheckConstraint("CK_BusinessHours_DayOfWeek", "[DayOfWeek] >= 1 AND [DayOfWeek] <= 7"));
+            entity.Property(e => e.OpenTime).HasColumnType("time(0)");
+            entity.Property(e => e.CloseTime).HasColumnType("time(0)");
+            entity.Property(e => e.IsClosed).HasDefaultValue(false);
+            entity.HasOne(e => e.Restaurant).WithMany(e => e.BusinessHours).HasForeignKey(e => e.RestaurantID).OnDelete(DeleteBehavior.NoAction);
+        });
+
+        modelBuilder.Entity<Tag>(entity =>
+        {
+            entity.HasKey(e => e.TagID);
+            entity.HasIndex(e => e.TagName).IsUnique();
+            entity.HasIndex(e => e.IsDeleted);
+            entity.Property(e => e.TagName).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.IsDeleted).HasDefaultValue(false);
+            entity.HasOne(e => e.DeletedByMember).WithMany().HasForeignKey(e => e.DeletedBy).OnDelete(DeleteBehavior.NoAction);
+        });
+
+        modelBuilder.Entity<RestaurantTag>(entity =>
+        {
+            entity.HasKey(e => new { e.RestaurantID, e.TagID });
+            entity.HasOne(e => e.Restaurant).WithMany(e => e.RestaurantTags).HasForeignKey(e => e.RestaurantID).OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne(e => e.Tag).WithMany(e => e.RestaurantTags).HasForeignKey(e => e.TagID).OnDelete(DeleteBehavior.NoAction);
+        });
+
+        modelBuilder.Entity<Image>(entity =>
+        {
+            entity.HasKey(e => e.ImageID);
+            entity.HasIndex(e => e.ImageType);
+            entity.HasIndex(e => e.IsDeleted);
+            entity.Property(e => e.ImageURL).HasMaxLength(500).IsRequired();
+            entity.Property(e => e.ImageType).HasMaxLength(30).IsRequired();
+            entity.Property(e => e.SortOrder).HasDefaultValue(0);
+            entity.Property(e => e.UploadedAt).HasDefaultValueSql("GETDATE()");
+            entity.Property(e => e.IsDeleted).HasDefaultValue(false);
+            entity.ToTable(table => table.HasCheckConstraint("CK_Images_ImageType", "[ImageType] IN ('RestaurantCover', 'RestaurantEnvironment', 'ReviewImage', 'MemberAvatar')"));
+            entity.HasOne(e => e.UploadedByMember).WithMany(e => e.UploadedImages).HasForeignKey(e => e.UploadedByMemberID).OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne(e => e.DeletedByMember).WithMany().HasForeignKey(e => e.DeletedBy).OnDelete(DeleteBehavior.NoAction);
+        });
+
+        modelBuilder.Entity<RestaurantImage>(entity =>
+        {
+            entity.HasKey(e => new { e.RestaurantID, e.ImageID });
+            entity.HasOne(e => e.Restaurant).WithMany(e => e.RestaurantImages).HasForeignKey(e => e.RestaurantID).OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne(e => e.Image).WithMany(e => e.RestaurantImages).HasForeignKey(e => e.ImageID).OnDelete(DeleteBehavior.NoAction);
+        });
+
+        modelBuilder.Entity<Review>(entity =>
+        {
+            entity.HasKey(e => e.ReviewID);
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => e.IsDeleted);
+            entity.Property(e => e.Status).HasMaxLength(20).IsRequired().HasDefaultValue("Active");
+            entity.Property(e => e.ReportCount).HasDefaultValue(0);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETDATE()");
+            entity.Property(e => e.IsDeleted).HasDefaultValue(false);
+            entity.ToTable(table =>
+            {
+                table.HasCheckConstraint("CK_Reviews_Rating", "[Rating] >= 1 AND [Rating] <= 5");
+                table.HasCheckConstraint("CK_Reviews_Status", "[Status] IN ('Active', 'PendingReview')");
+                table.HasCheckConstraint("CK_Reviews_ReportCount", "[ReportCount] >= 0");
+            });
+            entity.HasOne(e => e.Member).WithMany(e => e.Reviews).HasForeignKey(e => e.MemberID).OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne(e => e.Restaurant).WithMany(e => e.Reviews).HasForeignKey(e => e.RestaurantID).OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne(e => e.DeletedByMember).WithMany().HasForeignKey(e => e.DeletedBy).OnDelete(DeleteBehavior.NoAction);
+        });
+
+        modelBuilder.Entity<ReviewImage>(entity =>
+        {
+            entity.HasKey(e => new { e.ReviewID, e.ImageID });
+            entity.HasOne(e => e.Review).WithMany(e => e.ReviewImages).HasForeignKey(e => e.ReviewID).OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne(e => e.Image).WithMany(e => e.ReviewImages).HasForeignKey(e => e.ImageID).OnDelete(DeleteBehavior.NoAction);
+        });
+
+        modelBuilder.Entity<FavoriteFolder>(entity =>
+        {
+            entity.HasKey(e => e.FavoriteFolderID);
+            entity.HasIndex(e => e.IsDeleted);
+            entity.Property(e => e.FolderName).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETDATE()");
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("GETDATE()");
+            entity.Property(e => e.IsDeleted).HasDefaultValue(false);
+            entity.HasOne(e => e.Member).WithMany(e => e.FavoriteFolders).HasForeignKey(e => e.MemberID).OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne(e => e.DeletedByMember).WithMany().HasForeignKey(e => e.DeletedBy).OnDelete(DeleteBehavior.NoAction);
+        });
+
+        modelBuilder.Entity<Favorite>(entity =>
+        {
+            entity.HasKey(e => e.FavoriteID);
+            entity.HasIndex(e => e.IsDeleted);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETDATE()");
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("GETDATE()");
+            entity.Property(e => e.IsDeleted).HasDefaultValue(false);
+            entity.HasOne(e => e.Member).WithMany(e => e.Favorites).HasForeignKey(e => e.MemberID).OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne(e => e.Restaurant).WithMany(e => e.Favorites).HasForeignKey(e => e.RestaurantID).OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne(e => e.FavoriteFolder).WithMany(e => e.Favorites).HasForeignKey(e => e.FavoriteFolderID).OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne(e => e.DeletedByMember).WithMany().HasForeignKey(e => e.DeletedBy).OnDelete(DeleteBehavior.NoAction);
+        });
+
+        modelBuilder.Entity<Report>(entity =>
+        {
+            entity.HasKey(e => e.ReportID);
+            entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => e.IsDeleted);
+            entity.Property(e => e.Reason).HasMaxLength(500).IsRequired();
+            entity.Property(e => e.Status).HasMaxLength(20).IsRequired().HasDefaultValue("Pending");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETDATE()");
+            entity.Property(e => e.IsDeleted).HasDefaultValue(false);
+            entity.ToTable(table => table.HasCheckConstraint("CK_Reports_Status", "[Status] IN ('Pending', 'Approved', 'Rejected')"));
+            entity.HasOne(e => e.ReporterMember).WithMany().HasForeignKey(e => e.ReporterMemberID).OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne(e => e.ReportedMember).WithMany().HasForeignKey(e => e.ReportedMemberID).OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne(e => e.Restaurant).WithMany().HasForeignKey(e => e.RestaurantID).OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne(e => e.Review).WithMany(e => e.Reports).HasForeignKey(e => e.ReviewID).OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne(e => e.Image).WithMany().HasForeignKey(e => e.ImageID).OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne(e => e.HandledByMember).WithMany().HasForeignKey(e => e.HandledByMemberID).OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne(e => e.DeletedByMember).WithMany().HasForeignKey(e => e.DeletedBy).OnDelete(DeleteBehavior.NoAction);
+        });
+
+        modelBuilder.Entity<Notification>(entity =>
+        {
+            entity.HasKey(e => e.NotificationID);
+            entity.HasIndex(e => e.NotificationType);
+            entity.HasIndex(e => e.IsSent);
+            entity.HasIndex(e => e.IsDeleted);
+            entity.Property(e => e.NotificationType).HasMaxLength(20).IsRequired().HasDefaultValue("Personal");
+            entity.Property(e => e.TargetRole).HasMaxLength(10);
+            entity.Property(e => e.TargetStatus).HasMaxLength(20);
+            entity.Property(e => e.Title).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.Content).IsRequired();
+            entity.Property(e => e.IsSent).HasDefaultValue(false);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETDATE()");
+            entity.Property(e => e.IsDeleted).HasDefaultValue(false);
+            entity.ToTable(table =>
+            {
+                table.HasCheckConstraint("CK_Notifications_NotificationType", "[NotificationType] IN ('Personal', 'Condition')");
+                table.HasCheckConstraint("CK_Notifications_TargetRole", "[TargetRole] IS NULL OR [TargetRole] IN ('User', 'Admin')");
+                table.HasCheckConstraint("CK_Notifications_TargetStatus", "[TargetStatus] IS NULL OR [TargetStatus] IN ('Normal', 'Warning', 'Muted', 'Suspended', 'Deleted')");
+            });
+            entity.HasOne(e => e.Member).WithMany().HasForeignKey(e => e.MemberID).OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne(e => e.TargetLevel).WithMany(e => e.Notifications).HasForeignKey(e => e.TargetLevelID).OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne(e => e.CreatedByMember).WithMany().HasForeignKey(e => e.CreatedBy).OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne(e => e.DeletedByMember).WithMany().HasForeignKey(e => e.DeletedBy).OnDelete(DeleteBehavior.NoAction);
+        });
+    }
+}
