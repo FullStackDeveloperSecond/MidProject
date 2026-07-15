@@ -1,5 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using MidProject.Data;
+using MidProject.Repositories;
+using MidProject.Repositories.IRepositories;
+using MidProject.Services;
+using MidProject.Services.IServices;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,7 +19,8 @@ if (string.IsNullOrWhiteSpace(connectionString))
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(connectionString));
-
+builder.Services.AddScoped<IReviewRepository, ReviewRepository>();
+builder.Services.AddScoped<IReviewService, ReviewService>();
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment() && builder.Configuration.GetValue<bool>("SeedData:Enabled"))
