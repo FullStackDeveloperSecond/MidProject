@@ -16,19 +16,25 @@ public class AdminMembersController : Controller
 
     
     // 4. 會員列表頁
-    public async Task<IActionResult> Index(string keyword, string statusFilter, int? levelFilter, string sortBy, bool showAbnormal = false, int page = 1)
+    public async Task<IActionResult> Index(string keyword, string statusFilter, int? levelFilter, string sortBy, bool showAbnormal = false, bool todayOnly = false, int page = 1)
     {
         // 4.2 統計卡片資料
         ViewBag.TotalMembers = await _context.Members.CountAsync(m => !m.IsDeleted);
         ViewBag.TodayRegistered = await _context.Members.CountAsync(m => m.CreatedAt.Date == DateTime.Today && !m.IsDeleted);
 
         // 基本查詢條件：Deleted 會員不顯示在一般與異常列表
-        var query = _context.Members.Include(m => m.UserLevel).Where(m => !m.IsDeleted);
+        var query = _context.Members.Include(m => m.UserLevel).Include(m => m.AvatarImage).Where(m => !m.IsDeleted);
 
         // 4.2 異常狀態會員按鈕觸發
         if (showAbnormal)
         {
             query = query.Where(m => m.Status != "Normal"); // 包含 Warning, Muted, Suspended
+        }
+
+        // 4.2 今日新註冊按鈕觸發
+        if (todayOnly)
+        {
+            query = query.Where(m => m.CreatedAt.Date == DateTime.Today);
         }
 
         // 4.3 關鍵字搜尋 (Name/UserName, NickName, Email)
@@ -62,9 +68,10 @@ public class AdminMembersController : Controller
         ViewBag.LevelFilter = levelFilter;
         ViewBag.SortBy = sortBy;
         ViewBag.ShowAbnormal = showAbnormal;
+        ViewBag.TodayOnly = todayOnly;
         ViewBag.CurrentPage = page;
         ViewBag.TotalPages = (int)Math.Ceiling((double)totalItems / pageSize);
-        ViewBag.Levels = await _context.UserLevels.ToListAsync(); // 供篩選下拉選單用
+        ViewBag.Levels = await _context.UserLevels.OrderBy(l => l.MinExp).ToListAsync(); // 供篩選下拉選單與經驗值進度使用
 
         return View(members);
     }
@@ -72,7 +79,10 @@ public class AdminMembersController : Controller
     // 5. 會員詳細 / 編輯頁 (GET)
     public async Task<IActionResult> Edit(int id)
     {
-        var member = await _context.Members.Include(m => m.UserLevel).FirstOrDefaultAsync(m => m.MemberID == id && !m.IsDeleted);
+        var member = await _context.Members
+            .Include(m => m.UserLevel)
+            .Include(m => m.AvatarImage)
+            .FirstOrDefaultAsync(m => m.MemberID == id && !m.IsDeleted);
         if (member == null) return NotFound();
 
         // 3.4 & 5.7 關聯檢舉紀錄：只顯示 Status = Approved (受理) 的紀錄
@@ -80,6 +90,8 @@ public class AdminMembersController : Controller
             .Where(r => r.ReportedMemberID == id && r.Status == "Approved")
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync();
+
+        ViewBag.Levels = await _context.UserLevels.OrderBy(l => l.MinExp).ToListAsync();
 
         return View(member);
     }
@@ -102,8 +114,7 @@ public class AdminMembersController : Controller
 
         if (ModelState.IsValid)
         {
-            // 5.3 允許編輯欄位
-            memberInDb.UserName = model.UserName; // 依規格 Name 對應顯示名稱 
+            // 5.3 允許編輯欄位（帳號 UserName 不可變更，故不接受前端傳入值覆寫）
             memberInDb.NickName = model.NickName;
             memberInDb.Status = model.Status;
             memberInDb.AdminNote = model.AdminNote;
@@ -141,11 +152,36 @@ public class AdminMembersController : Controller
             return RedirectToAction(nameof(Index));
         }
 
-        // 驗證失敗時重新載入檢舉紀錄
+        // 驗證失敗時重新載入檢舉紀錄與等級資料
         ViewBag.ApprovedReports = await _context.Reports
             .Where(r => r.ReportedMemberID == id && r.Status == "Approved")
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync();
+        ViewBag.Levels = await _context.UserLevels.OrderBy(l => l.MinExp).ToListAsync();
         return View(model);
+    }
+
+    // 5.3 會員照片移除（僅能移除，改回預設照片；需填寫原因）
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RemoveAvatar(int id, string reason)
+    {
+        var memberInDb = await _context.Members.FirstOrDefaultAsync(m => m.MemberID == id && !m.IsDeleted);
+        if (memberInDb == null) return NotFound();
+
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            TempData["AvatarError"] = "請填寫移除照片的原因。";
+            return RedirectToAction(nameof(Edit), new { id });
+        }
+
+        memberInDb.AvatarImageID = null;
+        memberInDb.AdminNote = string.IsNullOrWhiteSpace(memberInDb.AdminNote)
+            ? $"[照片移除] {reason}"
+            : $"[照片移除] {reason}\n{memberInDb.AdminNote}";
+        memberInDb.UpdatedAt = DateTime.Now;
+        await _context.SaveChangesAsync();
+
+        return RedirectToAction(nameof(Edit), new { id });
     }
 }

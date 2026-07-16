@@ -452,6 +452,11 @@ namespace MidProject.Migrations
                     b.Property<string>("AdminNote")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("datetime2")
@@ -912,7 +917,7 @@ namespace MidProject.Migrations
                         .HasForeignKey("DeletedBy")
                         .OnDelete(DeleteBehavior.NoAction);
 
-                    b.HasOne("MidProject.Models.UserLevel", "Level")
+                    b.HasOne("MidProject.Models.UserLevel", "UserLevel")
                         .WithMany("Members")
                         .HasForeignKey("LevelID")
                         .OnDelete(DeleteBehavior.NoAction)
@@ -922,7 +927,7 @@ namespace MidProject.Migrations
 
                     b.Navigation("DeletedByMember");
 
-                    b.Navigation("Level");
+                    b.Navigation("UserLevel");
                 });
 
             modelBuilder.Entity("MidProject.Models.Notification", b =>

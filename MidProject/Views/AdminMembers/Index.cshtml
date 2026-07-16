@@ -1,24 +1,44 @@
 @model IEnumerable<Member>
+@{
+    var levelsSorted = ((IEnumerable<UserLevel>)ViewBag.Levels).OrderBy(l => l.MinExp).ToList();
+
+    (string Label, string BadgeClass, string Style, string Emoji) StatusInfo(string status) => status switch
+    {
+        "Normal" => ("正常", "bg-success", "", "✅"),
+        "Warning" => ("警告", "bg-warning text-dark", "", "⚠️"),
+        "Muted" => ("禁言", "text-white", "background-color:#fd7e14;", "🔇"),
+        "Suspended" => ("停權", "bg-danger", "", "⛔"),
+        "Deleted" => ("刪除", "bg-secondary", "", "🗑️"),
+        _ => (status, "bg-secondary", "", "")
+    };
+}
 
 <div class="row mb-3">
     <div class="col-md-4">
-        <div class="card bg-light p-3"><h5>會員總數：@ViewBag.TotalMembers 名</h5></div>
+        <a href="@Url.Action("Index")"
+           class="card bg-light p-3 text-decoration-none text-reset @(!ViewBag.ShowAbnormal && !ViewBag.TodayOnly ? "border-primary" : "")">
+            <h5>會員總數：@ViewBag.TotalMembers 名</h5>
+        </a>
     </div>
     <div class="col-md-4">
-        <div class="card bg-light p-3"><h5>今日新註冊：@ViewBag.TodayRegistered 名</h5></div>
+        <a href="@Url.Action("Index", new { todayOnly = !ViewBag.TodayOnly })"
+           class="card p-3 text-decoration-none @(ViewBag.TodayOnly ? "bg-primary text-white" : "bg-light text-reset")">
+            <h5>今日新註冊：@ViewBag.TodayRegistered 名</h5>
+        </a>
     </div>
     <div class="col-md-4">
         <a href="@Url.Action("Index", new { showAbnormal = !ViewBag.ShowAbnormal })"
            class="btn @(ViewBag.ShowAbnormal ? "btn-danger" : "btn-outline-danger") w-100 h-100 d-flex align-items-center justify-content-center">
-            ⚠️ 異常狀態會員 (Warning/Muted/Suspended)
+            ⚠️ 異常狀態會員
         </a>
     </div>
 </div>
 
 <form method="get" class="row g-2 mb-3">
     <input type="hidden" name="showAbnormal" value="@ViewBag.ShowAbnormal.ToString().ToLower()" />
+    <input type="hidden" name="todayOnly" value="@ViewBag.TodayOnly.ToString().ToLower()" />
     <div class="col-md-4">
-        <input type="text" name="keyword" class="form-control" value="@ViewBag.Keyword" placeholder="搜尋 Name, Nickname, Email...">
+        <input type="text" name="keyword" class="form-control" value="@ViewBag.Keyword" placeholder="搜尋帳號, 名稱, Email...">
     </div>
     <div class="col-md-2">
         <select name="statusFilter" class="form-select">
@@ -32,7 +52,7 @@
     <div class="col-md-2">
         <select name="levelFilter" class="form-select">
             <option value="">所有等級</option>
-            @foreach (var lv in (IEnumerable<UserLevel>)ViewBag.Levels)
+            @foreach (var lv in levelsSorted)
             {
                 <option value="@lv.LevelID" selected="@(ViewBag.LevelFilter == lv.LevelID)">@lv.LevelName</option>
             }
@@ -47,16 +67,17 @@
     <thead>
         <tr>
             <th>頭像</th>
-            <th>Name</th>
-            <th>Nickname</th>
+            <th>帳號</th>
+            <th>名稱</th>
             <th>
-                LV.
-                <a href="@Url.Action("Index", new { sortBy = ViewBag.SortBy == "lv_asc" ? "lv_desc" : "lv_asc", keyword = ViewBag.Keyword, statusFilter = ViewBag.StatusFilter, levelFilter = ViewBag.LevelFilter, showAbnormal = ViewBag.ShowAbnormal })">📐</a>
+                等級
+                <a href="@Url.Action("Index", new { sortBy = ViewBag.SortBy == "lv_asc" ? "lv_desc" : "lv_asc", keyword = ViewBag.Keyword, statusFilter = ViewBag.StatusFilter, levelFilter = ViewBag.LevelFilter, showAbnormal = ViewBag.ShowAbnormal, todayOnly = ViewBag.TodayOnly })">📐</a>
             </th>
-            <th>Points</th>
+            <th>經驗值</th>
+            <th>點數</th>
             <th>
-                Status
-                <a href="@Url.Action("Index", new { sortBy = ViewBag.SortBy == "status_asc" ? "status_desc" : "status_asc", keyword = ViewBag.Keyword, statusFilter = ViewBag.StatusFilter, levelFilter = ViewBag.LevelFilter, showAbnormal = ViewBag.ShowAbnormal })">📐</a>
+                狀態
+                <a href="@Url.Action("Index", new { sortBy = ViewBag.SortBy == "status_asc" ? "status_desc" : "status_asc", keyword = ViewBag.Keyword, statusFilter = ViewBag.StatusFilter, levelFilter = ViewBag.LevelFilter, showAbnormal = ViewBag.ShowAbnormal, todayOnly = ViewBag.TodayOnly })">📐</a>
             </th>
             <th>註冊時間</th>
         </tr>
@@ -64,11 +85,19 @@
     <tbody>
         @foreach (var m in Model)
         {
-            <tr onclick="window.location='@Url.Action("Edit", new { id = m.MemberID })'" style="cursor:pointer;">
+            var levelIndex = levelsSorted.FindIndex(l => l.LevelID == m.LevelID);
+            var levelNumber = levelIndex + 1;
+            int? nextThreshold = (levelIndex >= 0 && levelIndex < levelsSorted.Count - 1) ? levelsSorted[levelIndex + 1].MinExp : (int?)null;
+            var status = StatusInfo(m.Status);
+            var isDeleted = m.Status == "Deleted";
+
+            <tr class="@(isDeleted ? "opacity-50" : "")"
+                style="@(isDeleted ? "cursor:not-allowed;" : "cursor:pointer;")"
+                onclick="@(isDeleted ? "" : $"window.location='{Url.Action("Edit", new { id = m.MemberID })}'")">
                 <td>
-                    @if (m.AvatarImageID.HasValue)
+                    @if (!string.IsNullOrEmpty(m.AvatarImage?.ImageURL))
                     {
-                        <img src="/images/@m.AvatarImageID" width="40" height="40" class="rounded-circle" />
+                        <img src="@m.AvatarImage.ImageURL" width="40" height="40" class="rounded-circle" />
                     }
                     else
                     {
@@ -77,10 +106,11 @@
                 </td>
                 <td>@m.UserName</td>
                 <td>@m.NickName</td>
-                <td>LV.@m.UserLevel?.LevelName</td>
+                <td>LV@(levelNumber) @m.UserLevel?.LevelName</td>
+                <td>@m.Experience@(nextThreshold.HasValue ? $" / {nextThreshold}" : " (滿級)")</td>
                 <td>@m.Points</td>
                 <td>
-                    <span class="badge @(m.Status == "Normal" ? "bg-success" : "bg-warning")">@m.Status</span>
+                    <span class="badge @status.BadgeClass" style="@status.Style">@status.Emoji @status.Label</span>
                 </td>
                 <td>@m.CreatedAt.ToString("yyyy-MM-dd")</td>
             </tr>
@@ -93,7 +123,7 @@
         @for (int i = 1; i <= ViewBag.TotalPages; i++)
         {
             <li class="page-item @(i == ViewBag.CurrentPage ? "active" : "")">
-                <a class="page-link" href="@Url.Action("Index", new { page = i, keyword = ViewBag.Keyword, statusFilter = ViewBag.StatusFilter, levelFilter = ViewBag.LevelFilter, showAbnormal = ViewBag.ShowAbnormal, sortBy = ViewBag.SortBy })">@i</a>
+                <a class="page-link" href="@Url.Action("Index", new { page = i, keyword = ViewBag.Keyword, statusFilter = ViewBag.StatusFilter, levelFilter = ViewBag.LevelFilter, showAbnormal = ViewBag.ShowAbnormal, todayOnly = ViewBag.TodayOnly, sortBy = ViewBag.SortBy })">@i</a>
             </li>
         }
     </ul>

@@ -20,9 +20,12 @@ public static class SeedData
 
         var levels = new List<UserLevel>
         {
-            new() { LevelName = "新手會員", MinExp = 0, Rewards = "基本會員權益" },
-            new() { LevelName = "美食探索者", MinExp = 500, Rewards = "評論徽章" },
-            new() { LevelName = "美食達人", MinExp = 1500, Rewards = "達人標章" }
+            new() { LevelName = "新食客", MinExp = 0, Rewards = "基本會員權益" },
+            new() { LevelName = "尋味人", MinExp = 500, Rewards = "評論徽章" },
+            new() { LevelName = "品味家", MinExp = 1300, Rewards = "達人標章" },
+            new() { LevelName = "老饕客", MinExp = 3400, Rewards = "專屬活動邀請" },
+            new() { LevelName = "鑑味師", MinExp = 8800, Rewards = "VIP 標章" },
+            new() { LevelName = "食之神", MinExp = 23000, Rewards = "尊爵頭銜" }
         };
         context.UserLevels.AddRange(levels);
         await context.SaveChangesAsync();
@@ -282,8 +285,14 @@ public static class SeedData
         };
     }
 
-    private static Report CreateReport(int reporterId, int? reportedMemberId = null, int? restaurantId = null, int? reviewId = null, int? imageId = null, string reason = "", string status = "Pending", DateTime? createdAt = null, DateTime? handledAt = null, int? handledBy = null, string? adminNote = null)
+    private static Report CreateReport(int reporterId, int? reportedMemberId = null, int? restaurantId = null, int? reviewId = null, int? imageId = null, string reason = "", string status = "Pending", DateTime? createdAt = null, DateTime? handledAt = null, int? handledBy = null, string? adminNote = null, string? category = null)
     {
+        var resolvedCategory = category ?? (reportedMemberId.HasValue ? "會員"
+            : reviewId.HasValue ? "評論"
+            : restaurantId.HasValue ? "餐廳"
+            : imageId.HasValue ? "圖片"
+            : "其他");
+
         return new Report
         {
             ReporterMemberID = reporterId,
@@ -292,6 +301,7 @@ public static class SeedData
             ReviewID = reviewId,
             ImageID = imageId,
             Reason = reason,
+            Category = resolvedCategory,
             Status = status,
             CreatedAt = createdAt ?? DateTime.Now,
             HandledAt = handledAt,

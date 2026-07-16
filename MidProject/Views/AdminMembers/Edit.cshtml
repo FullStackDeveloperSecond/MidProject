@@ -1,26 +1,62 @@
 @model Member
 @{
     var reports = ViewBag.ApprovedReports as List<Report> ?? new List<Report>();
+    var levelsSorted = ((IEnumerable<UserLevel>)ViewBag.Levels).OrderBy(l => l.MinExp).ToList();
+    var levelIndex = levelsSorted.FindIndex(l => l.LevelID == Model.LevelID);
+    var levelNumber = levelIndex + 1;
+    int? nextThreshold = (levelIndex >= 0 && levelIndex < levelsSorted.Count - 1) ? levelsSorted[levelIndex + 1].MinExp : (int?)null;
+
+    (string Label, string BadgeClass, string Style, string Emoji) StatusInfo(string status) => status switch
+    {
+        "Normal" => ("正常", "bg-success", "", "✅"),
+        "Warning" => ("警告", "bg-warning text-dark", "", "⚠️"),
+        "Muted" => ("禁言", "text-white", "background-color:#fd7e14;", "🔇"),
+        "Suspended" => ("停權", "bg-danger", "", "⛔"),
+        "Deleted" => ("刪除", "bg-secondary", "", "🗑️"),
+        _ => (status, "bg-secondary", "", "")
+    };
+    var currentStatus = StatusInfo(Model.Status);
+    var avatarUrl = Model.AvatarImage?.ImageURL;
 }
 
 <h2>會員詳細 / 編輯</h2>
-<form asp-action="Edit" method="post">
+
+@if (TempData["AvatarError"] != null)
+{
+    <div class="alert alert-danger">@TempData["AvatarError"]</div>
+}
+
+<form asp-action="Edit" method="post" id="editForm">
     <div class="row">
         <div class="col-md-4">
             <div class="card p-3 mb-3">
                 <div class="text-center mb-3">
-                    @if (Model.AvatarImageID.HasValue)
+                    @if (!string.IsNullOrEmpty(avatarUrl))
                     {
-                        <img src="/images/@Model.AvatarImageID" width="100" height="100" class="rounded-circle" />
+                        <img src="@avatarUrl" width="100" height="100" class="rounded-circle" />
                     }
                     else
                     {
                         <img src="~/images/default-avatar.png" width="100" height="100" class="rounded-circle" />
                     }
+                    @if (!string.IsNullOrEmpty(avatarUrl))
+                    {
+                        <div class="mt-2">
+                            <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#avatarModal">
+                                🗑️ 移除照片
+                            </button>
+                        </div>
+                    }
                 </div>
-                <p><strong>等級：</strong> LV.@Model.UserLevel?.LevelName</p>
-                <p><strong>經驗值：</strong> @Model.Experience EXP</p>
+                <p><strong>等級：</strong> LV@(levelNumber) @Model.UserLevel?.LevelName</p>
+                <p><strong>經驗值：</strong> @Model.Experience@(nextThreshold.HasValue ? $" / {nextThreshold} EXP" : " (滿級)")</p>
                 <p><strong>點數：</strong> @Model.Points P</p>
+                <p>
+                    <strong>目前狀態：</strong>
+                    <a href="#" data-bs-toggle="modal" data-bs-target="#violationModal" class="text-decoration-none">
+                        <span class="badge @currentStatus.BadgeClass" style="@currentStatus.Style">@currentStatus.Emoji @currentStatus.Label</span>
+                    </a>
+                </p>
                 <p><strong>註冊時間：</strong> @Model.CreatedAt</p>
             </div>
 
@@ -44,22 +80,22 @@
                 <input type="hidden" asp-for="MemberID" />
 
                 <div class="mb-3">
-                    <label class="form-label">Name (顯示名稱)</label>
-                    <input asp-for="UserName" class="form-control" />
-                    <span asp-validation-for="UserName" class="text-danger"></span>
+                    <label class="form-label">帳號</label>
+                    <input asp-for="UserName" class="form-control bg-light" readonly tabindex="-1" />
+                    <span class="form-text text-muted">帳號為登入識別，建立後不可變更。</span>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">Nickname (暱稱)</label>
+                    <label class="form-label">名稱</label>
                     <input asp-for="NickName" class="form-control" />
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">會員狀態 (Status)</label>
+                    <label class="form-label">會員狀態</label>
                     <select asp-for="Status" class="form-select" id="statusSelect">
-                        <option value="Normal">Normal (正常)</option>
-                        <option value="Warning">Warning (警告)</option>
-                        <option value="Muted">Muted (禁言)</option>
-                        <option value="Suspended">Suspended (停權)</option>
-                        <option value="Deleted">Deleted (刪除)</option>
+                        <option value="Normal">正常</option>
+                        <option value="Warning">警告</option>
+                        <option value="Muted">禁言</option>
+                        <option value="Suspended">停權</option>
+                        <option value="Deleted">刪除</option>
                     </select>
                 </div>
 
@@ -91,6 +127,88 @@
     </div>
 </form>
 
+<!-- 名稱變更原因 Modal -->
+<div class="modal fade" id="nicknameReasonModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">變更名稱原因</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <label class="form-label">請填寫變更原因（例如：名稱不雅）</label>
+                <textarea id="nicknameReasonText" class="form-control" rows="2"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" id="confirmNicknameReason">確認</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 照片移除 Modal -->
+<div class="modal fade" id="avatarModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form asp-action="RemoveAvatar" method="post">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">移除會員照片</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="id" value="@Model.MemberID" />
+                    <p class="text-muted">移除後將改回預設照片。</p>
+                    <div class="mb-3">
+                        <label class="form-label">請填寫移除原因（例如：照片不雅）</label>
+                        <textarea name="reason" class="form-control" rows="2" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-danger">確認移除</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 違規總覽 Modal -->
+<div class="modal fade" id="violationModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">⚠️ 違規總覽 / 懲處條件</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted">依違規次數逐級加重懲處：</p>
+                <ol class="list-group list-group-numbered">
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>⚠️ 警告</span>
+                        <span class="text-muted small"></span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>🔇 禁言</span>
+                        <span class="text-muted small">一個月內累積 2 次警告</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>⛔ 停權</span>
+                        <span class="text-muted small">一個月內累積 2 次禁言</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>🗑️ 刪除</span>
+                        <span class="text-muted small">一個月內累積 2 次停權</span>
+                    </li>
+                </ol>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
     // 依據 Status 自動隱藏/顯示處分期限
     document.getElementById('statusSelect').addEventListener('change', function() {
@@ -104,4 +222,35 @@
     });
     // 觸發初始狀態
     document.getElementById('statusSelect').dispatchEvent(new Event('change'));
+
+    // 名稱變更需填寫原因
+    (function () {
+        var form = document.getElementById('editForm');
+        var nicknameInput = document.getElementById('NickName');
+        var adminNoteEl = document.getElementById('AdminNote');
+        var originalNickname = nicknameInput.value;
+        var nicknameReasonCaptured = false;
+        var nicknameModalEl = document.getElementById('nicknameReasonModal');
+        var nicknameModal = new bootstrap.Modal(nicknameModalEl);
+
+        form.addEventListener('submit', function (e) {
+            if (nicknameInput.value !== originalNickname && !nicknameReasonCaptured) {
+                e.preventDefault();
+                nicknameModal.show();
+            }
+        });
+
+        document.getElementById('confirmNicknameReason').addEventListener('click', function () {
+            var reason = document.getElementById('nicknameReasonText').value.trim();
+            if (!reason) {
+                alert('請輸入變更原因');
+                return;
+            }
+            var tag = '[名稱變更] ' + reason;
+            adminNoteEl.value = adminNoteEl.value ? (tag + '\n' + adminNoteEl.value) : tag;
+            nicknameReasonCaptured = true;
+            nicknameModal.hide();
+            form.requestSubmit();
+        });
+    })();
 </script>
