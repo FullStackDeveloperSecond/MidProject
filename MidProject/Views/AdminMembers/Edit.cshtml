@@ -1,0 +1,107 @@
+@model Member
+@{
+    var reports = ViewBag.ApprovedReports as List<Report> ?? new List<Report>();
+}
+
+<h2>會員詳細 / 編輯</h2>
+<form asp-action="Edit" method="post">
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card p-3 mb-3">
+                <div class="text-center mb-3">
+                    @if (Model.AvatarImageID.HasValue)
+                    {
+                        <img src="/images/@Model.AvatarImageID" width="100" height="100" class="rounded-circle" />
+                    }
+                    else
+                    {
+                        <img src="~/images/default-avatar.png" width="100" height="100" class="rounded-circle" />
+                    }
+                </div>
+                <p><strong>等級：</strong> LV.@Model.UserLevel?.LevelName</p>
+                <p><strong>經驗值：</strong> @Model.Experience EXP</p>
+                <p><strong>點數：</strong> @Model.Points P</p>
+                <p><strong>註冊時間：</strong> @Model.CreatedAt</p>
+            </div>
+
+            <div class="card p-3">
+                <h5>⚠️ 違規受理紀錄 (@reports.Count)</h5>
+                <div style="max-height: 300px; overflow-y: auto;">
+                    @foreach (var r in reports)
+                    {
+                        <div class="border-bottom py-2">
+                            <small class="text-muted">@r.CreatedAt</small><br />
+                            <strong>原因：</strong> @r.Reason <br />
+                            <small class="text-secondary">備註：@r.AdminNote</small>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <div class="card p-3">
+                <input type="hidden" asp-for="MemberID" />
+
+                <div class="mb-3">
+                    <label class="form-label">Name (顯示名稱)</label>
+                    <input asp-for="UserName" class="form-control" />
+                    <span asp-validation-for="UserName" class="text-danger"></span>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Nickname (暱稱)</label>
+                    <input asp-for="NickName" class="form-control" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">會員狀態 (Status)</label>
+                    <select asp-for="Status" class="form-select" id="statusSelect">
+                        <option value="Normal">Normal (正常)</option>
+                        <option value="Warning">Warning (警告)</option>
+                        <option value="Muted">Muted (禁言)</option>
+                        <option value="Suspended">Suspended (停權)</option>
+                        <option value="Deleted">Deleted (刪除)</option>
+                    </select>
+                </div>
+
+                <div class="mb-3" id="penaltySection">
+                    <label class="form-label">處分期限</label>
+                    <select name="penaltyDays" class="form-select">
+                        <option value="1">1 天</option>
+                        <option value="3">3 天</option>
+                        <option value="7">7 天</option>
+                        <option value="14">14 天</option>
+                        <option value="30">30 天</option>
+                        <option value="Permanent">永久</option>
+                    </select>
+                    <p class="small text-muted mt-1">目前截止時間：@(Model.PenaltyEndAt?.ToString() ?? "無 / 永久")</p>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">狀態變更原因 / 管理員備註 (AdminNote)</label>
+                    <textarea asp-for="AdminNote" class="form-control" rows="3"></textarea>
+                    <span asp-validation-for="AdminNote" class="text-danger"></span>
+                </div>
+
+                <div class="mt-3">
+                    <button type="submit" class="btn btn-success">💾 保存變更</button>
+                    <a asp-action="Index" class="btn btn-secondary">❌ 取消</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+
+<script>
+    // 依據 Status 自動隱藏/顯示處分期限
+    document.getElementById('statusSelect').addEventListener('change', function() {
+        var status = this.value;
+        var section = document.getElementById('penaltySection');
+        if(status === 'Warning' || status === 'Muted' || status === 'Suspended') {
+            section.style.display = 'block';
+        } else {
+            section.style.display = 'none';
+        }
+    });
+    // 觸發初始狀態
+    document.getElementById('statusSelect').dispatchEvent(new Event('change'));
+</script>

@@ -1,0 +1,100 @@
+@model IEnumerable<Member>
+
+<div class="row mb-3">
+    <div class="col-md-4">
+        <div class="card bg-light p-3"><h5>會員總數：@ViewBag.TotalMembers 名</h5></div>
+    </div>
+    <div class="col-md-4">
+        <div class="card bg-light p-3"><h5>今日新註冊：@ViewBag.TodayRegistered 名</h5></div>
+    </div>
+    <div class="col-md-4">
+        <a href="@Url.Action("Index", new { showAbnormal = !ViewBag.ShowAbnormal })"
+           class="btn @(ViewBag.ShowAbnormal ? "btn-danger" : "btn-outline-danger") w-100 h-100 d-flex align-items-center justify-content-center">
+            ⚠️ 異常狀態會員 (Warning/Muted/Suspended)
+        </a>
+    </div>
+</div>
+
+<form method="get" class="row g-2 mb-3">
+    <input type="hidden" name="showAbnormal" value="@ViewBag.ShowAbnormal.ToString().ToLower()" />
+    <div class="col-md-4">
+        <input type="text" name="keyword" class="form-control" value="@ViewBag.Keyword" placeholder="搜尋 Name, Nickname, Email...">
+    </div>
+    <div class="col-md-2">
+        <select name="statusFilter" class="form-select">
+            <option value="" selected="@(string.IsNullOrEmpty((string)ViewBag.StatusFilter))">所有狀態</option>
+            <option value="Normal" selected="@(ViewBag.StatusFilter == "Normal")">正常</option>
+            <option value="Warning" selected="@(ViewBag.StatusFilter == "Warning")">警告</option>
+            <option value="Muted" selected="@(ViewBag.StatusFilter == "Muted")">禁言</option>
+            <option value="Suspended" selected="@(ViewBag.StatusFilter == "Suspended")">停權</option>
+        </select>
+    </div>
+    <div class="col-md-2">
+        <select name="levelFilter" class="form-select">
+            <option value="">所有等級</option>
+            @foreach (var lv in (IEnumerable<UserLevel>)ViewBag.Levels)
+            {
+                <option value="@lv.LevelID" selected="@(ViewBag.LevelFilter == lv.LevelID)">@lv.LevelName</option>
+            }
+        </select>
+    </div>
+    <div class="col-md-2">
+        <button type="submit" class="btn btn-primary">🔍 搜尋</button>
+    </div>
+</form>
+
+<table class="table table-hover align-middle">
+    <thead>
+        <tr>
+            <th>頭像</th>
+            <th>Name</th>
+            <th>Nickname</th>
+            <th>
+                LV.
+                <a href="@Url.Action("Index", new { sortBy = ViewBag.SortBy == "lv_asc" ? "lv_desc" : "lv_asc", keyword = ViewBag.Keyword, statusFilter = ViewBag.StatusFilter, levelFilter = ViewBag.LevelFilter, showAbnormal = ViewBag.ShowAbnormal })">📐</a>
+            </th>
+            <th>Points</th>
+            <th>
+                Status
+                <a href="@Url.Action("Index", new { sortBy = ViewBag.SortBy == "status_asc" ? "status_desc" : "status_asc", keyword = ViewBag.Keyword, statusFilter = ViewBag.StatusFilter, levelFilter = ViewBag.LevelFilter, showAbnormal = ViewBag.ShowAbnormal })">📐</a>
+            </th>
+            <th>註冊時間</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var m in Model)
+        {
+            <tr onclick="window.location='@Url.Action("Edit", new { id = m.MemberID })'" style="cursor:pointer;">
+                <td>
+                    @if (m.AvatarImageID.HasValue)
+                    {
+                        <img src="/images/@m.AvatarImageID" width="40" height="40" class="rounded-circle" />
+                    }
+                    else
+                    {
+                        <img src="~/images/default-avatar.png" width="40" height="40" class="rounded-circle" />
+                    }
+                </td>
+                <td>@m.UserName</td>
+                <td>@m.NickName</td>
+                <td>LV.@m.UserLevel?.LevelName</td>
+                <td>@m.Points</td>
+                <td>
+                    <span class="badge @(m.Status == "Normal" ? "bg-success" : "bg-warning")">@m.Status</span>
+                </td>
+                <td>@m.CreatedAt.ToString("yyyy-MM-dd")</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<nav>
+    <ul class="pagination">
+        @for (int i = 1; i <= ViewBag.TotalPages; i++)
+        {
+            <li class="page-item @(i == ViewBag.CurrentPage ? "active" : "")">
+                <a class="page-link" href="@Url.Action("Index", new { page = i, keyword = ViewBag.Keyword, statusFilter = ViewBag.StatusFilter, levelFilter = ViewBag.LevelFilter, showAbnormal = ViewBag.ShowAbnormal, sortBy = ViewBag.SortBy })">@i</a>
+            </li>
+        }
+    </ul>
+</nav>

@@ -1,0 +1,25 @@
+@model UserLevel
+
+<h2>編輯會員等級</h2>
+<form asp-action="Edit" method="post">
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+    <input type="hidden" asp-for="LevelID" />
+
+    <div class="mb-3">
+        <label class="form-label">LevelName</label>
+        <input asp-for="LevelName" class="form-control" />
+        <span asp-validation-for="LevelName" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label class="form-label">MinExp</label>
+        <input asp-for="MinExp" class="form-control" type="number" />
+        <span asp-validation-for="MinExp" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Rewards</label>
+        <input asp-for="Rewards" class="form-control" />
+    </div>
+
+    <button type="submit" class="btn btn-success">💾 保存</button>
+    <a asp-action="Index" class="btn btn-secondary">❌ 取消</a>
+</form>

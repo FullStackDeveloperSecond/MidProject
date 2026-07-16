@@ -1,3 +1,14 @@
+@using System.Security.Claims
+@{
+    string displayName = string.Empty;
+
+    if (User.Identity.IsAuthenticated)
+    {
+        // 取得 Claim("DisplayName")
+        displayName = ((ClaimsIdentity)User.Identity).Claims.FirstOrDefault(c => c.Type == "DisplayName")?.Value;
+    }
+}
+
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
@@ -22,7 +33,32 @@
                         <li class="nav-item">
                             <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">基礎架構</a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-dark" asp-area="" asp-controller="AdminMembers" asp-action="Index">會員</a>
+                        </li>               
                     </ul>
+
+                    <ul class="navbar-nav ">
+                        @if (User.Identity.IsAuthenticated)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-area="" asp-controller="Auth" asp-action="Logout">登出</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-area="" asp-controller="Member" asp-action="Index">Hi, @displayName</a>
+                            </li>
+                        }
+                        else
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-area="" asp-controller="Auth" asp-action="Login">登入</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link text-dark" asp-area="" asp-controller="Auth" asp-action="Register">註冊新會員</a>
+                            </li>
+                        }
+                    </ul>
+
                 </div>
             </div>
         </nav>

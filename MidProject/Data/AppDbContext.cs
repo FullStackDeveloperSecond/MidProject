@@ -66,7 +66,7 @@ public class AppDbContext : DbContext
                 table.HasCheckConstraint("CK_Members_Experience", "[Experience] >= 0");
                 table.HasCheckConstraint("CK_Members_Points", "[Points] >= 0");
             });
-            entity.HasOne(e => e.Level).WithMany(e => e.Members).HasForeignKey(e => e.LevelID).OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne(e => e.UserLevel).WithMany(e => e.Members).HasForeignKey(e => e.LevelID).OnDelete(DeleteBehavior.NoAction);
             entity.HasOne(e => e.AvatarImage).WithMany().HasForeignKey(e => e.AvatarImageID).OnDelete(DeleteBehavior.NoAction);
             entity.HasOne(e => e.DeletedByMember).WithMany().HasForeignKey(e => e.DeletedBy).OnDelete(DeleteBehavior.NoAction);
         });
