@@ -17,6 +17,7 @@
     };
     var currentStatus = StatusInfo(Model.Status);
     var avatarUrl = Model.AvatarImage?.ImageURL;
+    var defaultAvatar = "/uploads/MemberAvatar/avatar24-01.jpg";
 }
 
 <h2>會員詳細 / 編輯</h2>
@@ -37,16 +38,13 @@
                     }
                     else
                     {
-                        <img src="~/images/default-avatar.png" width="100" height="100" class="rounded-circle" />
+                        <img src="@defaultAvatar" width="100" height="100" class="rounded-circle" />
                     }
-                    @if (!string.IsNullOrEmpty(avatarUrl))
-                    {
-                        <div class="mt-2">
-                            <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#avatarModal">
-                                🗑️ 移除照片
-                            </button>
-                        </div>
-                    }
+                    <div class="mt-2">
+                        <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#avatarModal">
+                            🗑️ 移除照片
+                        </button>
+                    </div>
                 </div>
                 <p><strong>等級：</strong> LV@(levelNumber) @Model.UserLevel?.LevelName</p>
                 <p><strong>經驗值：</strong> @Model.Experience@(nextThreshold.HasValue ? $" / {nextThreshold} EXP" : " (滿級)")</p>
@@ -87,6 +85,10 @@
                 <div class="mb-3">
                     <label class="form-label">名稱</label>
                     <input asp-for="NickName" class="form-control" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">生日</label>
+                    <input value="@(Model.Birthday?.ToString("yyyy-MM-dd") ?? "未設定")" class="form-control bg-light" readonly tabindex="-1" />
                 </div>
                 <div class="mb-3">
                     <label class="form-label">會員狀態</label>
@@ -186,7 +188,7 @@
                 <ol class="list-group list-group-numbered">
                     <li class="list-group-item d-flex justify-content-between align-items-center">
                         <span>⚠️ 警告</span>
-                        <span class="text-muted small"></span>
+                        <span class="text-muted small">一個月滿 2 次</span>
                     </li>
                     <li class="list-group-item d-flex justify-content-between align-items-center">
                         <span>🔇 禁言</span>

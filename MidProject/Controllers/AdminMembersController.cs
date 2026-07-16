@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MidProject.Data;
 using MidProject.Models;
+using MidProject.Models.ViewModels;
+using System.Security.Claims;
 
 [Authorize(Roles = "Admin")]
 public class AdminMembersController : Controller
@@ -97,9 +99,12 @@ public class AdminMembersController : Controller
     }
 
     // 5. 會員編輯儲存 (POST)
+    // 改用專用的 MemberEditVM 繫結，避免 Member entity 上其他不相關欄位
+    // （Email、PasswordHash、Role、UserLevel 等 non-nullable 導覽屬性）被 ASP.NET Core
+    // 隱性視為必填，導致表單永遠驗證失敗、無法保存。
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(int id, Member model, string penaltyDays)
+    public async Task<IActionResult> Edit(int id, MemberEditVM model)
     {
         if (id != model.MemberID) return NotFound();
 
@@ -109,7 +114,7 @@ public class AdminMembersController : Controller
         // 8. 驗證規則：狀態異動時 AdminNote 必填
         if (memberInDb.Status != model.Status && string.IsNullOrWhiteSpace(model.AdminNote))
         {
-            ModelState.AddModelError("AdminNote", "變更會員狀態時，管理員備註（原因）為必填。");
+            ModelState.AddModelError(nameof(MemberEditVM.AdminNote), "變更會員狀態時，管理員備註（原因）為必填。");
         }
 
         if (ModelState.IsValid)
@@ -126,7 +131,7 @@ public class AdminMembersController : Controller
             }
             else
             {
-                memberInDb.PenaltyEndAt = penaltyDays switch
+                memberInDb.PenaltyEndAt = model.PenaltyDays switch
                 {
                     "1" => DateTime.Now.AddDays(1),
                     "3" => DateTime.Now.AddDays(3),
@@ -138,11 +143,16 @@ public class AdminMembersController : Controller
                 };
             }
 
-            // 5.6 & 11. Status = Deleted 的連動規則
+            // 5.6 & 11. Status = Deleted 的連動規則（軟刪除：僅標記，不移除資料列）
             if (model.Status == "Deleted")
             {
                 memberInDb.IsDeleted = true;
                 memberInDb.DeletedAt = DateTime.Now;
+                var adminIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (int.TryParse(adminIdClaim, out var adminId))
+                {
+                    memberInDb.DeletedBy = adminId;
+                }
             }
 
             memberInDb.UpdatedAt = DateTime.Now;
@@ -152,13 +162,25 @@ public class AdminMembersController : Controller
             return RedirectToAction(nameof(Index));
         }
 
-        // 驗證失敗時重新載入檢舉紀錄與等級資料
+        // 驗證失敗時：重新查詢資料庫中完整且正確的會員資料（含等級、經驗值、點數、頭像等），
+        // 只疊加使用者這次在表單中實際編輯的欄位，避免顯示未繫結欄位的預設值
+        var displayMember = await _context.Members
+            .Include(m => m.UserLevel)
+            .Include(m => m.AvatarImage)
+            .FirstOrDefaultAsync(m => m.MemberID == id);
+        if (displayMember != null)
+        {
+            displayMember.NickName = model.NickName;
+            displayMember.Status = model.Status;
+            displayMember.AdminNote = model.AdminNote;
+        }
+
         ViewBag.ApprovedReports = await _context.Reports
             .Where(r => r.ReportedMemberID == id && r.Status == "Approved")
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync();
         ViewBag.Levels = await _context.UserLevels.OrderBy(l => l.MinExp).ToListAsync();
-        return View(model);
+        return View(displayMember);
     }
 
     // 5.3 會員照片移除（僅能移除，改回預設照片；需填寫原因）

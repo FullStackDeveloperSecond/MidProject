@@ -11,6 +11,7 @@
         "Deleted" => ("刪除", "bg-secondary", "", "🗑️"),
         _ => (status, "bg-secondary", "", "")
     };
+    var defaultAvatar = "/uploads/MemberAvatar/avatar24-01.jpg";
 }
 
 <div class="row mb-3">
@@ -101,7 +102,7 @@
                     }
                     else
                     {
-                        <img src="~/images/default-avatar.png" width="40" height="40" class="rounded-circle" />
+                        <img src="@defaultAvatar" width="40" height="40" class="rounded-circle" />
                     }
                 </td>
                 <td>@m.UserName</td>
