@@ -19,6 +19,46 @@ dotnet ef database update \
 
 這會依 `MidProject/Migrations` 建立或更新資料庫。
 
+### 已有資料庫的組員：新增 Reports.Category
+
+拉到包含 `20260715153559_AddCategoryToReports` 的版本後，建議直接執行：
+
+```bash
+dotnet restore MidProject.sln
+dotnet tool restore
+dotnet ef database update --project MidProject/MidProject.csproj --startup-project MidProject/MidProject.csproj
+```
+
+這個 Migration 會依序：
+
+```text
+1. 新增 Reports.Category nvarchar(10)，暫時允許 NULL。
+2. 將既有資料回填為「未分類」。
+3. 將 Category 改為 NOT NULL。
+4. 寫入 __EFMigrationsHistory，之後不會重複執行。
+```
+
+無法使用 EF CLI 時，請在目前的 `MidProjectDb` 執行：
+
+```text
+database/20260715153559_AddCategoryToReports.sql
+```
+
+EF CLI 和這份 SQL 二選一即可，不要兩種方式都執行。更新後可以用以下 SQL 驗證：
+
+```sql
+SELECT
+    COLUMN_NAME,
+    DATA_TYPE,
+    CHARACTER_MAXIMUM_LENGTH,
+    IS_NULLABLE
+FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_NAME = 'Reports'
+  AND COLUMN_NAME = 'Category';
+```
+
+預期結果為 `Category / nvarchar / 10 / NO`。
+
 ---
 
 ## 2. 替代方式：SQL 腳本

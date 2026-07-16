@@ -30,6 +30,7 @@ MidProject/
 └── Program.cs            # MVC、DbContext、SeedData 啟動設定
 
 database/
+├── 20260715153559_AddCategoryToReports.sql # 已有資料庫單獨升級用
 ├── MidProject_CreateDatabaseAndSchema.sql
 ├── MidProject_InitialCreate.sql
 └── README_資料庫建置教學.md
