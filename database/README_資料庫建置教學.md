@@ -26,9 +26,7 @@ dotnet ef database update \
 ```bash
 dotnet restore MidProject.sln
 dotnet tool restore
-dotnet ef database update \
-  --project MidProject/MidProject.csproj \
-  --startup-project MidProject/MidProject.csproj
+dotnet ef database update --project MidProject/MidProject.csproj --startup-project MidProject/MidProject.csproj
 ```
 
 這個 Migration 會依序：
