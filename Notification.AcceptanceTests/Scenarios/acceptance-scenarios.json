@@ -1,8 +1,13 @@
 {
   "schema_version": 1,
-  "requirement_version": 2,
-  "architecture_version": 2,
+  "requirement_version": 3,
+  "architecture_version": 3,
   "driver_output_rule": "The driver returns direct, independently observed values. It must not return accepted/passed booleans or inspect implementation source.",
+  "test_suites": {
+    "targeted_change": ["AC-AUTH-001", "AC-AUTH-002", "AC-AUTH-003", "AC-AUTH-004", "AC-BOUNDARY-001", "AC-AUDIT-001", "AC-ERROR-001", "AC-NFR-001", "AC-NFR-003", "AC-NFR-004"],
+    "impacted_regression": ["AC-SCOPE-001", "AC-AUTH-001", "AC-AUTH-002", "AC-AUTH-003", "AC-AUTH-004", "AC-DATA-001", "AC-BOUNDARY-001", "AC-DELETE-001", "AC-AUDIT-001", "AC-ERROR-001", "AC-NFR-001", "AC-NFR-003", "AC-NFR-004"],
+    "full_project_regression": ["AC-SCOPE-001", "AC-AUTH-001", "AC-AUTH-002", "AC-AUTH-003", "AC-AUTH-004", "AC-DATA-001", "AC-BOUNDARY-001", "AC-LIST-001", "AC-LIST-002", "AC-LIST-003", "AC-UI-001", "AC-UI-002", "AC-VALIDATION-001", "AC-TIME-001", "AC-EDIT-001", "AC-DELETE-001", "AC-SEND-001", "AC-SEND-002", "AC-AUDIT-001", "AC-ERROR-001", "AC-INTEGRATION-001", "AC-INTEGRATION-002", "AC-NFR-001", "AC-NFR-002", "AC-NFR-003", "AC-NFR-004", "AC-UI-003"]
+  },
   "scenarios": [
     {
       "criterion_id": "AC-SCOPE-001",
@@ -17,6 +22,7 @@
       "criterion_id": "AC-AUTH-001",
       "test_id": "AT-AUTH-001",
       "expected_observations": {
+        "identity_modes_exercised": ["DevelopmentTemporary", "AccountLogin"],
         "admin_allowed_operations": ["Index", "Details", "Create", "Edit", "Delete", "SingleSend", "BatchSend"],
         "non_admin_http_status": 403,
         "non_admin_notification_data_exposed": false,
@@ -30,15 +36,31 @@
       "criterion_id": "AC-AUTH-002",
       "test_id": "AT-AUTH-002",
       "expected_observations": {
-        "login_owner": "Haru",
-        "login_route": "Account/Login",
-        "demo_uses_normal_login": true,
-        "demo_uses_email_passwordhash_verification": true,
-        "trusted_identity_equals_authenticated_members_member_id": true,
-        "member_revalidated_each_protected_operation": true,
+        "available_identity_modes": ["DevelopmentTemporary", "AccountLogin"],
+        "selected_mode_count_per_process": 1,
+        "selected_mode_immutable_for_process_lifetime": true,
+        "mode_selection_failures": [
+          {"case": "missing", "safe_error_code": "NID-MODE-MISSING", "application_started": false, "http_request_accepted": false},
+          {"case": "invalid", "safe_error_code": "NID-MODE-INVALID", "application_started": false, "http_request_accepted": false}
+        ],
+        "development_temporary": {
+          "environment_name": "Development",
+          "lookup_email": "admin@example.com",
+          "trusted_identity_equals_seed_members_member_id": true,
+          "admin_flow_completed": true
+        },
+        "account_login": {
+          "owner": "Haru",
+          "route": "Account/Login",
+          "email_passwordhash_verification_used": true,
+          "trusted_identity_equals_authenticated_members_member_id": true,
+          "admin_flow_completed": true
+        },
+        "member_revalidated_before_each_protected_operation_in_both_modes": true,
         "required_member_predicate": "Role=Admin AND Status=Normal AND IsActive=true AND IsLocked=false AND IsDeleted=false",
-        "temporary_identity_present": false,
-        "fixed_or_fallback_identity_present": false,
+        "request_can_select_or_switch_mode": false,
+        "account_login_missing_invalid_or_failed_activated_temporary_identity": false,
+        "configured_or_hard_coded_member_id_present": false,
         "authorization_bypass_present": false
       }
     },
@@ -46,10 +68,49 @@
       "criterion_id": "AC-AUTH-003",
       "test_id": "AT-AUTH-003",
       "expected_observations": {
+        "selected_identity_mode": "AccountLogin",
         "unauthenticated": {"status": 302, "destination": "Account/Login", "local_return_target_preserved": true, "data_exposed": false, "state_changed": false},
         "unmapped_member_id": {"status": 403, "message": "無法確認登入者身分，請重新登入。", "data_exposed": false, "state_changed": false},
         "unusable_member": {"status": 403, "message": "此管理員帳號目前不可使用。", "data_exposed": false, "state_changed": false},
-        "non_admin": {"status": 403, "message": "您沒有權限存取通知管理功能。", "data_exposed": false, "state_changed": false}
+        "non_admin": {"status": 403, "message": "您沒有權限存取通知管理功能。", "data_exposed": false, "state_changed": false},
+        "external_return_target_constructed": false,
+        "temporary_identity_fallback_activated": false
+      }
+    },
+    {
+      "criterion_id": "AC-AUTH-004",
+      "test_id": "AT-AUTH-004",
+      "expected_observations": {
+        "successful_startup": {
+          "identity_mode": "DevelopmentTemporary",
+          "environment_name": "Development",
+          "lookup_email": "admin@example.com",
+          "matching_member_count": 1,
+          "member_eligible": true,
+          "sealed_id_equals_original_members_member_id": true,
+          "same_id_used_for_all_admin_requests": true,
+          "same_id_used_for_created_by_deleted_by_and_admin_log": true,
+          "client_form_route_query_header_cookie_override_succeeded": false,
+          "member_id_or_password_setting_present": false
+        },
+        "startup_failures": [
+          {"case": "non_development", "safe_error_code": "NID-TEMP-NONDEVELOPMENT", "application_started": false, "http_request_accepted": false},
+          {"case": "admin_not_found", "safe_error_code": "NID-TEMP-ADMIN-NOT-FOUND", "application_started": false, "http_request_accepted": false},
+          {"case": "admin_not_unique", "safe_error_code": "NID-TEMP-ADMIN-NOT-UNIQUE", "application_started": false, "http_request_accepted": false},
+          {"case": "admin_wrong_role", "safe_error_code": "NID-TEMP-ADMIN-INELIGIBLE", "application_started": false, "http_request_accepted": false},
+          {"case": "admin_non_normal", "safe_error_code": "NID-TEMP-ADMIN-INELIGIBLE", "application_started": false, "http_request_accepted": false},
+          {"case": "admin_inactive", "safe_error_code": "NID-TEMP-ADMIN-INELIGIBLE", "application_started": false, "http_request_accepted": false},
+          {"case": "admin_locked", "safe_error_code": "NID-TEMP-ADMIN-INELIGIBLE", "application_started": false, "http_request_accepted": false},
+          {"case": "admin_deleted", "safe_error_code": "NID-TEMP-ADMIN-INELIGIBLE", "application_started": false, "http_request_accepted": false}
+        ],
+        "eligibility_changes_after_startup": [
+          {"case": "member_missing", "status": 403, "message": "此管理員帳號目前不可使用。", "notification_data_exposed": false, "state_changed": false},
+          {"case": "member_deleted", "status": 403, "message": "此管理員帳號目前不可使用。", "notification_data_exposed": false, "state_changed": false},
+          {"case": "member_inactive", "status": 403, "message": "此管理員帳號目前不可使用。", "notification_data_exposed": false, "state_changed": false},
+          {"case": "member_locked", "status": 403, "message": "此管理員帳號目前不可使用。", "notification_data_exposed": false, "state_changed": false},
+          {"case": "member_non_normal", "status": 403, "message": "此管理員帳號目前不可使用。", "notification_data_exposed": false, "state_changed": false},
+          {"case": "role_changed_to_non_admin", "status": 403, "message": "您沒有權限存取通知管理功能。", "notification_data_exposed": false, "state_changed": false}
+        ]
       }
     },
     {
@@ -74,7 +135,11 @@
         "shared_layout_changed": false,
         "authentication_implemented_by_notifications": false,
         "authentication_files_configuration_packages_credentials_or_secrets_changed": false,
-        "temporary_demo_identity_or_bypass_added": false,
+        "development_temporary_identity_added": true,
+        "development_temporary_identity_available_outside_development": false,
+        "client_selectable_identity_present": false,
+        "configured_member_id_or_password_present": false,
+        "account_login_fallback_present": false,
         "unrelated_shared_refactor_present": false,
         "new_package_or_framework_added": false
       }
@@ -254,9 +319,10 @@
       "criterion_id": "AC-AUDIT-001",
       "test_id": "AT-AUDIT-001",
       "expected_observations": {
-        "http_created_by_equals_revalidated_login_member_id": true,
-        "http_deleted_by_equals_revalidated_login_member_id": true,
-        "http_log_admin_id_equals_same_member_id": true,
+        "identity_modes_exercised": ["DevelopmentTemporary", "AccountLogin"],
+        "http_created_by_equals_selected_mode_revalidated_member_id": true,
+        "http_deleted_by_equals_selected_mode_revalidated_member_id": true,
+        "http_log_admin_id_equals_same_selected_mode_member_id": true,
         "form_route_query_header_ids_cannot_override_admin_id": true,
         "reports_created_by_equals_handled_by_admin_id": true,
         "missing_or_invalid_admin_create_rejected": true,
@@ -280,6 +346,8 @@
         "concurrency_message": "此通知已由其他管理員完成處理，請重新整理後確認最新狀態。",
         "generic_failure_message": "操作失敗，請稍後再試；若持續發生請聯絡系統管理員。",
         "identity_errors_use_specialized_messages": true,
+        "account_login_identity_failures_activated_temporary_fallback": false,
+        "startup_identity_failures_exposed_recognizable_safe_codes": true,
         "failure_stays_on_original_page": true,
         "create_edit_failure_input_preserved": true
       }
@@ -326,9 +394,12 @@
       "expected_observations": {
         "notification_row_count": 10000,
         "batch_due_item_count": 500,
-        "login_prerequisite_available": true,
-        "normal_login_and_trusted_member_id_used": true,
-        "temporary_identity_or_bypass_used": false,
+        "environment_name": "Development",
+        "selected_identity_mode_recorded": true,
+        "selected_identity_mode_is_development_temporary_or_account_login": true,
+        "single_revalidated_admin_member_id_used": true,
+        "identity_mode_switched_during_measurement": false,
+        "identity_fallback_used": false,
         "warmup_runs": 1,
         "measured_runs_per_operation": 20,
         "intentional_concurrent_load": false,
@@ -366,6 +437,9 @@
         "credentials_logged": false,
         "condition_member_id_logged": false,
         "personal_member_id_logged_only_for_allowed_operations": true,
+        "startup_identity_event_fields": ["identity_mode", "environment_name", "validation_outcome", "safe_error_code"],
+        "startup_identity_event_member_id_logged": false,
+        "startup_identity_event_password_or_credentials_logged": false,
         "unauthorized_log_reader_access": false,
         "log_viewer_added": false,
         "events_older_than_14_days_present": false
@@ -376,8 +450,10 @@
       "test_id": "AT-NFR-004",
       "expected_observations": {
         "rounds": 3,
-        "each_round_starts_with_normal_demo_admin_login": true,
-        "temporary_identity_or_bypass_used": false,
+        "environment_name": "Development",
+        "each_round_records_explicit_development_temporary_or_account_login_mode": true,
+        "selected_mode_unchanged_within_each_round": true,
+        "identity_fallback_used": false,
         "data_shapes": ["Personal", "Condition", "Future", "Due", "Sent", "Deleted"],
         "flows_each_round": ["List", "Filter", "Sort", "Page", "Create", "Details", "Edit", "Delete", "SingleSend", "BatchSend", "ExpectedFailures"],
         "unhandled_exceptions": 0,
@@ -385,6 +461,8 @@
         "blank_pages": 0,
         "invalid_state_transitions": 0,
         "requirement_mismatches": 0,
+        "unexpected_startup_exceptions": 0,
+        "expected_startup_failures_have_recognizable_safe_codes": true,
         "expected_rejections_have_explicit_messages": true
       }
     },
