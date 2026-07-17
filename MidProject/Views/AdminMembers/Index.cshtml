@@ -30,7 +30,7 @@
     <div class="col-md-4">
         <a href="@Url.Action("Index", new { showAbnormal = !ViewBag.ShowAbnormal })"
            class="btn @(ViewBag.ShowAbnormal ? "btn-danger" : "btn-outline-danger") w-100 h-100 d-flex align-items-center justify-content-center">
-            ⚠️ 異常狀態會員
+            ⚠️ 異常狀態會員：@ViewBag.AbnormalCount 名
         </a>
     </div>
 </div>

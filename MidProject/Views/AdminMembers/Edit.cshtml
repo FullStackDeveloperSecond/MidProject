@@ -26,6 +26,10 @@
 {
     <div class="alert alert-danger">@TempData["AvatarError"]</div>
 }
+@if (TempData["NicknameError"] != null)
+{
+    <div class="alert alert-danger">@TempData["NicknameError"]</div>
+}
 
 <form asp-action="Edit" method="post" id="editForm">
     <div class="row">
@@ -48,7 +52,14 @@
                 </div>
                 <p><strong>等級：</strong> LV@(levelNumber) @Model.UserLevel?.LevelName</p>
                 <p><strong>經驗值：</strong> @Model.Experience@(nextThreshold.HasValue ? $" / {nextThreshold} EXP" : " (滿級)")</p>
-                <p><strong>點數：</strong> @Model.Points P</p>
+                <div class="mb-2">
+                    <strong>點數：</strong>
+                    <div class="input-group input-group-sm mt-1" style="max-width: 180px;">
+                        <button type="button" class="btn btn-outline-secondary" id="pointsMinus">-</button>
+                        <input type="number" name="points" id="pointsInput" class="form-control text-center" value="@Model.Points" min="0" />
+                        <button type="button" class="btn btn-outline-secondary" id="pointsPlus">+</button>
+                    </div>
+                </div>
                 <p>
                     <strong>目前狀態：</strong>
                     <a href="#" data-bs-toggle="modal" data-bs-target="#violationModal" class="text-decoration-none">
@@ -84,7 +95,12 @@
                 </div>
                 <div class="mb-3">
                     <label class="form-label">名稱</label>
-                    <input asp-for="NickName" class="form-control" />
+                    <div class="input-group">
+                        <input value="@Model.NickName" class="form-control bg-light" readonly tabindex="-1" />
+                        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#nicknameModal">
+                            ✏️ 變更名稱
+                        </button>
+                    </div>
                 </div>
                 <div class="mb-3">
                     <label class="form-label">生日</label>
@@ -129,23 +145,32 @@
     </div>
 </form>
 
-<!-- 名稱變更原因 Modal -->
-<div class="modal fade" id="nicknameReasonModal" tabindex="-1" aria-hidden="true">
+<!-- 名稱變更 Modal -->
+<div class="modal fade" id="nicknameModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">變更名稱原因</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <form asp-action="ChangeNickName" method="post">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">變更會員名稱</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="id" value="@Model.MemberID" />
+                    <div class="mb-3">
+                        <label class="form-label">新名稱</label>
+                        <input type="text" name="nickName" class="form-control" value="@Model.NickName" required maxlength="50" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">請填寫變更原因（例如：名稱不雅）</label>
+                        <textarea name="reason" class="form-control" rows="2" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">確認變更</button>
+                </div>
             </div>
-            <div class="modal-body">
-                <label class="form-label">請填寫變更原因（例如：名稱不雅）</label>
-                <textarea id="nicknameReasonText" class="form-control" rows="2"></textarea>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                <button type="button" class="btn btn-primary" id="confirmNicknameReason">確認</button>
-            </div>
-        </div>
+        </form>
     </div>
 </div>
 
@@ -211,6 +236,7 @@
     </div>
 </div>
 
+@section Scripts {
 <script>
     // 依據 Status 自動隱藏/顯示處分期限
     document.getElementById('statusSelect').addEventListener('change', function() {
@@ -225,34 +251,17 @@
     // 觸發初始狀態
     document.getElementById('statusSelect').dispatchEvent(new Event('change'));
 
-    // 名稱變更需填寫原因
+    // 點數 +/- 按鈕（僅調整畫面數值，需按「保存變更」才會送出）
     (function () {
-        var form = document.getElementById('editForm');
-        var nicknameInput = document.getElementById('NickName');
-        var adminNoteEl = document.getElementById('AdminNote');
-        var originalNickname = nicknameInput.value;
-        var nicknameReasonCaptured = false;
-        var nicknameModalEl = document.getElementById('nicknameReasonModal');
-        var nicknameModal = new bootstrap.Modal(nicknameModalEl);
-
-        form.addEventListener('submit', function (e) {
-            if (nicknameInput.value !== originalNickname && !nicknameReasonCaptured) {
-                e.preventDefault();
-                nicknameModal.show();
-            }
+        var pointsInput = document.getElementById('pointsInput');
+        document.getElementById('pointsMinus').addEventListener('click', function () {
+            var value = parseInt(pointsInput.value, 10) || 0;
+            pointsInput.value = Math.max(0, value - 1);
         });
-
-        document.getElementById('confirmNicknameReason').addEventListener('click', function () {
-            var reason = document.getElementById('nicknameReasonText').value.trim();
-            if (!reason) {
-                alert('請輸入變更原因');
-                return;
-            }
-            var tag = '[名稱變更] ' + reason;
-            adminNoteEl.value = adminNoteEl.value ? (tag + '\n' + adminNoteEl.value) : tag;
-            nicknameReasonCaptured = true;
-            nicknameModal.hide();
-            form.requestSubmit();
+        document.getElementById('pointsPlus').addEventListener('click', function () {
+            var value = parseInt(pointsInput.value, 10) || 0;
+            pointsInput.value = value + 1;
         });
     })();
 </script>
+}

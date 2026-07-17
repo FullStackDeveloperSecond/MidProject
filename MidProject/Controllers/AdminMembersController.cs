@@ -23,6 +23,7 @@ public class AdminMembersController : Controller
         // 4.2 統計卡片資料
         ViewBag.TotalMembers = await _context.Members.CountAsync(m => !m.IsDeleted);
         ViewBag.TodayRegistered = await _context.Members.CountAsync(m => m.CreatedAt.Date == DateTime.Today && !m.IsDeleted);
+        ViewBag.AbnormalCount = await _context.Members.CountAsync(m => !m.IsDeleted && m.Status != "Normal");
 
         // 基本查詢條件：Deleted 會員不顯示在一般與異常列表
         var query = _context.Members.Include(m => m.UserLevel).Include(m => m.AvatarImage).Where(m => !m.IsDeleted);
@@ -119,10 +120,10 @@ public class AdminMembersController : Controller
 
         if (ModelState.IsValid)
         {
-            // 5.3 允許編輯欄位（帳號 UserName 不可變更，故不接受前端傳入值覆寫）
-            memberInDb.NickName = model.NickName;
+            // 5.3 允許編輯欄位（帳號 UserName 不可變更；名稱改由專屬的 ChangeNickName 動作處理，故不在此表單接受變更）
             memberInDb.Status = model.Status;
             memberInDb.AdminNote = model.AdminNote;
+            memberInDb.Points = model.Points;
 
             // 5.5 PenaltyEndAt 處分期限計算
             if (model.Status == "Normal" || model.Status == "Deleted")
@@ -170,9 +171,9 @@ public class AdminMembersController : Controller
             .FirstOrDefaultAsync(m => m.MemberID == id);
         if (displayMember != null)
         {
-            displayMember.NickName = model.NickName;
             displayMember.Status = model.Status;
             displayMember.AdminNote = model.AdminNote;
+            displayMember.Points = model.Points;
         }
 
         ViewBag.ApprovedReports = await _context.Reports
@@ -181,6 +182,30 @@ public class AdminMembersController : Controller
             .ToListAsync();
         ViewBag.Levels = await _context.UserLevels.OrderBy(l => l.MinExp).ToListAsync();
         return View(displayMember);
+    }
+
+    // 5.3 會員名稱變更（獨立動作，需填寫原因）
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ChangeNickName(int id, string nickName, string reason)
+    {
+        var memberInDb = await _context.Members.FirstOrDefaultAsync(m => m.MemberID == id && !m.IsDeleted);
+        if (memberInDb == null) return NotFound();
+
+        if (string.IsNullOrWhiteSpace(nickName) || string.IsNullOrWhiteSpace(reason))
+        {
+            TempData["NicknameError"] = "請填寫新名稱與變更原因。";
+            return RedirectToAction(nameof(Edit), new { id });
+        }
+
+        memberInDb.NickName = nickName;
+        memberInDb.AdminNote = string.IsNullOrWhiteSpace(memberInDb.AdminNote)
+            ? $"[名稱變更] {reason}"
+            : $"[名稱變更] {reason}\n{memberInDb.AdminNote}";
+        memberInDb.UpdatedAt = DateTime.Now;
+        await _context.SaveChangesAsync();
+
+        return RedirectToAction(nameof(Edit), new { id });
     }
 
     // 5.3 會員照片移除（僅能移除，改回預設照片；需填寫原因）
