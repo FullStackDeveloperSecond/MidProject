@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MidProject.Data;
 using MidProject.Models;
+using MidProject.Models.ViewModels;
 using MidProject.Services;
 using System.Collections.Generic;
 using System.Security.Claims;
@@ -46,9 +47,10 @@ public class AccountController : Controller
         Member admin = null;
 
         // 💡 改用 ADO.NET 原生 SQL 查詢，繞過 EF Core 的 Entity 對應錯誤
+        // 6.1 後台 Admin 與一般 User 皆可登入，登入後依角色導向不同頁面
         using (var command = _context.Database.GetDbConnection().CreateCommand())
         {
-            command.CommandText = "SELECT MemberID, UserName, Email, PasswordHash, Role, IsDeleted FROM Members WHERE Email = @Email AND Role = 'Admin' AND IsDeleted = 0";
+            command.CommandText = "SELECT MemberID, UserName, Email, PasswordHash, Role, IsDeleted FROM Members WHERE Email = @Email AND IsDeleted = 0";
 
             var parameter = command.CreateParameter();
             parameter.ParameterName = "@Email";
@@ -77,10 +79,10 @@ public class AccountController : Controller
             }
         }
 
-        // 💡 防禦性檢查：如果資料庫完全找不到這筆 Admin 資料
+        // 💡 防禦性檢查：如果資料庫完全找不到這筆帳號資料
         if (admin == null)
         {
-            ModelState.AddModelError("", "帳號或密碼錯誤，或您無管理權限。");
+            ModelState.AddModelError("", "帳號或密碼錯誤。");
             return View();
         }
 
@@ -106,7 +108,10 @@ public class AccountController : Controller
 
         await HttpContext.SignInAsync(Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationDefaults.AuthenticationScheme, new ClaimsPrincipal(claimsIdentity), authProperties);
 
-        return RedirectToAction("Index", "AdminMembers");
+        // 登入後依角色導向：Admin 進後台會員管理，一般 User 導回首頁
+        return admin.Role == "Admin"
+            ? RedirectToAction("Index", "AdminMembers")
+            : RedirectToAction("Index", "Home");
     }
 
     // 登出 Action
@@ -116,5 +121,89 @@ public class AccountController : Controller
         return RedirectToAction("Login");
     }
 
+    // 一般會員註冊 (GET: /Account/Register)
+    [HttpGet]
+    public IActionResult Register()
+    {
+        if (User.Identity.IsAuthenticated) return RedirectToAction("Index", "AdminMembers");
+        return View();
+    }
 
+    // 一般會員註冊 (POST: /Account/Register)
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Register(RegisterVM model)
+    {
+        if (!ModelState.IsValid) return View(model);
+
+        if (await _context.Members.AnyAsync(m => m.UserName == model.UserName))
+        {
+            ModelState.AddModelError(nameof(model.UserName), "此帳號已被使用。");
+            return View(model);
+        }
+        if (await _context.Members.AnyAsync(m => m.Email == model.Email))
+        {
+            ModelState.AddModelError(nameof(model.Email), "此 Email 已被註冊。");
+            return View(model);
+        }
+
+        var member = new Member
+        {
+            UserName = model.UserName,
+            NickName = string.IsNullOrWhiteSpace(model.NickName) ? model.UserName : model.NickName,
+            Email = model.Email,
+            PasswordHash = PasswordHashService.HashPassword(model.Password),
+            Role = "User",
+            Status = "Normal",
+            LevelID = 1
+        };
+        _context.Members.Add(member);
+        await _context.SaveChangesAsync();
+
+        TempData["RegisterSuccess"] = "註冊成功，請登入。";
+        return RedirectToAction(nameof(Login));
+    }
+
+    // 後台管理員註冊 (GET: /Account/RegisterAdmin) — 測試/開發用途，公開頁面
+    [HttpGet]
+    public IActionResult RegisterAdmin()
+    {
+        if (User.Identity.IsAuthenticated) return RedirectToAction("Index", "AdminMembers");
+        return View();
+    }
+
+    // 後台管理員註冊 (POST: /Account/RegisterAdmin)
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RegisterAdmin(RegisterVM model)
+    {
+        if (!ModelState.IsValid) return View(model);
+
+        if (await _context.Members.AnyAsync(m => m.UserName == model.UserName))
+        {
+            ModelState.AddModelError(nameof(model.UserName), "此帳號已被使用。");
+            return View(model);
+        }
+        if (await _context.Members.AnyAsync(m => m.Email == model.Email))
+        {
+            ModelState.AddModelError(nameof(model.Email), "此 Email 已被註冊。");
+            return View(model);
+        }
+
+        var member = new Member
+        {
+            UserName = model.UserName,
+            NickName = string.IsNullOrWhiteSpace(model.NickName) ? model.UserName : model.NickName,
+            Email = model.Email,
+            PasswordHash = PasswordHashService.HashPassword(model.Password),
+            Role = "Admin",
+            Status = "Normal",
+            LevelID = 1
+        };
+        _context.Members.Add(member);
+        await _context.SaveChangesAsync();
+
+        TempData["RegisterSuccess"] = "管理員帳號註冊成功，請登入。";
+        return RedirectToAction(nameof(Login));
+    }
 }

@@ -14,7 +14,12 @@
 
     <div class="card shadow" style="width: 100%; max-width: 400px;">
         <div class="card-body p-4">
-            <h3 class="text-center mb-4">美食地圖 | 後台登入</h3>
+            <h3 class="text-center mb-4">美食地圖 | 登入</h3>
+
+            @if (TempData["RegisterSuccess"] != null)
+            {
+                <div class="alert alert-success py-2 small">@TempData["RegisterSuccess"]</div>
+            }
 
             @if (!ViewData.ModelState.IsValid)
             {
@@ -27,7 +32,7 @@
                 @Html.AntiForgeryToken() @* 防範 CSRF 攻擊 *@
 
                 <div class="mb-3">
-                    <label for="email" class="form-label">管理員 Email</label>
+                    <label for="email" class="form-label">Email</label>
                     <input type="email" id="email" name="email" class="form-control" placeholder="admin@example.com" required />
                 </div>
 
@@ -39,6 +44,11 @@
                 <div class="d-grid gap-2">
                     <button type="submit" class="btn btn-primary py-2">🔓 Login</button>
                     <a href="/" class="btn btn-outline-secondary">Cancel (回首頁)</a>
+                </div>
+                <div class="text-center mt-3 small">
+                    <a asp-action="Register">註冊新會員</a>
+                    <span class="text-muted">｜</span>
+                    <a asp-action="RegisterAdmin">註冊管理員（測試用）</a>
                 </div>
             </form>
         </div>

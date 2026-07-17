@@ -16,13 +16,13 @@ if (string.IsNullOrWhiteSpace(connectionString))
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(connectionString));
 
-//µù¥U Cookie ÅçÃÒªA°È
+//ï¿½ï¿½ï¿½U Cookie ï¿½ï¿½ï¿½ÒªAï¿½ï¿½
 builder.Services.AddAuthentication(Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
-        // ¦pªG¥¼µn¤J©Î¾ÌÃÒ¥¢®Ä¡A·|¦Û°Ê¸õÂà¦Ü¦¹¸ô®|
+        // ï¿½pï¿½Gï¿½ï¿½ï¿½nï¿½Jï¿½Î¾ï¿½ï¿½Ò¥ï¿½ï¿½Ä¡Aï¿½|ï¿½Û°Ê¸ï¿½ï¿½ï¿½Ü¦ï¿½ï¿½ï¿½ï¿½|
         options.LoginPath = "/Account/Login";
-        options.AccessDeniedPath = "/Account/Login";
+        options.AccessDeniedPath = "/Home/Index";
     });
 var app = builder.Build();
 
@@ -39,7 +39,7 @@ if (!app.Environment.IsDevelopment())
 app.UseStaticFiles();
 app.UseRouting();
 
-//±Ò¥ÎÅçÃÒ
+//ï¿½Ò¥ï¿½ï¿½ï¿½ï¿½ï¿½
 app.UseAuthentication();
 app.UseAuthorization();
 
