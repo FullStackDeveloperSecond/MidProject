@@ -34,6 +34,18 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(connectionString));
 builder.Services.AddScoped<IReviewRepository, ReviewRepository>();
 builder.Services.AddScoped<IReviewService, ReviewService>();
+// Notifications consumes ITrustedMemberIdentityAccessor from the externally owned
+// Account/Login integration. No fallback identity implementation is registered here.
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<ITaipeiClock, TaipeiClock>();
+builder.Services.AddSingleton<IMemberAudienceCatalog, MemberAudienceCatalog>();
+builder.Services.AddScoped<NotificationPresenter>();
+builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<INotificationAdminAccessEvaluator, NotificationAdminAccessEvaluator>();
+builder.Services.AddScoped<NotificationAdminAuthorizationFilter>();
+builder.Services.AddScoped<IReportNotificationWindow, ReportNotificationWindow>();
+builder.Services.AddScoped<IDashboardNotificationWindow, DashboardNotificationWindow>();
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment() && builder.Configuration.GetValue<bool>("SeedData:Enabled"))

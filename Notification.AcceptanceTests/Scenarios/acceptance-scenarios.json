@@ -1,0 +1,415 @@
+{
+  "schema_version": 1,
+  "requirement_version": 2,
+  "architecture_version": 2,
+  "driver_output_rule": "The driver returns direct, independently observed values. It must not return accepted/passed booleans or inspect implementation source.",
+  "scenarios": [
+    {
+      "criterion_id": "AC-SCOPE-001",
+      "test_id": "AT-SCOPE-001",
+      "expected_observations": {
+        "visible_flows": ["Index", "Create", "Details", "Edit", "DeleteConfirm", "SingleSend", "SendDueBatch"],
+        "all_flows_completed": true,
+        "lifecycle_restrictions_enforced": true
+      }
+    },
+    {
+      "criterion_id": "AC-AUTH-001",
+      "test_id": "AT-AUTH-001",
+      "expected_observations": {
+        "admin_allowed_operations": ["Index", "Details", "Create", "Edit", "Delete", "SingleSend", "BatchSend"],
+        "non_admin_http_status": 403,
+        "non_admin_notification_data_exposed": false,
+        "non_admin_created_count": 0,
+        "non_admin_updated_count": 0,
+        "non_admin_sent_count": 0,
+        "non_admin_deleted_count": 0
+      }
+    },
+    {
+      "criterion_id": "AC-AUTH-002",
+      "test_id": "AT-AUTH-002",
+      "expected_observations": {
+        "login_owner": "Haru",
+        "login_route": "Account/Login",
+        "demo_uses_normal_login": true,
+        "demo_uses_email_passwordhash_verification": true,
+        "trusted_identity_equals_authenticated_members_member_id": true,
+        "member_revalidated_each_protected_operation": true,
+        "required_member_predicate": "Role=Admin AND Status=Normal AND IsActive=true AND IsLocked=false AND IsDeleted=false",
+        "temporary_identity_present": false,
+        "fixed_or_fallback_identity_present": false,
+        "authorization_bypass_present": false
+      }
+    },
+    {
+      "criterion_id": "AC-AUTH-003",
+      "test_id": "AT-AUTH-003",
+      "expected_observations": {
+        "unauthenticated": {"status": 302, "destination": "Account/Login", "local_return_target_preserved": true, "data_exposed": false, "state_changed": false},
+        "unmapped_member_id": {"status": 403, "message": "無法確認登入者身分，請重新登入。", "data_exposed": false, "state_changed": false},
+        "unusable_member": {"status": 403, "message": "此管理員帳號目前不可使用。", "data_exposed": false, "state_changed": false},
+        "non_admin": {"status": 403, "message": "您沒有權限存取通知管理功能。", "data_exposed": false, "state_changed": false}
+      }
+    },
+    {
+      "criterion_id": "AC-DATA-001",
+      "test_id": "AT-DATA-001",
+      "expected_observations": {
+        "persisted_fields": ["NotificationID", "MemberID", "NotificationType", "TargetRole", "TargetStatus", "TargetLevelID", "Title", "Content", "ScheduledAt", "SentAt", "IsSent", "CreatedAt", "CreatedBy", "IsDeleted", "DeletedAt", "DeletedBy"],
+        "audience_values_correct": true,
+        "schedule_values_correct": true,
+        "create_audit_values_correct": true,
+        "send_values_correct": true,
+        "delete_values_correct": true
+      }
+    },
+    {
+      "criterion_id": "AC-BOUNDARY-001",
+      "test_id": "AT-BOUNDARY-001",
+      "expected_observations": {
+        "all_changed_files_mapped_to_requirement_ids": true,
+        "reports_files_changed": false,
+        "dashboard_files_changed": false,
+        "shared_layout_changed": false,
+        "authentication_implemented_by_notifications": false,
+        "authentication_files_configuration_packages_credentials_or_secrets_changed": false,
+        "temporary_demo_identity_or_bypass_added": false,
+        "unrelated_shared_refactor_present": false,
+        "new_package_or_framework_added": false
+      }
+    },
+    {
+      "criterion_id": "AC-LIST-001",
+      "test_id": "AT-LIST-001",
+      "expected_observations": {
+        "keyword_title_contains_case_insensitive": true,
+        "keyword_content_contains_case_insensitive": true,
+        "personal_filter_exact": true,
+        "condition_filter_exact": true,
+        "is_sent_true_filter_exact": true,
+        "is_sent_false_filter_exact": true,
+        "scheduled_minute_half_open_filter_exact": true,
+        "scheduled_filter_is_not_date_range": true,
+        "deletion_scope_filters_exact": true
+      }
+    },
+    {
+      "criterion_id": "AC-LIST-002",
+      "test_id": "AT-LIST-002",
+      "expected_observations": {
+        "default_sort": "ScheduledAt Ascending",
+        "page_size": 10,
+        "page_size_selector_present": false,
+        "scheduled_at_ascending_correct": true,
+        "scheduled_at_descending_correct": true,
+        "created_at_ascending_correct": true,
+        "created_at_descending_correct": true,
+        "notification_id_tie_breaker_deterministic": true
+      }
+    },
+    {
+      "criterion_id": "AC-LIST-003",
+      "test_id": "AT-LIST-003",
+      "expected_observations": {
+        "default_deletion_scope": "Active",
+        "deleted_scope_exact": true,
+        "all_scope_exact": true,
+        "deleted_row_details_openable": true,
+        "deleted_details_read_only": true,
+        "deleted_row_mutation_controls_present": false
+      }
+    },
+    {
+      "criterion_id": "AC-UI-001",
+      "test_id": "AT-UI-001",
+      "expected_observations": {
+        "personal_active_summary_contains_member_id_and_name": true,
+        "condition_order": ["角色", "狀態", "等級"],
+        "condition_separator": "｜",
+        "role_and_status_labels_traditional_chinese": true,
+        "level_uses_level_name": true,
+        "all_members_text": "全部會員",
+        "deleted_member_text": "會員 ID {id}（已刪除）",
+        "missing_member_text": "會員 ID {id}（查無資料）",
+        "deleted_level_text": "等級 ID {id}（已刪除）",
+        "missing_level_text": "等級 ID {id}（查無資料）",
+        "index_details_same_relation_rules": true,
+        "blank_summary_or_unhandled_exception": false
+      }
+    },
+    {
+      "criterion_id": "AC-UI-002",
+      "test_id": "AT-UI-002",
+      "expected_observations": {
+        "row_navigates_to_details": true,
+        "draft_controls": ["Edit", "Delete", "Send"],
+        "sent_mutation_controls": [],
+        "deleted_mutation_controls": [],
+        "delete_requires_confirmation_view": true,
+        "delete_is_not_hard_delete": true
+      }
+    },
+    {
+      "criterion_id": "AC-VALIDATION-001",
+      "test_id": "AT-VALIDATION-001",
+      "expected_observations": {
+        "required_fields_reject_missing_or_whitespace": ["NotificationType", "Title", "Content", "ScheduledAt"],
+        "allowed_types": ["Personal", "Condition"],
+        "unknown_type_rejected": true,
+        "title_length_100_accepted": true,
+        "title_length_101_rejected": true,
+        "content_length_1000_accepted": true,
+        "content_length_1001_rejected": true,
+        "personal_requires_existing_active_member": true,
+        "personal_rejects_any_target_field": true,
+        "condition_requires_null_member_id": true,
+        "condition_allows_zero_to_three_targets": true,
+        "condition_targets_combined_with_and": true,
+        "allowed_target_roles": ["User", "Admin"],
+        "allowed_target_statuses": ["Normal", "Warning", "Muted", "Suspended", "Deleted"],
+        "unknown_role_or_status_rejected": true,
+        "condition_level_requires_existing_non_deleted_level": true,
+        "invalid_create_or_edit_writes": 0,
+        "invalid_form_input_preserved": true
+      }
+    },
+    {
+      "criterion_id": "AC-TIME-001",
+      "test_id": "AT-TIME-001",
+      "expected_observations": {
+        "zone": "Asia/Taipei",
+        "business_precision": "minute",
+        "past_create_rejected": true,
+        "past_edit_rejected_with_input_preserved": true,
+        "current_minute_create_is_sent": true,
+        "current_minute_edit_is_sent": true,
+        "future_create_is_unsent": true,
+        "future_edit_is_unsent": true,
+        "created_at_server_generated": true,
+        "sent_at_server_generated": true,
+        "deleted_at_server_generated": true,
+        "audit_time_form_overrides_ignored": true
+      }
+    },
+    {
+      "criterion_id": "AC-EDIT-001",
+      "test_id": "AT-EDIT-001",
+      "expected_observations": {
+        "draft_editable_fields": ["NotificationType", "MemberID", "TargetRole", "TargetStatus", "TargetLevelID", "Title", "Content", "ScheduledAt"],
+        "all_create_validation_reapplied": true,
+        "invalid_edit_stays_on_edit": true,
+        "invalid_edit_input_preserved": true,
+        "sent_update_blocked": true,
+        "deleted_update_blocked": true,
+        "blocked_update_state_changed": false
+      }
+    },
+    {
+      "criterion_id": "AC-DELETE-001",
+      "test_id": "AT-DELETE-001",
+      "expected_observations": {
+        "draft_delete_requires_confirmation": true,
+        "is_deleted_after_confirm": true,
+        "row_still_exists": true,
+        "deleted_at_server_generated": true,
+        "deleted_by_equals_revalidated_login_member_id": true,
+        "sent_delete_blocked": true,
+        "repeat_delete_blocked": true,
+        "restore_available": false
+      }
+    },
+    {
+      "criterion_id": "AC-SEND-001",
+      "test_id": "AT-SEND-001",
+      "expected_observations": {
+        "due_draft_result": "Success",
+        "due_draft_is_sent": true,
+        "due_draft_sent_at_server_generated": true,
+        "future_result": "NotDue",
+        "sent_result": "AlreadySent",
+        "deleted_result": "Deleted",
+        "missing_result": "NotFound",
+        "repeat_result": "AlreadySent",
+        "blocked_cases_state_changed": false
+      }
+    },
+    {
+      "criterion_id": "AC-SEND-002",
+      "test_id": "AT-SEND-002",
+      "expected_observations": {
+        "eligible_snapshot_rule": "ScheduledAt<=current Taipei minute AND IsSent=false AND IsDeleted=false",
+        "eligible_items_sent": true,
+        "future_items_sent": false,
+        "deleted_items_sent": false,
+        "failed_item_did_not_rollback_successes": true,
+        "each_processed_id_has_exactly_one_classification": true,
+        "summary_categories": ["Success", "AlreadySent", "NotDue", "Deleted", "Failed"],
+        "summary_sum_equals_processed_count": true,
+        "concurrent_single_send_success_count": 1,
+        "concurrent_other_result": "ConcurrentlyHandled"
+      }
+    },
+    {
+      "criterion_id": "AC-AUDIT-001",
+      "test_id": "AT-AUDIT-001",
+      "expected_observations": {
+        "http_created_by_equals_revalidated_login_member_id": true,
+        "http_deleted_by_equals_revalidated_login_member_id": true,
+        "http_log_admin_id_equals_same_member_id": true,
+        "form_route_query_header_ids_cannot_override_admin_id": true,
+        "reports_created_by_equals_handled_by_admin_id": true,
+        "missing_or_invalid_admin_create_rejected": true,
+        "missing_or_invalid_admin_delete_rejected": true,
+        "fallback_system_identity_used": false
+      }
+    },
+    {
+      "criterion_id": "AC-ERROR-001",
+      "test_id": "AT-ERROR-001",
+      "expected_observations": {
+        "create": {"message": "通知建立成功。", "redirect": "/Notifications"},
+        "edit": {"message": "通知更新成功。", "redirect": "/Notifications/Details/{id}"},
+        "delete": {"message": "通知刪除成功。", "redirect": "/Notifications"},
+        "single_send": {"message": "通知發送成功。", "redirect": "/Notifications"},
+        "batch_message": "批次處理完成：成功 {成功數}、已發送 {已發送數}、未到期 {未到期數}、已取消／刪除 {已刪除數}、失敗 {失敗數}。",
+        "batch_redirect": "/Notifications",
+        "not_found_message": "找不到指定的通知。",
+        "deleted_message": "此通知已刪除，無法執行該操作。",
+        "validation_message": "資料驗證失敗，請修正標示欄位後再試。",
+        "concurrency_message": "此通知已由其他管理員完成處理，請重新整理後確認最新狀態。",
+        "generic_failure_message": "操作失敗，請稍後再試；若持續發生請聯絡系統管理員。",
+        "identity_errors_use_specialized_messages": true,
+        "failure_stays_on_original_page": true,
+        "create_edit_failure_input_preserved": true
+      }
+    },
+    {
+      "criterion_id": "AC-INTEGRATION-001",
+      "test_id": "AT-INTEGRATION-001",
+      "expected_observations": {
+        "approved_result": "Created",
+        "rejected_result": "Created",
+        "created_notification_type": "Personal",
+        "created_member_id_equals_reporter": true,
+        "created_title": "【檢舉結果通知】您提交的檢舉已完成審核",
+        "content_explicitly_states_outcome": true,
+        "scheduled_at_equals_normalized_handled_at": true,
+        "created_by_equals_handled_by_admin_id": true,
+        "created_is_sent": false,
+        "created_sent_at": null,
+        "duplicate_same_report_and_outcome_result": "AlreadyExists",
+        "duplicate_rows_added": 0,
+        "different_outcome_for_same_report_allowed": true,
+        "invalid_input_results": ["InvalidInput", "InvalidOutcome", "MemberNotFound", "MemberDeleted", "AdminInvalid"],
+        "invalid_input_rows_added": 0
+      }
+    },
+    {
+      "criterion_id": "AC-INTEGRATION-002",
+      "test_id": "AT-INTEGRATION-002",
+      "expected_observations": {
+        "success_classification": "Success",
+        "pending_count_equals_unsent_and_not_deleted_count": true,
+        "index_controller": "Notifications",
+        "index_action": "Index",
+        "index_query": {"isSent": false},
+        "failure_classification": "Failed",
+        "failure_pending_count": null,
+        "failure_safe_error_code_present": true,
+        "failure_fabricated_as_zero": false
+      }
+    },
+    {
+      "criterion_id": "AC-NFR-001",
+      "test_id": "AT-NFR-001",
+      "expected_observations": {
+        "notification_row_count": 10000,
+        "batch_due_item_count": 500,
+        "login_prerequisite_available": true,
+        "normal_login_and_trusted_member_id_used": true,
+        "temporary_identity_or_bypass_used": false,
+        "warmup_runs": 1,
+        "measured_runs_per_operation": 20,
+        "intentional_concurrent_load": false,
+        "index_p95_lte_2000_ms": true,
+        "create_p95_lte_2000_ms": true,
+        "edit_p95_lte_2000_ms": true,
+        "delete_p95_lte_2000_ms": true,
+        "single_send_p95_lte_2000_ms": true,
+        "every_500_item_batch_lte_30000_ms": true,
+        "browser_download_and_external_network_excluded": true
+      }
+    },
+    {
+      "criterion_id": "AC-NFR-002",
+      "test_id": "AT-NFR-002",
+      "expected_observations": {
+        "browsers": ["latest desktop Chrome", "previous-major desktop Chrome", "latest desktop Edge", "previous-major desktop Edge"],
+        "viewport_width": 1280,
+        "all_notification_pages_checked": true,
+        "core_flows_operable": true,
+        "main_content_horizontal_truncation": false,
+        "mobile_optimization_asserted": false,
+        "unsupported_browsers_asserted": false
+      }
+    },
+    {
+      "criterion_id": "AC-NFR-003",
+      "test_id": "AT-NFR-003",
+      "expected_observations": {
+        "logged_operations": ["Create", "Edit", "SingleSend", "BatchSend", "Delete", "Failure"],
+        "required_fields": ["taipei_timestamp", "operation", "notification_id", "admin_id", "result_classification", "correlation_id"],
+        "batch_fields": ["success_count", "already_sent_count", "not_due_count", "deleted_count", "failed_count", "batch_correlation_id"],
+        "title_logged": false,
+        "content_logged": false,
+        "credentials_logged": false,
+        "condition_member_id_logged": false,
+        "personal_member_id_logged_only_for_allowed_operations": true,
+        "unauthorized_log_reader_access": false,
+        "log_viewer_added": false,
+        "events_older_than_14_days_present": false
+      }
+    },
+    {
+      "criterion_id": "AC-NFR-004",
+      "test_id": "AT-NFR-004",
+      "expected_observations": {
+        "rounds": 3,
+        "each_round_starts_with_normal_demo_admin_login": true,
+        "temporary_identity_or_bypass_used": false,
+        "data_shapes": ["Personal", "Condition", "Future", "Due", "Sent", "Deleted"],
+        "flows_each_round": ["List", "Filter", "Sort", "Page", "Create", "Details", "Edit", "Delete", "SingleSend", "BatchSend", "ExpectedFailures"],
+        "unhandled_exceptions": 0,
+        "http_5xx_responses": 0,
+        "blank_pages": 0,
+        "invalid_state_transitions": 0,
+        "requirement_mismatches": 0,
+        "expected_rejections_have_explicit_messages": true
+      }
+    },
+    {
+      "criterion_id": "AC-UI-003",
+      "test_id": "AT-UI-003",
+      "expected_observations": {
+        "technology": ["ASP.NET MVC Razor View", "Bootstrap 5", "Font Awesome"],
+        "language": "Traditional Chinese",
+        "views_use_notification_view_models": true,
+        "entity_used_as_view_model": false,
+        "page_header_and_card_present": true,
+        "index_wrapper_class": "table-responsive",
+        "index_table_classes": "table table-bordered table-hover align-middle",
+        "unsent_badge_classes": "bg-warning text-dark",
+        "sent_badge_class": "bg-success",
+        "deleted_error_badge_class": "bg-danger",
+        "button_color_rules_correct": true,
+        "list_buttons_use_btn_sm": true,
+        "feedback_uses_bootstrap_alerts": true,
+        "browser_alert_primary_feedback": false,
+        "forbidden_framework_or_package_present": false,
+        "bootstrap_4_syntax_present": false,
+        "shared_layout_css_or_js_changed": false
+      }
+    }
+  ]
+}

@@ -1,0 +1,186 @@
+@model MidProject.Models.ViewModels.Notifications.NotificationIndexViewModel
+@using MidProject.Models.ViewModels.Notifications
+@{
+    ViewData["Title"] = "通知管理";
+    var query = Model.Query;
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/notifications-admin.css" asp-append-version="true" />
+}
+
+<div class="notification-admin">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+            <h1 class="h2 mb-1">通知管理</h1>
+            <p class="text-muted mb-0">建立、查詢與手動處理站內通知</p>
+        </div>
+        <div class="d-flex gap-2">
+            <form asp-action="SendDue" method="post">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-success"><i class="fa-solid fa-paper-plane me-1"></i>批次發送到期通知</button>
+            </form>
+            <a asp-action="Create" class="btn btn-primary"><i class="fa-solid fa-plus me-1"></i>新增通知</a>
+        </div>
+    </div>
+
+    @if (TempData["NotificationSuccess"] is string success)
+    {
+        <div class="alert alert-success" role="alert">@success</div>
+    }
+    @if (TempData["NotificationError"] is string error)
+    {
+        <div class="alert alert-danger" role="alert">@error</div>
+    }
+    @if (TempData["NotificationWarning"] is string warning)
+    {
+        <div class="alert alert-warning" role="alert">@warning</div>
+    }
+    @if (!string.IsNullOrEmpty(Model.QueryError))
+    {
+        <div class="alert alert-danger" role="alert">@Model.QueryError</div>
+    }
+
+    <div class="card mb-4">
+        <div class="card-header fw-semibold">搜尋與篩選</div>
+        <div class="card-body">
+            <form asp-action="Index" method="get" class="row g-3 align-items-end">
+                <div class="col-lg-3">
+                    <label class="form-label" for="Keyword">關鍵字</label>
+                    <input class="form-control" id="Keyword" name="Keyword" value="@query.Keyword" placeholder="搜尋標題或內容" />
+                </div>
+                <div class="col-lg-2">
+                    <label class="form-label" for="NotificationType">類型</label>
+                    <select class="form-select" id="NotificationType" name="NotificationType">
+                        <option value="">全部</option>
+                        <option value="Personal" selected="@(query.NotificationType == "Personal")">Personal</option>
+                        <option value="Condition" selected="@(query.NotificationType == "Condition")">Condition</option>
+                    </select>
+                </div>
+                <div class="col-lg-2">
+                    <label class="form-label" for="IsSent">發送狀態</label>
+                    <select class="form-select" id="IsSent" name="IsSent">
+                        <option value="">全部</option>
+                        <option value="false" selected="@(query.IsSent == false)">未發送</option>
+                        <option value="true" selected="@(query.IsSent == true)">已發送</option>
+                    </select>
+                </div>
+                <div class="col-lg-3">
+                    <label class="form-label" for="ScheduledAtMinute">排程分鐘</label>
+                    <input class="form-control" type="datetime-local" id="ScheduledAtMinute" name="ScheduledAtMinute" value="@query.ScheduledAtMinute?.ToString("yyyy-MM-ddTHH:mm")" />
+                </div>
+                <div class="col-lg-2">
+                    <label class="form-label" for="DeletionScope">刪除狀態</label>
+                    <select class="form-select" id="DeletionScope" name="DeletionScope">
+                        <option value="Active" selected="@(query.DeletionScope == NotificationDeletionScope.Active)">未刪除</option>
+                        <option value="Deleted" selected="@(query.DeletionScope == NotificationDeletionScope.Deleted)">已刪除</option>
+                        <option value="All" selected="@(query.DeletionScope == NotificationDeletionScope.All)">全部</option>
+                    </select>
+                </div>
+                <div class="col-lg-3">
+                    <label class="form-label" for="SortField">排序欄位</label>
+                    <select class="form-select" id="SortField" name="SortField">
+                        <option value="ScheduledAt" selected="@(query.SortField == NotificationSortField.ScheduledAt)">ScheduledAt</option>
+                        <option value="CreatedAt" selected="@(query.SortField == NotificationSortField.CreatedAt)">CreatedAt</option>
+                    </select>
+                </div>
+                <div class="col-lg-3">
+                    <label class="form-label" for="SortDirection">排序方向</label>
+                    <select class="form-select" id="SortDirection" name="SortDirection">
+                        <option value="Ascending" selected="@(query.SortDirection == NotificationSortDirection.Ascending)">升冪</option>
+                        <option value="Descending" selected="@(query.SortDirection == NotificationSortDirection.Descending)">降冪</option>
+                    </select>
+                </div>
+                <div class="col-lg-3 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary"><i class="fa-solid fa-magnifying-glass me-1"></i>搜尋</button>
+                    <a asp-action="Index" class="btn btn-secondary">清除</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header d-flex justify-content-between">
+            <span class="fw-semibold">通知列表</span><span class="text-muted">共 @Model.TotalCount 筆</span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>ID</th><th>類型</th><th>標題</th><th>對象</th><th>排程時間</th><th>狀態</th><th>發送時間</th><th>建立時間</th><th>建立者</th><th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @if (Model.Items.Count == 0)
+                    {
+                        <tr><td colspan="10" class="text-center text-muted py-4">目前沒有符合條件的通知。</td></tr>
+                    }
+                    else
+                    {
+                        @foreach (var item in Model.Items)
+                        {
+                            <tr class="notification-row" data-href="@Url.Action("Details", new { id = item.NotificationID })" tabindex="0">
+                                <td>@item.NotificationID</td>
+                                <td>@item.NotificationType</td>
+                                <td class="notification-title">@item.Title</td>
+                                <td>@item.AudienceSummary</td>
+                                <td>@item.ScheduledAt.ToString("yyyy/MM/dd HH:mm")</td>
+                                <td>
+                                    @if (item.IsDeleted)
+                                    {
+                                        <span class="badge bg-danger">已刪除</span>
+                                    }
+                                    else if (item.IsSent)
+                                    {
+                                        <span class="badge bg-success">已發送</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-warning text-dark">未發送</span>
+                                    }
+                                </td>
+                                <td>@(item.SentAt?.ToString("yyyy/MM/dd HH:mm") ?? "—")</td>
+                                <td>@item.CreatedAt.ToString("yyyy/MM/dd HH:mm")</td>
+                                <td>@item.CreatedBy</td>
+                                <td class="notification-actions">
+                                    <a asp-action="Details" asp-route-id="@item.NotificationID" class="btn btn-secondary btn-sm">查看</a>
+                                    @if (item.CanMutate)
+                                    {
+                                        <form asp-action="Send" asp-route-id="@item.NotificationID" method="post" class="d-inline">
+                                            @Html.AntiForgeryToken()
+                                            <button class="btn btn-success btn-sm" type="submit">發送</button>
+                                        </form>
+                                        <a asp-action="Delete" asp-route-id="@item.NotificationID" class="btn btn-danger btn-sm">刪除</a>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <nav class="mt-3" aria-label="通知列表分頁">
+        <ul class="pagination justify-content-center">
+        @for (var pageNumber = 1; pageNumber <= Model.TotalPages; pageNumber++)
+        {
+            <li class="page-item @(pageNumber == query.Page ? "active" : null)">
+                <a class="page-link" href="@Url.Action("Index", new { query.Keyword, query.NotificationType, query.IsSent, query.ScheduledAtMinute, query.DeletionScope, query.SortField, query.SortDirection, Page = pageNumber })">@pageNumber</a>
+            </li>
+        }
+        </ul>
+    </nav>
+</div>
+
+@section Scripts {
+    <script>
+        document.querySelectorAll('.notification-row').forEach(row => {
+            const open = () => window.location.href = row.dataset.href;
+            row.addEventListener('click', event => { if (!event.target.closest('.notification-actions')) open(); });
+            row.addEventListener('keydown', event => { if (event.key === 'Enter') open(); });
+        });
+    </script>
+}
