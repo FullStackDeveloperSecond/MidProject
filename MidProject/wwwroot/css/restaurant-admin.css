@@ -719,6 +719,14 @@
     width: min(1120px, calc(100vw - 28px));
 }
 
+.confirm-modal {
+    width: min(420px, 100%);
+}
+
+.confirm-modal .modal-body p {
+    margin: 0;
+}
+
 .lightbox-body {
     padding: 18px;
     display: grid;

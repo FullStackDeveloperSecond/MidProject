@@ -6,19 +6,20 @@
 const RestaurantAdmin = (() => {
     const DAY_LABELS = ["一", "二", "三", "四", "五", "六", "日"];
     let hoursState = [];
+    let formIsDirty = false;
 
     function modalRoot() {
         return document.getElementById("modalRoot");
     }
 
-    function openModalHtml(html) {
+    function openModalHtml(html, options = {}) {
         const root = modalRoot();
         if (!root) return;
         root.innerHTML = html;
         root.classList.add("open");
         root.setAttribute("aria-hidden", "false");
         bindModalChrome();
-        initFormModal();
+        initFormModal(options.preserveDirty);
     }
 
     function closeModal() {
@@ -27,16 +28,100 @@ const RestaurantAdmin = (() => {
         root.classList.remove("open");
         root.setAttribute("aria-hidden", "true");
         root.innerHTML = "";
+        formIsDirty = false;
     }
 
     function bindModalChrome() {
         const root = modalRoot();
         root.querySelectorAll("[data-action='close-modal']").forEach(btn => {
-            btn.addEventListener("click", closeModal);
+            btn.addEventListener("click", requestCloseModal);
         });
         root.addEventListener("click", event => {
-            if (event.target === root) closeModal();
+            if (event.target === root) requestCloseModal();
         });
+    }
+
+    // Gate closing the Create/Edit form modal behind a confirmation if the user
+    // has changed anything (name, tags, images, business hours...) that hasn't
+    // been saved yet. Other modals (image lightbox, disable-reason) have no form
+    // in them, so `form` is null and this just closes immediately as before.
+    function requestCloseModal() {
+        const form = document.getElementById("restaurantForm");
+        if (form && formIsDirty) {
+            openDiscardConfirm();
+            return;
+        }
+        closeModal();
+    }
+
+    function markFormDirty() {
+        formIsDirty = true;
+    }
+
+    function bindDirtyTracking() {
+        const form = document.getElementById("restaurantForm");
+        if (!form) return;
+        form.addEventListener("input", markFormDirty);
+        form.addEventListener("change", markFormDirty);
+    }
+
+    function ensureDiscardConfirmRoot() {
+        let root = document.getElementById("discardConfirmRoot");
+        if (root) return root;
+
+        root = document.createElement("div");
+        root.id = "discardConfirmRoot";
+        root.className = "modal-root";
+        root.innerHTML = `
+            <div class="ra-modal confirm-modal" role="alertdialog" aria-modal="true" aria-label="尚有未儲存的變更">
+                <div class="modal-body">
+                    <p>尚有未儲存的變更內容，是否要儲存呢？</p>
+                </div>
+                <div class="modal-foot">
+                    <button type="button" class="btn" data-confirm="cancel">取消</button>
+                    <button type="button" class="btn btn-danger" data-confirm="discard">不儲存</button>
+                    <button type="button" class="btn btn-primary" data-confirm="save">儲存</button>
+                </div>
+            </div>`;
+        document.body.appendChild(root);
+
+        root.addEventListener("click", event => {
+            if (event.target === root) hideDiscardConfirm();
+        });
+
+        return root;
+    }
+
+    function hideDiscardConfirm() {
+        const root = document.getElementById("discardConfirmRoot");
+        if (!root) return;
+        root.classList.remove("open");
+        root.setAttribute("aria-hidden", "true");
+    }
+
+    function openDiscardConfirm() {
+        const root = ensureDiscardConfirmRoot();
+        root.classList.add("open");
+        root.setAttribute("aria-hidden", "false");
+
+        root.querySelector("[data-confirm='cancel']").onclick = () => {
+            hideDiscardConfirm();
+        };
+        root.querySelector("[data-confirm='discard']").onclick = () => {
+            hideDiscardConfirm();
+            formIsDirty = false;
+            closeModal();
+        };
+        root.querySelector("[data-confirm='save']").onclick = () => {
+            hideDiscardConfirm();
+            const form = document.getElementById("restaurantForm");
+            if (!form) return;
+            if (form.requestSubmit) {
+                form.requestSubmit();
+            } else {
+                form.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
+            }
+        };
     }
 
     async function openCreateModal() {
@@ -152,6 +237,7 @@ const RestaurantAdmin = (() => {
 
         container.querySelectorAll(".js-toggle-day").forEach(checkbox => {
             checkbox.addEventListener("change", event => {
+                markFormDirty();
                 const dayIndex = Number(event.target.closest("[data-day-index]").dataset.dayIndex);
                 hoursState[dayIndex].closed = !event.target.checked;
                 if (!hoursState[dayIndex].closed && hoursState[dayIndex].slots.length === 0) {
@@ -163,6 +249,7 @@ const RestaurantAdmin = (() => {
 
         container.querySelectorAll(".js-add-slot").forEach(button => {
             button.addEventListener("click", event => {
+                markFormDirty();
                 const dayIndex = Number(event.target.closest("[data-day-index]").dataset.dayIndex);
                 hoursState[dayIndex].slots.push({ open: "17:00", close: "21:00" });
                 renderHours();
@@ -176,6 +263,7 @@ const RestaurantAdmin = (() => {
                 const dayIndex = Number(dayRow.dataset.dayIndex);
                 const slotIndex = Number(slotRow.dataset.slotIndex);
                 if (hoursState[dayIndex].slots.length > 1) {
+                    markFormDirty();
                     hoursState[dayIndex].slots.splice(slotIndex, 1);
                     renderHours();
                 }
@@ -184,6 +272,7 @@ const RestaurantAdmin = (() => {
 
         container.querySelectorAll("[data-field]").forEach(input => {
             input.addEventListener("input", event => {
+                markFormDirty();
                 const dayRow = event.target.closest("[data-day-index]");
                 const slotRow = event.target.closest("[data-slot-index]");
                 const dayIndex = Number(dayRow.dataset.dayIndex);
@@ -196,6 +285,7 @@ const RestaurantAdmin = (() => {
 
     function copyFirstDayToWeek() {
         if (!hoursState[0]) return;
+        markFormDirty();
         const monday = JSON.parse(JSON.stringify(hoursState[0]));
         hoursState = hoursState.map(day => ({
             day: day.day,
@@ -278,11 +368,21 @@ const RestaurantAdmin = (() => {
                 }
 
                 if (json && json.success) {
-                    window.location.href = json.redirectUrl;
+                    const idField = form.querySelector("[name='Id']");
+                    const isEditMode = Boolean(idField && idField.value);
+                    if (isEditMode) {
+                        // Edited from a list page (with its own search/filter/sort in the
+                        // URL) or from the Details page — either way we never navigated
+                        // away to open the modal, so reloading the current URL lands back
+                        // exactly where the user was, filters and all.
+                        window.location.reload();
+                    } else {
+                        window.location.href = json.redirectUrl;
+                    }
                     return;
                 }
 
-                openModalHtml(text);
+                openModalHtml(text, { preserveDirty: true });
             } catch (error) {
                 toast("儲存失敗，請稍後再試。");
                 if (submitButton) {
@@ -333,15 +433,22 @@ const RestaurantAdmin = (() => {
         populate(districtSelect.dataset.selected || "");
     }
 
-    function initFormModal() {
+    function initFormModal(preserveDirty) {
         if (!document.getElementById("hoursJsonInput")) {
             return;
         }
+
+        // Fresh open (Create/Edit): nothing changed yet. Re-render after a failed
+        // save (server-side validation errors): the user's input never made it to
+        // the database, so it must stay flagged dirty or closing right after a
+        // failed submit would silently discard it without asking.
+        formIsDirty = Boolean(preserveDirty);
 
         hoursState = parseHoursInput();
         renderHours();
         bindImageInputs();
         bindFormSubmit();
+        bindDirtyTracking();
         initDistrictCascade();
 
         const copyButton = document.getElementById("copyFirstDayBtn");
