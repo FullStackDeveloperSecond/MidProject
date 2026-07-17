@@ -17,7 +17,7 @@ public static class ReportsTestDataSeeder
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
         // 已經有夠多測試資料就不重複塞，避免每次啟動都新增一批
-        if (await context.Reports.CountAsync() >= 30)
+        if (await context.Reports.CountAsync() >= 60)
         {
             return;
         }
@@ -54,54 +54,71 @@ public static class ReportsTestDataSeeder
         };
 
         var reports = new List<Report>();
+        var random = new Random(42);
 
-        for (int i = 0; i < 30; i++)
+        // 近 12 個月（含當月）每個月都產生 5~10 筆檢舉資料，讓 Dashboard 的每月統計圖表每個月都有資料可顯示
+        var monthStart = new DateTime(now.Year, now.Month, 1);
+        var earliestMonth = monthStart.AddMonths(-11);
+
+        var i = 0;
+        for (var m = 0; m < 12; m++)
         {
-            var category = categories[i % categories.Length];
-            var status = statuses[i % statuses.Length];
-            var reporter = reporters[i % reporters.Count];
-            var reasonOptions = reasonsByCategory[category];
-            var reason = reasonOptions[i % reasonOptions.Length];
-            var createdAt = now.AddDays(-(i % 28)).AddHours(-(i % 5));
+            var bucketMonth = earliestMonth.AddMonths(m);
+            var daysInMonth = DateTime.DaysInMonth(bucketMonth.Year, bucketMonth.Month);
+            var countThisMonth = random.Next(5, 11); // 5~10 筆
 
-            // 目標類型輪流分配：餐廳 → 評論 → 圖片
-            int? restaurantId = null, reviewId = null, imageId = null;
-            switch (i % 3)
+            for (var n = 0; n < countThisMonth; n++)
             {
-                case 0:
-                    restaurantId = restaurants[i % restaurants.Count].RestaurantID;
-                    break;
-                case 1:
-                    reviewId = reviews[i % reviews.Count].ReviewID;
-                    break;
-                case 2:
-                    imageId = images[i % images.Count].ImageID;
-                    break;
+                var category = categories[i % categories.Length];
+                var status = statuses[i % statuses.Length];
+                var reporter = reporters[i % reporters.Count];
+                var reasonOptions = reasonsByCategory[category];
+                var reason = reasonOptions[i % reasonOptions.Length];
+
+                var day = random.Next(1, daysInMonth + 1);
+                var createdAt = new DateTime(bucketMonth.Year, bucketMonth.Month, day, random.Next(0, 24), random.Next(0, 60), 0);
+                if (createdAt > now) createdAt = now; // 避免當月產生未來時間
+
+                // 目標類型輪流分配：餐廳 → 評論 → 圖片
+                int? restaurantId = null, reviewId = null, imageId = null;
+                switch (i % 3)
+                {
+                    case 0:
+                        restaurantId = restaurants[i % restaurants.Count].RestaurantID;
+                        break;
+                    case 1:
+                        reviewId = reviews[i % reviews.Count].ReviewID;
+                        break;
+                    case 2:
+                        imageId = images[i % images.Count].ImageID;
+                        break;
+                }
+
+                var report = new Report
+                {
+                    ReporterMemberID = reporter.MemberID,
+                    RestaurantID = restaurantId,
+                    ReviewID = reviewId,
+                    ImageID = imageId,
+                    Reason = reason,
+                    Category = category,
+                    Status = status,
+                    CreatedAt = createdAt
+                };
+
+                // 已處理（Approved/Rejected）的檢舉補上處理時間、處理人、備註
+                if (status != "Pending")
+                {
+                    report.HandledAt = createdAt.AddDays(1) > now ? now : createdAt.AddDays(1);
+                    report.HandledByMemberID = admin.MemberID;
+                    report.AdminNote = status == "Approved"
+                        ? "已確認違規，檢舉成立。"
+                        : "查無明確違規事證，駁回檢舉。";
+                }
+
+                reports.Add(report);
+                i++;
             }
-
-            var report = new Report
-            {
-                ReporterMemberID = reporter.MemberID,
-                RestaurantID = restaurantId,
-                ReviewID = reviewId,
-                ImageID = imageId,
-                Reason = reason,
-                Category = category,
-                Status = status,
-                CreatedAt = createdAt
-            };
-
-            // 已處理（Approved/Rejected）的檢舉補上處理時間、處理人、備註
-            if (status != "Pending")
-            {
-                report.HandledAt = createdAt.AddDays(1);
-                report.HandledByMemberID = admin.MemberID;
-                report.AdminNote = status == "Approved"
-                    ? "已確認違規，檢舉成立。"
-                    : "查無明確違規事證，駁回檢舉。";
-            }
-
-            reports.Add(report);
         }
 
         context.Reports.AddRange(reports);

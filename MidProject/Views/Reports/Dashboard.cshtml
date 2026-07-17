@@ -19,59 +19,65 @@
 <div class="row">
     <!-- Pending 卡片 -->
     <div class="col-xl-4 col-md-6 mb-4">
-        <div class="card border-left-warning shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="h4 mb-0 font-weight-bold text-gray-800">@Model.PendingCount</div>
-                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Pending</div>
-                        @if (Model.PendingNewThisMonth > 0)
-                        {
-                            <div class="text-xs text-success">
-                                <i class="fas fa-arrow-up"></i> @Model.PendingNewThisMonth new this month
-                            </div>
-                        }
-                    </div>
-                    <div class="col-auto">
-                        <i class="fas fa-folder fa-2x text-gray-300"></i>
+        <a asp-action="Index" asp-route-Status="Pending" class="text-decoration-none d-block">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="h4 mb-0 font-weight-bold text-gray-800">@Model.PendingCount</div>
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">待處理</div>
+                            @if (Model.PendingNewThisMonth > 0)
+                            {
+                                <div class="text-xs text-success">
+                                    <i class="fas fa-arrow-up"></i> @Model.PendingNewThisMonth new this month
+                                </div>
+                            }
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-folder fa-2x text-gray-300"></i>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+        </a>
     </div>
 
     <!-- Approved 卡片 -->
     <div class="col-xl-4 col-md-6 mb-4">
-        <div class="card border-left-success shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="h4 mb-0 font-weight-bold text-gray-800">@Model.ApprovedCount</div>
-                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Approved</div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="fas fa-check-circle fa-2x text-gray-300"></i>
+        <a asp-action="Index" asp-route-Status="Approved" class="text-decoration-none d-block">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="h4 mb-0 font-weight-bold text-gray-800">@Model.ApprovedCount</div>
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">檢舉成立</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-check-circle fa-2x text-gray-300"></i>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+        </a>
     </div>
 
     <!-- Rejected 卡片 -->
     <div class="col-xl-4 col-md-6 mb-4">
-        <div class="card border-left-secondary shadow h-100 py-2">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="h4 mb-0 font-weight-bold text-gray-800">@Model.RejectedCount</div>
-                        <div class="text-xs font-weight-bold text-secondary text-uppercase mb-1">Rejected</div>
-                    </div>
-                    <div class="col-auto">
-                        <i class="fas fa-clock fa-2x text-gray-300"></i>
+        <a asp-action="Index" asp-route-Status="Rejected" class="text-decoration-none d-block">
+            <div class="card border-left-secondary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="h4 mb-0 font-weight-bold text-gray-800">@Model.RejectedCount</div>
+                            <div class="text-xs font-weight-bold text-secondary text-uppercase mb-1">駁回檢舉</div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-clock fa-2x text-gray-300"></i>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
+        </a>
     </div>
 </div>
 
@@ -107,17 +113,17 @@
                     labels: months,
                     datasets: [
                         {
-                            label: "Approved",
+                            label: "檢舉成立",
                             backgroundColor: "#1cc88a",
                             data: approvedData
                         },
                         {
-                            label: "Rejected",
+                            label: "駁回檢舉",
                             backgroundColor: "#858796",
                             data: rejectedData
                         },
                         {
-                            label: "Pending",
+                            label: "待處理",
                             backgroundColor: "#f6c23e",
                             data: pendingData
                         }
