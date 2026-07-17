@@ -17,7 +17,10 @@ public class Report
     [Required, StringLength(20)]
     public string Status { get; set; } = "Pending";
 
-    public DateTime CreatedAt { get; set; } = DateTime.Now;
+	[Required, StringLength(10)]
+	public string Category { get; set; } = "¥¼¤ÀÃþ";
+
+	public DateTime CreatedAt { get; set; } = DateTime.Now;
     public DateTime? HandledAt { get; set; }
     public int? HandledByMemberID { get; set; }
     public string? AdminNote { get; set; }

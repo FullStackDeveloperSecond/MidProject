@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using MidProject.Data;
+using MidProject.Repositories;
+using MidProject.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,11 +18,16 @@ if (string.IsNullOrWhiteSpace(connectionString))
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(connectionString));
 
+
+builder.Services.AddScoped<IReportRepository, ReportRepository>();
+builder.Services.AddScoped<IReportService, ReportService>();
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment() && builder.Configuration.GetValue<bool>("SeedData:Enabled"))
 {
     await SeedData.InitializeAsync(app.Services);
+	await ReportsTestDataSeeder.SeedAsync(app.Services);
 }
 
 if (!app.Environment.IsDevelopment())
