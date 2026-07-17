@@ -3,6 +3,20 @@ using MidProject.Services.IServices;
 
 namespace MidProject.Controllers
 {
+    /// <summary>
+    /// 評論管理後台。對應規格書「Terry 評論模組」的 9 條完成標準。
+    ///
+    /// 這層只做「接請求 → 呼叫 Service → 決定回什麼」，實際查資料庫的邏輯在
+    /// Repositories/ReviewRepository.cs，商業邏輯（統計、重算、組 ViewModel）在
+    /// Services/ReviewService.cs。
+    ///
+    /// 假設條件（跟愷核對，如果名稱不同要照他實際的改）：
+    /// 1. Review 有 navigation property：Member、Restaurant、ReviewImages（ReviewImages 裡有 Image）、DeletedByMember（透過 DeletedBy 關聯 Members）
+    /// 2. Report 有 navigation property：ReporterMember（透過 ReporterMemberID 關聯 Members）
+    /// 3. 目前沒有做登入驗證，GetCurrentAdminMemberId() 先寫死，等會員系統的登入功能好了要換掉
+    /// 4. IReviewRepository / IReviewService 要在 Program.cs 註冊 DI（見這個檔案最下面的說明，
+    ///    Program.cs 不是我能自己改的檔案，要請愷/Alex 加兩行）
+    /// </summary>
     public class ReviewsController : Controller
     {
         private readonly IReviewService _reviewService;
@@ -18,9 +32,11 @@ namespace MidProject.Controllers
             string? search = null,
             int? rating = null,
             string time = "all",
+            string sortBy = "time",
+            string sortDir = "desc",
             int page = 1)
         {
-            var vm = await _reviewService.GetReviewListAsync(tab, search, rating, time, page);
+            var vm = await _reviewService.GetReviewListAsync(tab, search, rating, time, sortBy, sortDir, page);
             return View(vm);
         }
 
@@ -80,9 +96,10 @@ namespace MidProject.Controllers
             return RedirectToAction(nameof(Details), new { id = reviewId });
         }
 
+        // TODO：換成你們專案實際取得「目前登入管理員 MemberID」的方式
         private int GetCurrentAdminMemberId()
         {
-            return 1; 
+            return 1; // 先寫死方便你自己測試
         }
     }
 }

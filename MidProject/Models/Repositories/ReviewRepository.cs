@@ -15,7 +15,7 @@ namespace MidProject.Repositories
         }
 
         public async Task<(List<Review> Items, int TotalCount, int Page)> GetFilteredReviewsAsync(
-            string tab, string? search, int? rating, string time, int page, int pageSize)
+            string tab, string? search, int? rating, string time, string sortBy, string sortDir, int page, int pageSize)
         {
             var query = BuildFilteredQuery(tab, search, rating, time);
 
@@ -23,8 +23,15 @@ namespace MidProject.Repositories
             var totalPages = Math.Max(1, (int)Math.Ceiling(total / (double)pageSize));
             page = Math.Clamp(page, 1, totalPages);
 
-            var items = await query
-                .OrderByDescending(r => r.CreatedAt)
+            var isAsc = sortDir == "asc";
+            IOrderedQueryable<Review> sortedQuery = sortBy switch
+            {
+                "rating" => isAsc ? query.OrderBy(r => r.Rating) : query.OrderByDescending(r => r.Rating),
+                "report" => isAsc ? query.OrderBy(r => r.ReportCount) : query.OrderByDescending(r => r.ReportCount),
+                _ => isAsc ? query.OrderBy(r => r.CreatedAt) : query.OrderByDescending(r => r.CreatedAt), // "time"（也是預設）
+            };
+
+            var items = await sortedQuery
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
@@ -88,6 +95,7 @@ namespace MidProject.Repositories
             await _db.SaveChangesAsync();
         }
 
+        /// <summary>對應規格書 4.2：全部要排除 IsDeleted = true，其餘依 Tab / 星等 / 時間 / 搜尋疊加篩選條件。</summary>
         private IQueryable<Review> BuildFilteredQuery(string tab, string? search, int? rating, string time)
         {
             var query = _db.Reviews
@@ -100,7 +108,7 @@ namespace MidProject.Repositories
                 "normal" => query.Where(r => !r.IsDeleted && r.Status == "Active"),
                 "pending" => query.Where(r => !r.IsDeleted && r.Status == "PendingReview"),
                 "deleted" => query.Where(r => r.IsDeleted),
-                _ => query.Where(r => !r.IsDeleted), 
+                _ => query.Where(r => !r.IsDeleted), // "all"
             };
 
             if (rating.HasValue && rating.Value > 0)

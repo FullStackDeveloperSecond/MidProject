@@ -11,17 +11,17 @@ namespace MidProject.Helpers
         {
             if (isDeleted)
             {
-                return ("已刪除", "badge-secondary");
+                return ("已刪除", "pill-deleted");
             }
-            return status == "Active" ? ("正常", "badge-success") : ("審核中", "badge-warning");
+            return status == "Active" ? ("正常", "pill-normal") : ("審核中", "pill-pending");
         }
 
         public static (string Label, string CssClass) GetReportStatusLabel(string status) => status switch
         {
-            "Pending" => ("待處理", "badge-warning"),
-            "Approved" => ("已通過", "badge-success"),
-            "Rejected" => ("已駁回", "badge-secondary"),
-            _ => (status, "badge-warning"),
+            "Pending" => ("待處理", "rs-pending"),
+            "Approved" => ("已通過", "rs-approved"),
+            "Rejected" => ("已駁回", "rs-rejected"),
+            _ => (status, "rs-pending"),
         };
 
         public static string FormatRelative(DateTime dt)

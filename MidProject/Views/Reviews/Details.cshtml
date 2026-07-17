@@ -12,6 +12,9 @@
         : Model.Review.Content;
 }
 
+@* 假設：整站已經有共用的 _Layout.cshtml 提供頂部列跟側邊欄。
+   第一次先自己測試的話，可以把下面這行取消註解： *@
+@* Layout = null; *@
 
 <link rel="stylesheet" href="~/css/reviews-admin.css" />
 
@@ -60,10 +63,7 @@
                         @foreach (var ri in activeImages)
                         {
                             <div class="rv-photo-wrap">
-                                <a href="@ri.Image!.ImageURL" target="_blank" rel="noopener" class="rv-photo" title="點擊看原圖">
-                                    <img src="@ri.Image!.ImageURL" alt="評論圖片" loading="lazy"
-                                         onerror="this.parentElement.classList.add('rv-photo--broken');this.remove();" />
-                                </a>
+                                <div class="rv-photo">🍽️</div>
                                 <form asp-action="DeleteImage" method="post" style="display:inline">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="imageId" value="@ri.ImageID" />
@@ -101,6 +101,7 @@
             </div>
         </div>
 
+        <div class="notice">ⓘ 評論內容與星等為唯讀，此頁不提供編輯功能，僅能軟刪除或還原。</div>
 
         <div class="action-bar">
             @if (Model.Review.IsDeleted)
