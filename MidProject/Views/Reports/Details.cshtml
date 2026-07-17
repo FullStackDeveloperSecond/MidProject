@@ -51,7 +51,28 @@
                     </dd>
 
                     <dt class="col-sm-3">檢舉目標</dt>
-                    <dd class="col-sm-9">@Model.TargetType</dd>
+                    <dd class="col-sm-9">
+                        @{
+                            var targetController = Model.RestaurantID.HasValue ? "Restaurants"
+                                : Model.ReviewID.HasValue ? "Reviews"
+                                : Model.ImageID.HasValue ? "Images" : null;
+                            var targetId = Model.RestaurantID ?? Model.ReviewID ?? Model.ImageID;
+                        }
+                        @Model.TargetType
+                        @if (Model.RestaurantName != null)
+                        {
+                            @: （
+                            @if (targetController != null)
+                            {
+                                <a asp-controller="@targetController" asp-action="Details" asp-route-id="@targetId">@Model.RestaurantName</a>
+                            }
+                            else
+                            {
+                                @Model.RestaurantName
+                            }
+                            @: ）
+                        }
+                    </dd>
 
                     <dt class="col-sm-3">檢舉分類</dt>
                     <dd class="col-sm-9">@Model.CategoryDisplay</dd>
@@ -67,18 +88,6 @@
 
                     <dt class="col-sm-3">處理管理員</dt>
                     <dd class="col-sm-9">@(Model.HandledByUserName ?? "—")</dd>
-
-                    <dt class="col-sm-3">目標內容</dt>
-                    <dd class="col-sm-9">
-                        @if (Model.ImageUrl != null)
-                        {
-                            <img src="@Model.ImageUrl" style="max-width:200px" class="img-thumbnail" />
-                        }
-                        else
-                        {
-                            @Model.TargetDisplay
-                        }
-                    </dd>
 
                     <dt class="col-sm-3">檢舉原因</dt>
                     <dd class="col-sm-9">@Model.Reason</dd>
@@ -102,7 +111,7 @@
                 <h6 class="m-0 font-weight-bold text-primary">處理檢舉</h6>
             </div>
             <div class="card-body">
-                <form asp-action="Handle" asp-route-id="@Model.ReportID" method="post">
+                <form id="handleForm" asp-action="Handle" asp-route-id="@Model.ReportID" method="post">
                     @Html.AntiForgeryToken()
                     <div class="form-group">
                         <label class="form-label">處理結果</label>
@@ -140,28 +149,168 @@
 
         @if (Model.Status != "Pending")
         {
-            <!-- 只有已經審核完畢（核准/駁回）的檢舉才能通知檢舉會員審核結果 -->
-            <div class="card shadow mb-4">
-                <div class="card-header py-3 bg-primary">
-                    <h6 class="m-0 font-weight-bold text-white">通知檢舉會員</h6>
-                </div>
-                <div class="card-body">
-                    <form asp-action="NotifyReporter" asp-route-id="@Model.ReportID" method="post">
-                        @Html.AntiForgeryToken()
-                        <div class="form-group">
-                            <label class="form-label">標題</label>
-                            <input type="text" name="Title" class="form-control" value="@Model.DefaultNotificationTitle" />
-                        </div>
-                        <div class="form-group">
-                            <label class="form-label">內容</label>
-                            <textarea name="Content" class="form-control" rows="10">@Model.DefaultNotificationContent</textarea>
-                        </div>
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-paper-plane"></i> 送出
-                        </button>
-                    </form>
-                </div>
-            </div>
+            <!-- 只有已經審核完畢（核准/駁回）的檢舉才能通知檢舉會員審核結果，按下後開啟下方的通知視窗 -->
+            <button type="button" class="btn btn-outline-primary btn-block mb-4" id="notifyReopenBtn">
+                <i class="fas fa-paper-plane"></i> 通知紀錄
+            </button>
         }
     </div>
 </div>
+
+<!-- 處理完成後跳出的通知視窗：檢舉成立顯示「通知檢舉者」+「通知被檢舉會員」兩張卡片，駁回檢舉只顯示「通知檢舉者」一張卡片 -->
+<div class="modal fade" id="notifyModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">檢舉通知</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+            </div>
+            <div class="modal-body">
+                <div class="card mb-3">
+                    <div class="card-header py-2 bg-primary">
+                        <h6 class="m-0 font-weight-bold text-white">通知檢舉者內容</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label class="form-label">標題</label>
+                            <input type="text" id="reporterTitle" class="form-control" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">內容</label>
+                            <textarea id="reporterContent" class="form-control" rows="8"></textarea>
+                        </div>
+                        <button type="button" class="btn btn-primary btn-sm" id="saveReporterNotify">儲存</button>
+                        <span class="ml-2 text-success small d-none" id="reporterSavedMsg"><i class="fas fa-check"></i> 已送出</span>
+                    </div>
+                </div>
+
+                <div class="card mb-3 d-none" id="reportedMemberNotifyCard">
+                    <div class="card-header py-2 bg-info">
+                        <h6 class="m-0 font-weight-bold text-white">通知被檢舉會員內容</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label class="form-label">標題</label>
+                            <input type="text" id="reportedMemberTitle" class="form-control" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">內容</label>
+                            <textarea id="reportedMemberContent" class="form-control" rows="8"></textarea>
+                        </div>
+                        <button type="button" class="btn btn-primary btn-sm" id="saveReportedMemberNotify">儲存</button>
+                        <span class="ml-2 text-success small d-none" id="reportedMemberSavedMsg"><i class="fas fa-check"></i> 已送出</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">關閉</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            var reportId = @Model.ReportID;
+            var notifyReporterUrl = '@Url.Action("NotifyReporter", "Reports", new { id = Model.ReportID })';
+            var notifyReportedMemberUrl = '@Url.Action("NotifyReportedMember", "Reports", new { id = Model.ReportID })';
+
+            function antiForgeryToken() {
+                return $('#handleForm input[name="__RequestVerificationToken"]').val();
+            }
+
+            function openNotifyModal(status, reporter, reportedMember) {
+                $('#reporterTitle').val(reporter.title);
+                $('#reporterContent').val(reporter.content);
+                $('#reporterSavedMsg').addClass('d-none');
+
+                if (status === 'Approved' && reportedMember) {
+                    $('#reportedMemberNotifyCard').removeClass('d-none');
+                    $('#reportedMemberTitle').val(reportedMember.title);
+                    $('#reportedMemberContent').val(reportedMember.content);
+                    $('#reportedMemberSavedMsg').addClass('d-none');
+                } else {
+                    $('#reportedMemberNotifyCard').addClass('d-none');
+                }
+
+                $('#notifyModal').modal('show');
+            }
+
+            // 送出處理改成 AJAX，成功後不整頁重新整理，直接跳出通知視窗
+            $('#handleForm').on('submit', function (e) {
+                e.preventDefault();
+                var $form = $(this);
+                var $btn = $form.find('button[type="submit"]').prop('disabled', true);
+
+                $.ajax({
+                    url: $form.attr('action'),
+                    method: 'POST',
+                    data: $form.serialize(),
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                }).done(function (res) {
+                    if (res.success) {
+                        openNotifyModal(res.status, res.reporter, res.reportedMember);
+                    }
+                }).fail(function () {
+                    alert('處理失敗，請重新整理頁面後再試一次');
+                }).always(function () {
+                    $btn.prop('disabled', false);
+                });
+            });
+
+            // 已處理完畢的檢舉，重新開啟通知視窗（用目前的處理狀態＋預設範本重新帶入）
+            $('#notifyReopenBtn').on('click', function () {
+                openNotifyModal('@Model.Status',
+                    { title: @Html.Raw(Json.Serialize(Model.DefaultNotificationTitle)), content: @Html.Raw(Json.Serialize(Model.DefaultNotificationContent)) },
+                    { title: @Html.Raw(Json.Serialize(Model.DefaultReportedMemberNotificationTitle)), content: @Html.Raw(Json.Serialize(Model.DefaultReportedMemberNotificationContent)) }
+                );
+            });
+
+            $('#saveReporterNotify').on('click', function () {
+                var $btn = $(this).prop('disabled', true);
+                $.ajax({
+                    url: notifyReporterUrl,
+                    method: 'POST',
+                    data: {
+                        __RequestVerificationToken: antiForgeryToken(),
+                        Title: $('#reporterTitle').val(),
+                        Content: $('#reporterContent').val()
+                    },
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                }).done(function () {
+                    $('#reporterSavedMsg').removeClass('d-none');
+                }).fail(function () {
+                    alert('通知檢舉者失敗');
+                }).always(function () {
+                    $btn.prop('disabled', false);
+                });
+            });
+
+            $('#saveReportedMemberNotify').on('click', function () {
+                var $btn = $(this).prop('disabled', true);
+                $.ajax({
+                    url: notifyReportedMemberUrl,
+                    method: 'POST',
+                    data: {
+                        __RequestVerificationToken: antiForgeryToken(),
+                        Title: $('#reportedMemberTitle').val(),
+                        Content: $('#reportedMemberContent').val()
+                    },
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                }).done(function () {
+                    $('#reportedMemberSavedMsg').removeClass('d-none');
+                }).fail(function () {
+                    alert('通知被檢舉會員失敗');
+                }).always(function () {
+                    $btn.prop('disabled', false);
+                });
+            });
+
+            // 關閉視窗後重新整理頁面，讓左側的處理狀態／處理時間等欄位同步最新結果
+            $('#notifyModal').on('hidden.bs.modal', function () {
+                window.location.reload();
+            });
+        })();
+    </script>
+}

@@ -160,6 +160,7 @@
                                 檢舉日期 <i class="@SortIcon("CreatedAt")"></i>
                             </a>
                         </th>
+                        <th>處理天數</th>
                         <th>處理管理員</th>
                         <th></th>
                     </tr>
@@ -186,6 +187,7 @@
                             <td>@report.ReporterUserName</td>
                             <td>@(report.ReportedMemberUserName ?? "—")</td>
                             <td>@report.CreatedAt.ToString("yyyy-MM-dd")</td>
+                            <td class="@(report.ProcessingDays < 0 ? "text-danger" : "")">@report.ProcessingDays</td>
                             <td>@(report.HandledByUserName ?? "—")</td>
                             <td>
                                 <a asp-action="Details" asp-route-id="@report.ReportID" class="btn btn-sm btn-outline-primary">
@@ -196,7 +198,7 @@
                     }
                     @if (!Model.Items.Any())
                     {
-                        <tr><td colspan="9" class="text-center text-muted">沒有符合條件的資料</td></tr>
+                        <tr><td colspan="10" class="text-center text-muted">沒有符合條件的資料</td></tr>
                     }
                 </tbody>
             </table>

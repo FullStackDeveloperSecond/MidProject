@@ -79,9 +79,9 @@ public static class ReportsTestDataSeeder
                 var createdAt = new DateTime(bucketMonth.Year, bucketMonth.Month, day, random.Next(0, 24), random.Next(0, 60), 0);
                 if (createdAt > now) createdAt = now; // 避免當月產生未來時間
 
-                // 目標類型輪流分配：餐廳 → 評論 → 圖片
+                // 目標類型隨機分配（跟 i % 3 脫鉤，避免跟 status 的分配同步導致每種狀態都只對應到單一目標類型）
                 int? restaurantId = null, reviewId = null, imageId = null;
-                switch (i % 3)
+                switch (random.Next(3))
                 {
                     case 0:
                         restaurantId = restaurants[i % restaurants.Count].RestaurantID;

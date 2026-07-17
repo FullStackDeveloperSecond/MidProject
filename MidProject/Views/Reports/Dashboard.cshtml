@@ -24,8 +24,10 @@
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
                         <div class="col mr-2">
-                            <div class="h4 mb-0 font-weight-bold text-gray-800">@Model.PendingCount</div>
-                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">待處理</div>
+                            <div class="d-flex align-items-baseline">
+                                <div class="h4 mb-0 font-weight-bold text-gray-800">@Model.PendingCount</div>
+                                <div class="h4 mb-0 font-weight-bold text-warning ml-2">待處理</div>
+                            </div>
                             @if (Model.PendingNewThisMonth > 0)
                             {
                                 <div class="text-xs text-success">
@@ -49,8 +51,10 @@
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
                         <div class="col mr-2">
-                            <div class="h4 mb-0 font-weight-bold text-gray-800">@Model.ApprovedCount</div>
-                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">檢舉成立</div>
+                            <div class="d-flex align-items-baseline">
+                                <div class="h4 mb-0 font-weight-bold text-gray-800">@Model.ApprovedCount</div>
+                                <div class="h4 mb-0 font-weight-bold text-success ml-2">檢舉成立</div>
+                            </div>
                         </div>
                         <div class="col-auto">
                             <i class="fas fa-check-circle fa-2x text-gray-300"></i>
@@ -68,8 +72,10 @@
                 <div class="card-body">
                     <div class="row no-gutters align-items-center">
                         <div class="col mr-2">
-                            <div class="h4 mb-0 font-weight-bold text-gray-800">@Model.RejectedCount</div>
-                            <div class="text-xs font-weight-bold text-secondary text-uppercase mb-1">駁回檢舉</div>
+                            <div class="d-flex align-items-baseline">
+                                <div class="h4 mb-0 font-weight-bold text-gray-800">@Model.RejectedCount</div>
+                                <div class="h4 mb-0 font-weight-bold text-secondary ml-2">駁回檢舉</div>
+                            </div>
                         </div>
                         <div class="col-auto">
                             <i class="fas fa-clock fa-2x text-gray-300"></i>
@@ -141,7 +147,7 @@
                             ticks: { beginAtZero: true }
                         }]
                     },
-                    legend: { display: true, position: "bottom" }
+                    legend: { display: true, position: "bottom", labels: { fontSize: 18 } }
                 }
             });
         })();

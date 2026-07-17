@@ -47,6 +47,9 @@ public class ReportsController : Controller
     {
         if (!ModelState.IsValid)
         {
+            if (IsAjaxRequest())
+                return BadRequest(new { success = false, message = "資料驗證失敗" });
+
             var report = await _reportService.GetByIdAsync(id);
             return View("Details", report);
         }
@@ -56,6 +59,22 @@ public class ReportsController : Controller
 
         var success = await _reportService.HandleReportAsync(id, dto, adminMemberId);
         if (!success) return NotFound();
+
+        if (IsAjaxRequest())
+        {
+            // 處理完成後前端要立刻跳出通知視窗：檢舉成立給「通知檢舉者」+「通知被檢舉會員」兩張卡片，
+            // 駁回檢舉只給「通知檢舉者」一張卡片，預設標題／內容直接沿用 ReportDto 既有的範本
+            var updated = await _reportService.GetByIdAsync(id);
+            return Json(new
+            {
+                success = true,
+                status = updated!.Status,
+                reporter = new { title = updated.DefaultNotificationTitle, content = updated.DefaultNotificationContent },
+                reportedMember = updated.Status == "Approved"
+                    ? new { title = updated.DefaultReportedMemberNotificationTitle, content = updated.DefaultReportedMemberNotificationContent }
+                    : null
+            });
+        }
 
         TempData["Message"] = "檢舉已處理";
         return RedirectToAction(nameof(Details), new { id });
@@ -71,7 +90,27 @@ public class ReportsController : Controller
         var success = await _reportService.NotifyReporterAsync(id, dto, adminMemberId);
         if (!success) return NotFound();
 
+        if (IsAjaxRequest())
+            return Json(new { success = true });
+
         TempData["Message"] = "已通知檢舉會員審核結果";
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
+    // POST: /Reports/NotifyReportedMember/5
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> NotifyReportedMember(int id, NotifyReporterDto dto)
+    {
+        var adminMemberId = GetCurrentAdminMemberId();
+
+        var success = await _reportService.NotifyReportedMemberAsync(id, dto, adminMemberId);
+        if (!success) return NotFound();
+
+        if (IsAjaxRequest())
+            return Json(new { success = true });
+
+        TempData["Message"] = "已通知被檢舉會員";
         return RedirectToAction(nameof(Details), new { id });
     }
 
@@ -80,4 +119,6 @@ public class ReportsController : Controller
         // 暫時寫死，之後接上登入驗證後從 HttpContext.User 或 Session 取得
         return 1;
     }
+
+    private bool IsAjaxRequest() => Request.Headers["X-Requested-With"] == "XMLHttpRequest";
 }

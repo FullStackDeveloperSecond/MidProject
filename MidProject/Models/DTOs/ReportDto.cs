@@ -10,13 +10,13 @@ public class ReportDto
     public string? ReporterUserName { get; set; }
 
     public int? RestaurantID { get; set; }
+
+    // 檢舉目標所屬的餐廳名稱：目標若直接是餐廳就是該餐廳本身，
+    // 若目標是評論/圖片，則是該評論/圖片所屬的餐廳（方便管理員辨識，不論目標類型一律顯示餐廳名稱）
     public string? RestaurantName { get; set; }
 
     public int? ReviewID { get; set; }
-    public string? ReviewContentPreview { get; set; }
-
     public int? ImageID { get; set; }
-    public string? ImageUrl { get; set; }
 
     // 被檢舉會員：該檢舉目標（餐廳/評論/圖片）背後的建立者/上傳者
     public string? ReportedMemberUserName { get; set; }
@@ -36,11 +36,6 @@ public class ReportDto
         ReviewID.HasValue ? "評論" :
         ImageID.HasValue ? "圖片" : "未知";
 
-    // 檢舉目標本身的內容預覽（顯示在詳情頁「目標內容」）
-    public string TargetDisplay =>
-        RestaurantName ?? ReviewContentPreview
-        ?? (ImageID.HasValue ? $"圖片 #{ImageID}" : "—");
-
     // 分類由檢舉人送出時選擇，一律顯示使用者選的分類（不依狀態切換）
     public string CategoryDisplay => Category ?? "未分類";
 
@@ -52,6 +47,11 @@ public class ReportDto
         "Rejected" => "駁回檢舉",
         _ => Status
     };
+
+    // 處理天數：已處理案件＝處理日期－檢舉日期；待處理案件則呈現負數＝檢舉日期－今天（累積未處理天數）
+    public int ProcessingDays => Status == "Pending"
+        ? (CreatedAt.Date - DateTime.Now.Date).Days
+        : (HandledAt.HasValue ? (HandledAt.Value.Date - CreatedAt.Date).Days : 0);
 
     // 通知檢舉會員審核結果的預設標題／內容範本，管理員送出前可自行編輯
     public string DefaultNotificationTitle => "【檢舉結果通知】您提交的檢舉已完成審核";
@@ -74,6 +74,17 @@ public class ReportDto
                    "美食探店平台 管理團隊";
         }
     }
+
+    // 通知被檢舉會員審核結果的預設標題／內容範本：只有「檢舉成立」才需要通知內容擁有者
+    public string DefaultReportedMemberNotificationTitle => "【內容審核通知】您的內容已被檢舉審核";
+
+    public string DefaultReportedMemberNotificationContent =>
+        "親愛的會員您好：\n" +
+        $"您於平台發布的{TargetType}內容於 {CreatedAt:yyyy/MM/dd} 遭到檢舉，管理員已完成審核。\n" +
+        "經審核後，確認該內容違反平台社群規範，本次檢舉已成立，我們將依規定處理相關內容，請留意後續處理結果。\n" +
+        "若對審核結果有疑問，歡迎透過客服管道與我們聯繫。\n" +
+        "感謝您的理解與配合。\n" +
+        "美食探店平台 管理團隊";
 }
 
 // 管理員通知檢舉會員審核結果時使用

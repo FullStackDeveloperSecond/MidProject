@@ -105,6 +105,38 @@ public class ReportService : IReportService
         return true;
     }
 
+    public async Task<bool> NotifyReportedMemberAsync(int reportId, NotifyReporterDto dto, int adminMemberId)
+    {
+        var report = await _repository.GetByIdAsync(reportId);
+        if (report == null) return false;
+
+        // 規則：只有「檢舉成立」才需要通知內容擁有者，駁回代表內容沒有違規，不需要通知
+        if (report.Status != "Approved") return false;
+
+        var reportedMemberId = report.Restaurant?.MemberID
+            ?? report.Review?.MemberID
+            ?? report.Image?.UploadedByMemberID;
+        if (reportedMemberId == null) return false;
+
+        var notification = new Notification
+        {
+            MemberID = reportedMemberId,
+            NotificationType = "Personal",
+            Title = dto.Title,
+            Content = dto.Content,
+            ScheduledAt = DateTime.Now,
+            SentAt = DateTime.Now,
+            IsSent = true,
+            CreatedAt = DateTime.Now,
+            CreatedBy = adminMemberId
+        };
+
+        await _repository.AddNotificationAsync(notification);
+        await _repository.SaveChangesAsync();
+
+        return true;
+    }
+
     public async Task<ReportDashboardDto> GetDashboardAsync()
     {
         var (pending, approved, rejected) = await _repository.GetStatusCountsAsync();
@@ -146,13 +178,13 @@ public class ReportService : IReportService
         ReporterMemberID = r.ReporterMemberID,
         ReporterUserName = r.ReporterMember?.UserName,
         RestaurantID = r.RestaurantID,
-        RestaurantName = r.Restaurant?.Name,
+        // 不論目標類型是餐廳/評論/圖片，一律回推所屬餐廳名稱方便管理員辨識
+        RestaurantName = r.Restaurant?.Name
+            ?? r.Review?.Restaurant?.Name
+            ?? r.Image?.RestaurantImages.Select(ri => ri.Restaurant?.Name).FirstOrDefault(n => n != null)
+            ?? r.Image?.ReviewImages.Select(rvi => rvi.Review?.Restaurant?.Name).FirstOrDefault(n => n != null),
         ReviewID = r.ReviewID,
-        ReviewContentPreview = r.Review?.Content is { Length: > 0 } c
-            ? (c.Length > 50 ? c[..50] + "…" : c)
-            : null,
         ImageID = r.ImageID,
-        ImageUrl = r.Image?.ImageURL,
         // 被檢舉會員：該檢舉目標（餐廳/評論/圖片）背後的建立者/上傳者
         ReportedMemberUserName = r.Restaurant?.Member?.UserName
             ?? r.Review?.Member?.UserName

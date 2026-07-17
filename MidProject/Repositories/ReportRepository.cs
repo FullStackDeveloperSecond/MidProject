@@ -110,7 +110,11 @@ public class ReportRepository : IReportRepository
             .Include(r => r.ReporterMember)
             .Include(r => r.Restaurant).ThenInclude(rest => rest!.Member)
             .Include(r => r.Review).ThenInclude(rev => rev!.Member)
+            .Include(r => r.Review).ThenInclude(rev => rev!.Restaurant)
             .Include(r => r.Image).ThenInclude(img => img!.UploadedByMember)
+            // 圖片本身沒有直接的餐廳外鍵，要透過「餐廳照片」或「評論照片」關聯回推所屬餐廳，方便詳情頁顯示
+            .Include(r => r.Image).ThenInclude(img => img!.RestaurantImages).ThenInclude(ri => ri.Restaurant)
+            .Include(r => r.Image).ThenInclude(img => img!.ReviewImages).ThenInclude(rvi => rvi.Review).ThenInclude(rv => rv!.Restaurant)
             .Include(r => r.HandledByMember)
             .FirstOrDefaultAsync(r => r.ReportID == reportId && !r.IsDeleted);
     }
