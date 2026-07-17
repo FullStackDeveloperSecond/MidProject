@@ -9,15 +9,18 @@ public sealed class NotificationAdminAuthorizationFilter : IAsyncResourceFilter
 {
     private readonly ITrustedMemberIdentityAccessor _identityAccessor;
     private readonly INotificationAdminAccessEvaluator _accessEvaluator;
+    private readonly ITaipeiClock _clock;
     private readonly ILogger<NotificationAdminAuthorizationFilter> _logger;
 
     public NotificationAdminAuthorizationFilter(
         ITrustedMemberIdentityAccessor identityAccessor,
         INotificationAdminAccessEvaluator accessEvaluator,
+        ITaipeiClock clock,
         ILogger<NotificationAdminAuthorizationFilter> logger)
     {
         _identityAccessor = identityAccessor;
         _accessEvaluator = accessEvaluator;
+        _clock = clock;
         _logger = logger;
     }
 
@@ -28,6 +31,7 @@ public sealed class NotificationAdminAuthorizationFilter : IAsyncResourceFilter
 
         if (!identity.IsAuthenticated)
         {
+            LogRejected("Unauthenticated", null, context.HttpContext.TraceIdentifier);
             var request = context.HttpContext.Request;
             var returnUrl = $"{request.PathBase}{request.Path}{request.QueryString}";
             context.Result = new RedirectToActionResult("Login", "Account", new { returnUrl });
@@ -49,12 +53,7 @@ public sealed class NotificationAdminAuthorizationFilter : IAsyncResourceFilter
             _ => "此管理員帳號目前不可使用。"
         };
 
-        _logger.LogWarning(
-            "Notification authorization rejected at {TaipeiTimestamp}; Result={ResultClassification}; AdminID={AdminID}; CorrelationID={CorrelationID}",
-            DateTimeOffset.UtcNow.ToOffset(TimeSpan.FromHours(8)),
-            access.Classification,
-            identity.MemberID,
-            context.HttpContext.TraceIdentifier);
+        LogRejected(access.Classification.ToString(), access.Context?.MemberID, context.HttpContext.TraceIdentifier);
 
         context.Result = new ViewResult
         {
@@ -67,5 +66,16 @@ public sealed class NotificationAdminAuthorizationFilter : IAsyncResourceFilter
                 Model = new NotificationAccessDeniedViewModel { Message = message }
             }
         };
+    }
+
+    private void LogRejected(string classification, int? validatedAdminId, string correlationId)
+    {
+        _logger.LogWarning(
+            "Notification authorization rejected at {TaipeiTimestamp}; Operation=AuthorizeNotifications; NotificationID={NotificationID}; Result={ResultClassification}; AdminID={AdminID}; CorrelationID={CorrelationID}",
+            _clock.GetNow(),
+            null,
+            classification,
+            validatedAdminId,
+            correlationId);
     }
 }
