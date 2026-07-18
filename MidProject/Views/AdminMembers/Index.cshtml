@@ -90,11 +90,11 @@
             var levelNumber = levelIndex + 1;
             int? nextThreshold = (levelIndex >= 0 && levelIndex < levelsSorted.Count - 1) ? levelsSorted[levelIndex + 1].MinExp : (int?)null;
             var status = StatusInfo(m.Status);
-            var isDeleted = m.Status == "Deleted";
+            var isDeleted = m.IsDeleted;
 
             <tr class="@(isDeleted ? "opacity-50" : "")"
-                style="@(isDeleted ? "cursor:not-allowed;" : "cursor:pointer;")"
-                onclick="@(isDeleted ? "" : $"window.location='{Url.Action("Edit", new { id = m.MemberID })}'")">
+                style="cursor:pointer;"
+                onclick="window.location='@Url.Action("Edit", new { id = m.MemberID })'">
                 <td>
                     @if (!string.IsNullOrEmpty(m.AvatarImage?.ImageURL))
                     {

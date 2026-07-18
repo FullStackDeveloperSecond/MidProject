@@ -11,8 +11,6 @@ namespace MidProject.Models.ViewModels
 
         public string? AdminNote { get; set; }
 
-        public string? PenaltyDays { get; set; }
-
         [Range(0, int.MaxValue)]
         public int Points { get; set; }
     }

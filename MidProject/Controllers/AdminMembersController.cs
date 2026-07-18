@@ -25,8 +25,9 @@ public class AdminMembersController : Controller
         ViewBag.TodayRegistered = await _context.Members.CountAsync(m => m.CreatedAt.Date == DateTime.Today && !m.IsDeleted);
         ViewBag.AbnormalCount = await _context.Members.CountAsync(m => !m.IsDeleted && m.Status != "Normal");
 
-        // 基本查詢條件：Deleted 會員不顯示在一般與異常列表
-        var query = _context.Members.Include(m => m.UserLevel).Include(m => m.AvatarImage).Where(m => !m.IsDeleted);
+        // 基本查詢條件：軟刪除（含累積檢舉自動停權）的會員仍顯示在列表中（反灰、不可點擊），
+        // 只是不計入「會員總數」等統計卡片
+        var query = _context.Members.Include(m => m.UserLevel).Include(m => m.AvatarImage).AsQueryable();
 
         // 4.2 異常狀態會員按鈕觸發
         if (showAbnormal)
@@ -65,6 +66,12 @@ public class AdminMembersController : Controller
         var totalItems = await query.CountAsync();
         var members = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
 
+        // 依累積受理檢舉次數自動套用懲處（僅升級，不會反向降級）
+        foreach (var m in members)
+        {
+            await ApplyAutoEscalationAsync(m);
+        }
+
         // 狀態保留
         ViewBag.Keyword = keyword;
         ViewBag.StatusFilter = statusFilter;
@@ -82,11 +89,15 @@ public class AdminMembersController : Controller
     // 5. 會員詳細 / 編輯頁 (GET)
     public async Task<IActionResult> Edit(int id)
     {
+        // 停權會員仍可開啟編輯頁（管理員可解除停權），故不排除 IsDeleted
         var member = await _context.Members
             .Include(m => m.UserLevel)
             .Include(m => m.AvatarImage)
-            .FirstOrDefaultAsync(m => m.MemberID == id && !m.IsDeleted);
+            .FirstOrDefaultAsync(m => m.MemberID == id);
         if (member == null) return NotFound();
+
+        // 依累積受理檢舉次數自動套用懲處（僅升級，不會反向降級）
+        await ApplyAutoEscalationAsync(member);
 
         // 3.4 & 5.7 關聯檢舉紀錄：只顯示 Status = Approved (受理) 的紀錄
         ViewBag.ApprovedReports = await _context.Reports
@@ -125,27 +136,16 @@ public class AdminMembersController : Controller
             memberInDb.AdminNote = model.AdminNote;
             memberInDb.Points = model.Points;
 
-            // 5.5 PenaltyEndAt 處分期限計算
-            if (model.Status == "Normal" || model.Status == "Deleted")
+            // 5.5 處分期限現在由自動懲處機制（ApplyAutoEscalationAsync）依受理檢舉次數計算，
+            // 手動編輯僅在「正常／停權」時清空期限，其餘狀態維持既有的處分期限不變
+            if (model.Status == "Normal" || model.Status == "Suspended")
             {
                 memberInDb.PenaltyEndAt = null;
             }
-            else
-            {
-                memberInDb.PenaltyEndAt = model.PenaltyDays switch
-                {
-                    "1" => DateTime.Now.AddDays(1),
-                    "3" => DateTime.Now.AddDays(3),
-                    "7" => DateTime.Now.AddDays(7),
-                    "14" => DateTime.Now.AddDays(14),
-                    "30" => DateTime.Now.AddDays(30),
-                    "Permanent" => null, // 永久停權為 null
-                    _ => memberInDb.PenaltyEndAt
-                };
-            }
 
-            // 5.6 & 11. Status = Deleted 的連動規則（軟刪除：僅標記，不移除資料列）
-            if (model.Status == "Deleted")
+            // 5.6 & 11. Status = Suspended 的連動規則（軟刪除：僅標記，不移除資料列；
+            // 管理員仍可將狀態改回正常/警告以解除停權，此時清除軟刪除標記）
+            if (model.Status == "Suspended")
             {
                 memberInDb.IsDeleted = true;
                 memberInDb.DeletedAt = DateTime.Now;
@@ -154,6 +154,12 @@ public class AdminMembersController : Controller
                 {
                     memberInDb.DeletedBy = adminId;
                 }
+            }
+            else
+            {
+                memberInDb.IsDeleted = false;
+                memberInDb.DeletedAt = null;
+                memberInDb.DeletedBy = null;
             }
 
             memberInDb.UpdatedAt = DateTime.Now;
@@ -189,7 +195,7 @@ public class AdminMembersController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> ChangeNickName(int id, string nickName, string reason)
     {
-        var memberInDb = await _context.Members.FirstOrDefaultAsync(m => m.MemberID == id && !m.IsDeleted);
+        var memberInDb = await _context.Members.FirstOrDefaultAsync(m => m.MemberID == id);
         if (memberInDb == null) return NotFound();
 
         if (string.IsNullOrWhiteSpace(nickName) || string.IsNullOrWhiteSpace(reason))
@@ -213,7 +219,7 @@ public class AdminMembersController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> RemoveAvatar(int id, string reason)
     {
-        var memberInDb = await _context.Members.FirstOrDefaultAsync(m => m.MemberID == id && !m.IsDeleted);
+        var memberInDb = await _context.Members.FirstOrDefaultAsync(m => m.MemberID == id);
         if (memberInDb == null) return NotFound();
 
         if (string.IsNullOrWhiteSpace(reason))
@@ -230,5 +236,77 @@ public class AdminMembersController : Controller
         await _context.SaveChangesAsync();
 
         return RedirectToAction(nameof(Edit), new { id });
+    }
+
+    // 依累積受理（Approved）檢舉次數自動套用懲處等級：
+    // 1 次=警告、2 次=禁言 1 週、3 次=禁言 1 個月、4 次以上=停權並軟刪除（會員列表仍反灰顯示，但不計入會員總數）。
+    // 只會升級，不會反向降級，也不會再變更已是 Deleted 的終止狀態。
+    private static readonly Dictionary<string, int> StatusSeverity = new()
+    {
+        ["Normal"] = 0,
+        ["Warning"] = 1,
+        ["Muted"] = 2,
+        ["Suspended"] = 3,
+        ["Deleted"] = 4
+    };
+
+    private async Task ApplyAutoEscalationAsync(Member member)
+    {
+        if (member.Status == "Deleted") return;
+
+        var approvedCount = await _context.Reports
+            .CountAsync(r => r.ReportedMemberID == member.MemberID && r.Status == "Approved" && !r.IsDeleted);
+
+        string targetStatus;
+        DateTime? targetPenaltyEndAt;
+        string noteSuffix;
+
+        if (approvedCount >= 4)
+        {
+            targetStatus = "Suspended";
+            targetPenaltyEndAt = null;
+            noteSuffix = $"累積 {approvedCount} 次受理檢舉，達第 4 次門檻，停權並移出會員總數";
+        }
+        else if (approvedCount == 3)
+        {
+            targetStatus = "Muted";
+            targetPenaltyEndAt = DateTime.Now.AddMonths(1);
+            noteSuffix = $"累積 {approvedCount} 次受理檢舉，禁言 1 個月";
+        }
+        else if (approvedCount == 2)
+        {
+            targetStatus = "Muted";
+            targetPenaltyEndAt = DateTime.Now.AddDays(7);
+            noteSuffix = $"累積 {approvedCount} 次受理檢舉，禁言 1 週";
+        }
+        else if (approvedCount == 1)
+        {
+            targetStatus = "Warning";
+            targetPenaltyEndAt = null;
+            noteSuffix = $"累積 {approvedCount} 次受理檢舉，警告";
+        }
+        else
+        {
+            return;
+        }
+
+        // 不反向降級；相同等級（例如 Muted -> Muted）仍會更新，以套用新的處分期限
+        if (StatusSeverity[targetStatus] < StatusSeverity[member.Status]) return;
+        if (targetStatus == member.Status && member.PenaltyEndAt == targetPenaltyEndAt) return;
+
+        member.Status = targetStatus;
+        member.PenaltyEndAt = targetPenaltyEndAt;
+        member.AdminNote = string.IsNullOrWhiteSpace(member.AdminNote)
+            ? $"[自動懲處] {noteSuffix}"
+            : $"[自動懲處] {noteSuffix}\n{member.AdminNote}";
+        member.UpdatedAt = DateTime.Now;
+
+        if (targetStatus == "Suspended")
+        {
+            member.IsDeleted = true;
+            member.DeletedAt = DateTime.Now;
+        }
+
+        await _context.SaveChangesAsync();
     }
 }
