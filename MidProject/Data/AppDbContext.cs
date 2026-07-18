@@ -55,6 +55,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.IsLocked).HasDefaultValue(false);
             entity.Property(e => e.IsDeleted).HasDefaultValue(false);
             entity.Property(e => e.Status).HasMaxLength(20).IsRequired().HasDefaultValue("Normal");
+            entity.Property(e => e.WarningCount).HasDefaultValue(0);
             entity.Property(e => e.LevelID).HasDefaultValue(1);
             entity.Property(e => e.Experience).HasDefaultValue(0);
             entity.Property(e => e.Points).HasDefaultValue(0);
@@ -64,6 +65,7 @@ public class AppDbContext : DbContext
             {
                 table.HasCheckConstraint("CK_Members_Role", "[Role] IN ('User', 'Admin')");
                 table.HasCheckConstraint("CK_Members_Status", "[Status] IN ('Normal', 'Warning', 'Muted', 'Suspended', 'Deleted')");
+                table.HasCheckConstraint("CK_Members_WarningCount", "[WarningCount] >= 0");
                 table.HasCheckConstraint("CK_Members_Experience", "[Experience] >= 0");
                 table.HasCheckConstraint("CK_Members_Points", "[Points] >= 0");
             });

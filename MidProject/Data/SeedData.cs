@@ -47,7 +47,7 @@ public static class SeedData
             admin,
             CreateMember("Aiden_42", "怡安", "aiden@example.com", "Normal", levels[1].LevelID, 620, 120, now.AddDays(-20)),
             CreateMember("Mason17", "小森", "mason@example.com", "Normal", levels[0].LevelID, 280, 80, now.AddDays(-15)),
-            CreateMember("Ethan.85", "亦辰", "ethan@example.com", "Warning", levels[0].LevelID, 180, 30, now.AddDays(-10), "評論用語需注意"),
+            CreateMember("Ethan.85", "亦辰", "ethan@example.com", "Warning", levels[0].LevelID, 180, 30, now.AddDays(-10), "評論用語需注意", warningCount: 1),
             CreateMember("Logan_23", "洛根", "logan@example.com", "Muted", levels[1].LevelID, 760, 150, now.AddDays(-40), "多次發送廣告留言", now.AddDays(7)),
             CreateMember("Caleb76", "凱勒", "caleb@example.com", "Suspended", levels[0].LevelID, 100, 10, now.AddDays(-30), "疑似惡意檢舉，永久停權"),
             CreateMember("Dylan09", "迪倫", "dylan@example.com", "Normal", levels[2].LevelID, 1680, 310, now.AddDays(-90)),
@@ -207,7 +207,7 @@ public static class SeedData
         await context.SaveChangesAsync();
     }
 
-    private static Member CreateMember(string userName, string nickName, string email, string status, int levelId, int experience, int points, DateTime createdAt, string? adminNote = null, DateTime? penaltyEndAt = null, bool isDeleted = false, DateTime? deletedAt = null, int? deletedBy = null)
+    private static Member CreateMember(string userName, string nickName, string email, string status, int levelId, int experience, int points, DateTime createdAt, string? adminNote = null, DateTime? penaltyEndAt = null, bool isDeleted = false, DateTime? deletedAt = null, int? deletedBy = null, int warningCount = 0)
     {
         return new Member
         {
@@ -220,6 +220,7 @@ public static class SeedData
             LevelID = levelId,
             Experience = experience,
             Points = points,
+            WarningCount = warningCount,
             AdminNote = adminNote,
             PenaltyEndAt = penaltyEndAt,
             IsDeleted = isDeleted,

@@ -951,3 +951,239 @@ GO
 COMMIT;
 GO
 
+BEGIN TRANSACTION;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260717033806_NotificationModuleV2'
+)
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM [Notifications]
+        WHERE [CreatedBy] IS NULL
+           OR LEN([Content]) > 1000
+           OR ([NotificationType] = 'Personal' AND ([MemberID] IS NULL OR [TargetRole] IS NOT NULL OR [TargetStatus] IS NOT NULL OR [TargetLevelID] IS NOT NULL))
+           OR ([NotificationType] = 'Condition' AND [MemberID] IS NOT NULL)
+           OR ([IsSent] = 0 AND [SentAt] IS NOT NULL)
+           OR ([IsSent] = 1 AND [SentAt] IS NULL)
+           OR ([IsDeleted] = 0 AND ([DeletedAt] IS NOT NULL OR [DeletedBy] IS NOT NULL))
+           OR ([IsDeleted] = 1 AND ([IsSent] = 1 OR [DeletedAt] IS NULL OR [DeletedBy] IS NULL))
+    )
+        THROW 51000, 'NotificationModuleV2 preflight failed: remediate invalid notification data before applying this migration.', 1;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260717033806_NotificationModuleV2'
+)
+BEGIN
+    DROP INDEX [IX_Notifications_IsDeleted] ON [Notifications];
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260717033806_NotificationModuleV2'
+)
+BEGIN
+    DROP INDEX [IX_Notifications_IsSent] ON [Notifications];
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260717033806_NotificationModuleV2'
+)
+BEGIN
+    ALTER TABLE [UserLevels] ADD [IsDeleted] bit NOT NULL DEFAULT CAST(0 AS bit);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260717033806_NotificationModuleV2'
+)
+BEGIN
+    DROP INDEX [IX_Notifications_CreatedBy] ON [Notifications];
+    DECLARE @var1 sysname;
+    SELECT @var1 = [d].[name]
+    FROM [sys].[default_constraints] [d]
+    INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+    WHERE ([d].[parent_object_id] = OBJECT_ID(N'[Notifications]') AND [c].[name] = N'CreatedBy');
+    IF @var1 IS NOT NULL EXEC(N'ALTER TABLE [Notifications] DROP CONSTRAINT [' + @var1 + '];');
+    EXEC(N'UPDATE [Notifications] SET [CreatedBy] = 0 WHERE [CreatedBy] IS NULL');
+    ALTER TABLE [Notifications] ALTER COLUMN [CreatedBy] int NOT NULL;
+    ALTER TABLE [Notifications] ADD DEFAULT 0 FOR [CreatedBy];
+    CREATE INDEX [IX_Notifications_CreatedBy] ON [Notifications] ([CreatedBy]);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260717033806_NotificationModuleV2'
+)
+BEGIN
+    DECLARE @var2 sysname;
+    SELECT @var2 = [d].[name]
+    FROM [sys].[default_constraints] [d]
+    INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+    WHERE ([d].[parent_object_id] = OBJECT_ID(N'[Notifications]') AND [c].[name] = N'CreatedAt');
+    IF @var2 IS NOT NULL EXEC(N'ALTER TABLE [Notifications] DROP CONSTRAINT [' + @var2 + '];');
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260717033806_NotificationModuleV2'
+)
+BEGIN
+    DECLARE @var3 sysname;
+    SELECT @var3 = [d].[name]
+    FROM [sys].[default_constraints] [d]
+    INNER JOIN [sys].[columns] [c] ON [d].[parent_column_id] = [c].[column_id] AND [d].[parent_object_id] = [c].[object_id]
+    WHERE ([d].[parent_object_id] = OBJECT_ID(N'[Notifications]') AND [c].[name] = N'Content');
+    IF @var3 IS NOT NULL EXEC(N'ALTER TABLE [Notifications] DROP CONSTRAINT [' + @var3 + '];');
+    ALTER TABLE [Notifications] ALTER COLUMN [Content] nvarchar(1000) NOT NULL;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260717033806_NotificationModuleV2'
+)
+BEGIN
+    ALTER TABLE [Notifications] ADD [RowVersion] rowversion NOT NULL;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260717033806_NotificationModuleV2'
+)
+BEGIN
+    ALTER TABLE [Notifications] ADD [SourceReportID] int NULL;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260717033806_NotificationModuleV2'
+)
+BEGIN
+    ALTER TABLE [Notifications] ADD [SourceReportOutcome] nvarchar(10) NULL;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260717033806_NotificationModuleV2'
+)
+BEGIN
+    CREATE INDEX [IX_Notifications_IsDeleted_ScheduledAt_NotificationID] ON [Notifications] ([IsDeleted], [ScheduledAt], [NotificationID]);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260717033806_NotificationModuleV2'
+)
+BEGIN
+    CREATE INDEX [IX_Notifications_IsSent_IsDeleted_ScheduledAt_NotificationID] ON [Notifications] ([IsSent], [IsDeleted], [ScheduledAt], [NotificationID]);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260717033806_NotificationModuleV2'
+)
+BEGIN
+    EXEC(N'CREATE UNIQUE INDEX [IX_Notifications_SourceReportID_SourceReportOutcome] ON [Notifications] ([SourceReportID], [SourceReportOutcome]) WHERE [SourceReportID] IS NOT NULL AND [SourceReportOutcome] IS NOT NULL');
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260717033806_NotificationModuleV2'
+)
+BEGIN
+    EXEC(N'ALTER TABLE [Notifications] ADD CONSTRAINT [CK_Notifications_Audience] CHECK (([NotificationType] = ''Personal'' AND [MemberID] IS NOT NULL AND [TargetRole] IS NULL AND [TargetStatus] IS NULL AND [TargetLevelID] IS NULL) OR ([NotificationType] = ''Condition'' AND [MemberID] IS NULL))');
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260717033806_NotificationModuleV2'
+)
+BEGIN
+    EXEC(N'ALTER TABLE [Notifications] ADD CONSTRAINT [CK_Notifications_DeletedState] CHECK (([IsDeleted] = 0 AND [DeletedAt] IS NULL AND [DeletedBy] IS NULL) OR ([IsDeleted] = 1 AND [IsSent] = 0 AND [DeletedAt] IS NOT NULL AND [DeletedBy] IS NOT NULL))');
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260717033806_NotificationModuleV2'
+)
+BEGIN
+    EXEC(N'ALTER TABLE [Notifications] ADD CONSTRAINT [CK_Notifications_ReportSource] CHECK (([SourceReportID] IS NULL AND [SourceReportOutcome] IS NULL) OR ([SourceReportID] IS NOT NULL AND [SourceReportOutcome] IN (''Approved'', ''Rejected'')))');
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260717033806_NotificationModuleV2'
+)
+BEGIN
+    EXEC(N'ALTER TABLE [Notifications] ADD CONSTRAINT [CK_Notifications_SentState] CHECK (([IsSent] = 0 AND [SentAt] IS NULL) OR ([IsSent] = 1 AND [SentAt] IS NOT NULL))');
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260717033806_NotificationModuleV2'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20260717033806_NotificationModuleV2', N'8.0.22');
+END;
+GO
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260718074506_AddWarningCountToMembers'
+)
+BEGIN
+    ALTER TABLE [Members] ADD [WarningCount] int NOT NULL DEFAULT 0;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260718074506_AddWarningCountToMembers'
+)
+BEGIN
+    EXEC(N'ALTER TABLE [Members] ADD CONSTRAINT [CK_Members_WarningCount] CHECK ([WarningCount] >= 0)');
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260718074506_AddWarningCountToMembers'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20260718074506_AddWarningCountToMembers', N'8.0.22');
+END;
+GO
+
+COMMIT;
+GO
+

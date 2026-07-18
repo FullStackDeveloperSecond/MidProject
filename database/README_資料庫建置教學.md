@@ -59,6 +59,35 @@ WHERE TABLE_NAME = 'Reports'
 
 預期結果為 `Category / nvarchar / 10 / NO`。
 
+### 已有資料庫的組員：新增 Members.WarningCount
+
+拉到包含 `20260718074506_AddWarningCountToMembers` 的版本後，在專案根目錄執行：
+
+```powershell
+dotnet restore MidProject.sln
+dotnet tool restore
+dotnet ef database update --project MidProject/MidProject.csproj --startup-project MidProject/MidProject.csproj
+```
+
+Migration 會新增 `Members.WarningCount int NOT NULL DEFAULT 0`，並建立
+`CK_Members_WarningCount`，避免寫入負數。
+
+無法使用 EF CLI 時，請在既有的 `MidProjectDb` 執行：
+
+```text
+database/20260718074506_AddWarningCountToMembers.sql
+```
+
+更新後可以用以下 SQL 驗證：
+
+```sql
+SELECT WarningCount
+FROM Members;
+```
+
+既有會員的初始值為 `0`。未來執行警告動作時，應在同一個資料庫交易中將
+`WarningCount` 增加 1。
+
 ---
 
 ## 2. 替代方式：SQL 腳本

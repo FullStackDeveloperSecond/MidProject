@@ -31,6 +31,8 @@ public class Member
     [Required, StringLength(20)]
     public string Status { get; set; } = "Normal";
 
+    public int WarningCount { get; set; }
+
     public string? AdminNote { get; set; }
     public DateTime? PenaltyEndAt { get; set; }
     public DateOnly? Birthday { get; set; }
