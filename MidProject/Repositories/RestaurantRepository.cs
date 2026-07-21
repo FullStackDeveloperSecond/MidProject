@@ -15,43 +15,70 @@ public class RestaurantRepository : IRestaurantRepository
         _db = db;
     }
 
-    private IQueryable<Restaurant> BaseQuery()
+    // Index/Deleted rows only ever render Name/City/District/Phone/Tags/Rating/
+    // ReviewCount (+ DeletedAt/DeletedByName for the deleted list) — never business
+    // hours or images. The old shared BaseQuery() Include()'d BusinessHours,
+    // RestaurantTags AND RestaurantImages together (three separate collections) in
+    // one query; without AsSplitQuery() that becomes a single SQL statement with
+    // multiple JOINs, and the row count returned is the *cartesian product* of all
+    // three collections per restaurant (e.g. 8 business-hour rows × 2 tags × 1 image
+    // = 16 duplicate rows fetched just to reconstruct one restaurant). That was the
+    // main cause of the list page occasionally feeling slow to load. This lean query
+    // only joins what the list actually shows.
+    private IQueryable<Restaurant> ListQuery()
+    {
+        return _db.Restaurants
+            .Include(r => r.DeletedByMember)
+            .Include(r => r.RestaurantTags).ThenInclude(rt => rt.Tag);
+    }
+
+    // The detail/edit view genuinely needs all of these. Multiple collection
+    // Include()s still risk the same cartesian-product blow-up here, so this is
+    // explicitly split into separate SQL queries (one per collection) instead of
+    // one giant join — the officially recommended EF Core pattern for this shape.
+    private IQueryable<Restaurant> DetailQuery()
     {
         return _db.Restaurants
             .Include(r => r.Member)
             .Include(r => r.DeletedByMember)
             .Include(r => r.BusinessHours)
             .Include(r => r.RestaurantTags).ThenInclude(rt => rt.Tag)
-            .Include(r => r.RestaurantImages).ThenInclude(ri => ri.Image);
+            .Include(r => r.RestaurantImages).ThenInclude(ri => ri.Image)
+            .AsSplitQuery();
     }
 
-    public async Task<(List<Restaurant> Items, int TotalCount)> GetActivePagedAsync(RestaurantFilterQuery filter, int pageSize)
+    private static IQueryable<Restaurant> ApplyCommonFilters(IQueryable<Restaurant> query, string? search, string? city, string? district, int? tagId)
     {
-        var query = BaseQuery().Where(r => !r.IsDeleted);
-
-        if (!string.IsNullOrWhiteSpace(filter.Search))
+        if (!string.IsNullOrWhiteSpace(search))
         {
-            var keyword = filter.Search.Trim();
+            var keyword = search.Trim();
             query = query.Where(r =>
                 r.Name.Contains(keyword) ||
                 r.DetailedAddress.Contains(keyword) ||
                 (r.Note != null && r.Note.Contains(keyword)));
         }
 
-        if (!string.IsNullOrWhiteSpace(filter.City))
+        if (!string.IsNullOrWhiteSpace(city))
         {
-            query = query.Where(r => r.City == filter.City);
+            query = query.Where(r => r.City == city);
         }
 
-        if (!string.IsNullOrWhiteSpace(filter.District))
+        if (!string.IsNullOrWhiteSpace(district))
         {
-            query = query.Where(r => r.District == filter.District);
+            query = query.Where(r => r.District == district);
         }
 
-        if (filter.TagId.HasValue)
+        if (tagId.HasValue)
         {
-            query = query.Where(r => r.RestaurantTags.Any(rt => rt.TagID == filter.TagId.Value));
+            query = query.Where(r => r.RestaurantTags.Any(rt => rt.TagID == tagId.Value));
         }
+
+        return query;
+    }
+
+    public async Task<(List<Restaurant> Items, int TotalCount)> GetActivePagedAsync(RestaurantFilterQuery filter, int pageSize)
+    {
+        var query = ApplyCommonFilters(ListQuery().Where(r => !r.IsDeleted), filter.Search, filter.City, filter.District, filter.TagId);
 
         query = filter.Sort switch
         {
@@ -69,21 +96,7 @@ public class RestaurantRepository : IRestaurantRepository
 
     public async Task<List<Restaurant>> GetDeletedAsync(RestaurantDeletedFilterQuery filter)
     {
-        var query = BaseQuery().Where(r => r.IsDeleted);
-
-        if (!string.IsNullOrWhiteSpace(filter.Search))
-        {
-            var keyword = filter.Search.Trim();
-            query = query.Where(r =>
-                r.Name.Contains(keyword) ||
-                r.DetailedAddress.Contains(keyword) ||
-                (r.Note != null && r.Note.Contains(keyword)));
-        }
-
-        if (!string.IsNullOrWhiteSpace(filter.City))
-        {
-            query = query.Where(r => r.City == filter.City);
-        }
+        var query = ApplyCommonFilters(ListQuery().Where(r => r.IsDeleted), filter.Search, filter.City, null, null);
 
         if (!string.IsNullOrWhiteSpace(filter.Reason))
         {
@@ -95,7 +108,7 @@ public class RestaurantRepository : IRestaurantRepository
 
     public async Task<Restaurant?> GetByIdAsync(int id)
     {
-        return await BaseQuery().FirstOrDefaultAsync(r => r.RestaurantID == id);
+        return await DetailQuery().FirstOrDefaultAsync(r => r.RestaurantID == id);
     }
 
     public async Task AddAsync(Restaurant restaurant)
@@ -216,16 +229,20 @@ public class RestaurantRepository : IRestaurantRepository
         return await _db.Members.OrderBy(m => m.MemberID).Select(m => m.MemberID).FirstOrDefaultAsync();
     }
 
-    public async Task<RestaurantStats> GetStatsAsync()
+    public async Task<RestaurantStats> GetStatsAsync(RestaurantFilterQuery filter)
     {
-        var active = _db.Restaurants.Where(r => !r.IsDeleted);
+        // Stats reflect the same Search/City/District/Tag scope as the list below
+        // them (not the grand total across every restaurant) — sort/page don't
+        // affect scope so they're intentionally left out.
+        var active = ApplyCommonFilters(_db.Restaurants.Where(r => !r.IsDeleted), filter.Search, filter.City, filter.District, filter.TagId);
+        var disabled = ApplyCommonFilters(_db.Restaurants.Where(r => r.IsDeleted), filter.Search, filter.City, filter.District, filter.TagId);
 
         return new RestaurantStats
         {
             Total = await active.CountAsync(),
             AvgRating = await active.AnyAsync() ? Math.Round(await active.AverageAsync(r => r.AverageRating), 1) : 0m,
             ReviewCount = await active.SumAsync(r => r.ReviewCount),
-            DisabledCount = await _db.Restaurants.CountAsync(r => r.IsDeleted)
+            DisabledCount = await disabled.CountAsync()
         };
     }
 

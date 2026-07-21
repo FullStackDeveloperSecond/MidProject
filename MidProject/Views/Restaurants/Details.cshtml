@@ -135,7 +135,7 @@
                 <strong style="font-size:42px">@Model.AverageRating.ToString("0.0")</strong>
                 <p><span class="stars">★★★★★</span></p>
                 <p class="muted">共 @Model.ReviewCount 則評論</p>
-                <a class="btn" href="/Reviews?restaurantId=@Model.Id">查看評論</a>
+                <a class="btn" href="@Url.Action("Index", "Reviews", new { search = Model.Name })">查看評論</a>
             </section>
 
             <section class="card">

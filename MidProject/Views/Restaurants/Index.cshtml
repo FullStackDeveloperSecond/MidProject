@@ -21,24 +21,28 @@
         <div class="alert">@TempData["Toast"]</div>
     }
 
+    @{
+        var hasActiveFilter = !string.IsNullOrWhiteSpace(Model.Filter.Search) || !string.IsNullOrWhiteSpace(Model.Filter.City)
+            || !string.IsNullOrWhiteSpace(Model.Filter.District) || Model.Filter.TagId.HasValue;
+    }
     <div class="stats-grid">
-        <article class="stat-card"><span>餐廳總數</span><strong>@Model.StatsTotal</strong></article>
-        <article class="stat-card"><span>平均星級</span><strong>@Model.StatsAvgRating.ToString("0.0")</strong></article>
-        <article class="stat-card"><span>評論總數</span><strong>@Model.StatsReviewCount</strong></article>
-        <article class="stat-card"><span>停用中</span><strong class="danger-text">@Model.StatsDisabledCount</strong></article>
+        <article class="stat-card"><span>餐廳總數</span><strong>@Model.StatsTotal</strong>@if (hasActiveFilter) { <small>符合目前篩選</small> }</article>
+        <article class="stat-card"><span>平均星級</span><strong>@Model.StatsAvgRating.ToString("0.0")</strong>@if (hasActiveFilter) { <small>符合目前篩選</small> }</article>
+        <article class="stat-card"><span>評論總數</span><strong>@Model.StatsReviewCount</strong>@if (hasActiveFilter) { <small>符合目前篩選</small> }</article>
+        <article class="stat-card"><span>停用中</span><strong class="danger-text">@Model.StatsDisabledCount</strong>@if (hasActiveFilter) { <small>符合目前篩選</small> }</article>
     </div>
 
     <form method="get" asp-action="Index" class="toolbar" id="filterForm">
         <div class="filter-row">
             <input class="input" type="search" name="Search" value="@Model.Filter.Search" placeholder="搜尋餐廳名稱...">
-            <select class="select" name="City" onchange="this.form.submit()">
+            <select class="select" name="City" onchange="this.form.requestSubmit()">
                 <option value="">全部縣市</option>
                 @foreach (var city in Model.AvailableCities)
                 {
                     <option value="@city" selected="@(city == Model.Filter.City)">@city</option>
                 }
             </select>
-            <select class="select" name="District" onchange="this.form.submit()">
+            <select class="select" name="District" onchange="this.form.requestSubmit()">
                 <option value="">全部行政區</option>
                 @foreach (var city in RestaurantOptions.CityDistricts.Keys)
                 {
@@ -50,14 +54,14 @@
                     </optgroup>
                 }
             </select>
-            <select class="select" name="TagId" onchange="this.form.submit()">
+            <select class="select" name="TagId" onchange="this.form.requestSubmit()">
                 <option value="">全部標籤</option>
                 @foreach (var tag in Model.AvailableTags)
                 {
                     <option value="@tag.Id" selected="@(Model.Filter.TagId == tag.Id)">@tag.Name</option>
                 }
             </select>
-            <select class="select" name="Sort" onchange="this.form.submit()">
+            <select class="select" name="Sort" onchange="this.form.requestSubmit()">
                 <option value="newest" selected="@(Model.Filter.Sort == "newest")">最新新增</option>
                 <option value="rating" selected="@(Model.Filter.Sort == "rating")">星級最高</option>
                 <option value="review" selected="@(Model.Filter.Sort == "review")">評論最多</option>
@@ -127,6 +131,12 @@
 
 <div id="modalRoot" class="modal-root" aria-hidden="true"></div>
 <div id="toast" class="toast" role="status"></div>
+<div id="pageLoadingOverlay" class="page-loading-overlay" aria-hidden="true">
+    <div class="page-loading-content">
+        <div class="page-loading-spinner"></div>
+        <p>載入中... 請稍後</p>
+    </div>
+</div>
 
 @section Scripts {
     <script src="~/js/restaurant-admin.js" asp-append-version="true"></script>
@@ -135,5 +145,6 @@
         document.querySelectorAll('.js-edit-btn').forEach(btn => {
             btn.addEventListener('click', () => RestaurantAdmin.openEditModal(btn.dataset.id));
         });
+        RestaurantAdmin.bindPageLoadingOverlay();
     </script>
 }
