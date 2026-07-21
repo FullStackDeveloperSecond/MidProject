@@ -1,0 +1,129 @@
+@model MidProject.Models.ViewModels.Restaurants.RestaurantIndexViewModel
+@using MidProject.Models.ViewModels.Restaurants
+
+<div class="ra-topbar">
+    <h1>餐廳一覽</h1>
+    <div class="page-actions">
+        <button type="button" class="btn btn-primary" id="addRestaurantBtn">+ 新增餐廳</button>
+    </div>
+</div>
+
+@if (TempData["Toast"] != null)
+{
+    <div class="alert">@TempData["Toast"]</div>
+}
+
+@{
+    var hasActiveFilter = !string.IsNullOrWhiteSpace(Model.Filter.Search) || !string.IsNullOrWhiteSpace(Model.Filter.City)
+        || !string.IsNullOrWhiteSpace(Model.Filter.District) || Model.Filter.TagId.HasValue;
+}
+<div class="stats-grid">
+    <article class="stat-card"><span>餐廳總數</span><strong>@Model.StatsTotal</strong>@if (hasActiveFilter) { <small>符合目前篩選</small> }</article>
+    <article class="stat-card"><span>平均星級</span><strong>@Model.StatsAvgRating.ToString("0.0")</strong>@if (hasActiveFilter) { <small>符合目前篩選</small> }</article>
+    <article class="stat-card"><span>評論總數</span><strong>@Model.StatsReviewCount</strong>@if (hasActiveFilter) { <small>符合目前篩選</small> }</article>
+    <article class="stat-card"><span>停用中</span><strong class="danger-text">@Model.StatsDisabledCount</strong>@if (hasActiveFilter) { <small>符合目前篩選</small> }</article>
+</div>
+
+@{
+    var searchChanged = !string.IsNullOrWhiteSpace(Model.Filter.Search) ? "filter-changed" : "";
+    var cityChanged = !string.IsNullOrWhiteSpace(Model.Filter.City) ? "filter-changed" : "";
+    var districtChanged = !string.IsNullOrWhiteSpace(Model.Filter.District) ? "filter-changed" : "";
+    var tagChanged = Model.Filter.TagId.HasValue ? "filter-changed" : "";
+    var sortChanged = Model.Filter.Sort != "newest" ? "filter-changed" : "";
+}
+<form method="get" asp-action="Index" class="toolbar" id="filterForm">
+    <div class="filter-row">
+        <input class="input @searchChanged" type="search" name="Search" value="@Model.Filter.Search" placeholder="搜尋餐廳名稱...">
+        <select class="select @cityChanged" name="City" id="filterCitySelect">
+            <option value="">全部縣市</option>
+            @foreach (var city in Model.AvailableCities)
+            {
+                <option value="@city" selected="@(city == Model.Filter.City)">@city</option>
+            }
+        </select>
+        <select class="select @districtChanged" name="District" id="filterDistrictSelect" data-selected="@Model.Filter.District" onchange="this.form.requestSubmit()">
+            <option value="">全部行政區</option>
+            @foreach (var city in RestaurantOptions.CityDistricts.Keys)
+            {
+                <optgroup label="@city">
+                    @foreach (var district in RestaurantOptions.CityDistricts[city])
+                    {
+                        <option value="@district" selected="@(district == Model.Filter.District)">@district</option>
+                    }
+                </optgroup>
+            }
+        </select>
+        <select class="select @tagChanged" name="TagId" onchange="this.form.requestSubmit()">
+            <option value="">全部標籤</option>
+            @foreach (var tag in Model.AvailableTags)
+            {
+                <option value="@tag.Id" selected="@(Model.Filter.TagId == tag.Id)">@tag.Name</option>
+            }
+        </select>
+        <select class="select @sortChanged" name="Sort" onchange="this.form.requestSubmit()">
+            <option value="newest" selected="@(Model.Filter.Sort == "newest")">最新新增</option>
+            <option value="rating" selected="@(Model.Filter.Sort == "rating")">星級最高</option>
+            <option value="review" selected="@(Model.Filter.Sort == "review")">評論最多</option>
+        </select>
+        <button type="submit" class="btn">搜尋</button>
+    </div>
+</form>
+<script type="application/json" id="filterCityDistrictsJson">@Html.Raw(System.Text.Json.JsonSerializer.Serialize(RestaurantOptions.CityDistricts))</script>
+
+<div class="table-wrap">
+    <table>
+        <thead>
+            <tr>
+                <th>餐廳名稱</th>
+                <th>縣市 / 行政區</th>
+                <th>標籤</th>
+                <th>電話</th>
+                <th>星級</th>
+                <th>評論數</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (!Model.Items.Any())
+            {
+                <tr><td colspan="7" class="muted">目前沒有符合條件的餐廳。</td></tr>
+            }
+            else
+            {
+                foreach (var item in Model.Items)
+                {
+                    <tr class="ra-row">
+                        <td><strong>@item.Name</strong></td>
+                        <td>@item.City · @item.District</td>
+                        <td>
+                            @foreach (var tag in item.Tags)
+                            {
+                                <span class="tag">@tag</span>
+                            }
+                        </td>
+                        <td class="muted">@item.Phone</td>
+                        <td><span class="stars">★</span>@item.Rating.ToString("0.0")</td>
+                        <td>@item.ReviewCount</td>
+                        <td>
+                            <a class="btn btn-icon" title="查看" aria-label="查看" href="@Url.Action("Details", new { id = item.Id })">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z" /><circle cx="12" cy="12" r="3" /></svg>
+                            </a>
+                            <button type="button" class="btn btn-icon js-edit-btn" title="編輯" aria-label="編輯" data-id="@item.Id">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
+                            </button>
+                        </td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+</div>
+
+<div class="pager">
+    <span>共 @Model.TotalItems 筆</span>
+    @for (var pageNumber = 1; pageNumber <= Model.TotalPages; pageNumber++)
+    {
+        <a class="btn @(pageNumber == Model.CurrentPage ? "pg on" : "")"
+           href="@Url.Action("Index", new { Search = Model.Filter.Search, City = Model.Filter.City, District = Model.Filter.District, TagId = Model.Filter.TagId, Sort = Model.Filter.Sort, Page = pageNumber })">@pageNumber</a>
+    }
+</div>
