@@ -214,6 +214,41 @@ public class AdminMembersController : Controller
         return RedirectToAction(nameof(Edit), new { id });
     }
 
+    // 5.3 會員密碼修改（獨立動作，需填寫原因；沿用 ChangeNickName 的稽核模式，記錄於 AdminNote）
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ChangePassword(int id, string newPassword, string confirmPassword, string reason)
+    {
+        var memberInDb = await _context.Members.FirstOrDefaultAsync(m => m.MemberID == id);
+        if (memberInDb == null) return NotFound();
+
+        if (string.IsNullOrWhiteSpace(newPassword) || newPassword.Length < 6)
+        {
+            TempData["PasswordError"] = "新密碼長度需至少 6 碼。";
+            return RedirectToAction(nameof(Edit), new { id });
+        }
+        if (newPassword != confirmPassword)
+        {
+            TempData["PasswordError"] = "兩次輸入的密碼不一致。";
+            return RedirectToAction(nameof(Edit), new { id });
+        }
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            TempData["PasswordError"] = "請填寫變更原因。";
+            return RedirectToAction(nameof(Edit), new { id });
+        }
+
+        memberInDb.PasswordHash = MidProject.Services.PasswordHashService.HashPassword(newPassword);
+        memberInDb.AdminNote = string.IsNullOrWhiteSpace(memberInDb.AdminNote)
+            ? $"[密碼變更] {reason}"
+            : $"[密碼變更] {reason}\n{memberInDb.AdminNote}";
+        memberInDb.UpdatedAt = DateTime.Now;
+        await _context.SaveChangesAsync();
+
+        TempData["PasswordSuccess"] = "密碼已成功變更。";
+        return RedirectToAction(nameof(Edit), new { id });
+    }
+
     // 5.3 會員照片移除（僅能移除，改回預設照片；需填寫原因）
     [HttpPost]
     [ValidateAntiForgeryToken]

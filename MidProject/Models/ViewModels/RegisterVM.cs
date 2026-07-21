@@ -19,6 +19,9 @@ namespace MidProject.Models.ViewModels
         [StringLength(100, ErrorMessage = "{0}長度不可大於{1}")]
         public string Email { get; set; } = string.Empty;
 
+        [Display(Name = "生日")]
+        public DateOnly? Birthday { get; set; }
+
         [Display(Name = "密碼")]
         [Required(ErrorMessage = "{0}必填")]
         [StringLength(100, MinimumLength = 6, ErrorMessage = "{0}長度需介於{2}~{1}")]

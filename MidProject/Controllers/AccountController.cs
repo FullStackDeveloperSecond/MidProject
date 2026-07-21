@@ -153,6 +153,7 @@ public class AccountController : Controller
             NickName = string.IsNullOrWhiteSpace(model.NickName) ? model.UserName : model.NickName,
             Email = model.Email,
             PasswordHash = PasswordHashService.HashPassword(model.Password),
+            Birthday = model.Birthday,
             Role = "User",
             Status = "Normal",
             LevelID = 1
@@ -196,6 +197,7 @@ public class AccountController : Controller
             NickName = string.IsNullOrWhiteSpace(model.NickName) ? model.UserName : model.NickName,
             Email = model.Email,
             PasswordHash = PasswordHashService.HashPassword(model.Password),
+            Birthday = model.Birthday,
             Role = "Admin",
             Status = "Normal",
             LevelID = 1
