@@ -29,9 +29,9 @@
                 <a class="admin-nav-link @dashboardActive" asp-controller="Home" asp-action="Index">
                     <i class="fas fa-tachometer-alt"></i><span>Dashboard</span>
                 </a>
-                <span class="admin-nav-link disabled" aria-disabled="true" title="會員模組尚未整合">
-                    <i class="fas fa-users"></i><span>會員管理</span><small>尚未整合</small>
-                </span>
+                <a class="admin-nav-link @NavActive("AdminMembers")" asp-controller="AdminMembers" asp-action="Index">
+                    <i class="fas fa-users"></i><span>會員管理</span>
+                </a>
                 <a class="admin-nav-link @NavActive("Restaurants")" asp-controller="Restaurants" asp-action="Index">
                     <i class="fas fa-store"></i><span>餐廳管理</span>
                 </a>
@@ -54,10 +54,24 @@
                             data-bs-target="#adminSidebar" aria-controls="adminSidebar" aria-expanded="false" aria-label="切換導覽列">
                         <i class="fas fa-bars"></i>
                     </button>
-                    <span class="navbar-text ms-auto d-flex align-items-center gap-2">
-                        <i class="fas fa-user-circle text-secondary"></i>
-                        <span>管理員</span>
-                    </span>
+                    <div class="ms-auto d-flex align-items-center gap-3">
+                        @if (User.Identity?.IsAuthenticated == true)
+                        {
+                            <span class="navbar-text d-flex align-items-center gap-2">
+                                <i class="fas fa-user-circle text-secondary"></i>
+                                <span>@User.Identity.Name</span>
+                            </span>
+                            <a asp-controller="Account" asp-action="Logout" class="btn btn-outline-secondary btn-sm">
+                                <i class="fas fa-sign-out-alt me-1"></i>登出
+                            </a>
+                        }
+                        else
+                        {
+                            <a asp-controller="Account" asp-action="Login" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-sign-in-alt me-1"></i>管理員登入
+                            </a>
+                        }
+                    </div>
                 </div>
             </header>
 

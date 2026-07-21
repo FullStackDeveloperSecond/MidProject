@@ -28,7 +28,7 @@
     {
         var q = Context.Request.Query;
         var parts = new List<string>();
-        foreach (var key in new[] { "Keyword", "Status", "TargetType", "Category", "DateFrom", "DateTo", "SortBy", "SortDirection" })
+        foreach (var key in new[] { "RestaurantID", "ReviewID", "Keyword", "Status", "TargetType", "Category", "DateFrom", "DateTo", "SortBy", "SortDirection" })
         {
             var value = q[key].ToString();
             if (!string.IsNullOrEmpty(value))
@@ -48,7 +48,7 @@
 
         var q = Context.Request.Query;
         var parts = new List<string>();
-        foreach (var key in new[] { "Keyword", "Status", "TargetType", "Category", "DateFrom", "DateTo" })
+        foreach (var key in new[] { "RestaurantID", "ReviewID", "Keyword", "Status", "TargetType", "Category", "DateFrom", "DateTo" })
         {
             var value = q[key].ToString();
             if (!string.IsNullOrEmpty(value))
@@ -88,6 +88,14 @@
     </div>
     <div class="card-body">
         <form method="get">
+            @if (Context.Request.Query.ContainsKey("RestaurantID"))
+            {
+                <input type="hidden" name="RestaurantID" value="@Context.Request.Query["RestaurantID"]" />
+            }
+            @if (Context.Request.Query.ContainsKey("ReviewID"))
+            {
+                <input type="hidden" name="ReviewID" value="@Context.Request.Query["ReviewID"]" />
+            }
             <div class="row g-3 align-items-end mb-4">
                 <div class="col-md-6">
                     <label class="form-label small mb-1">關鍵字</label>
@@ -187,7 +195,11 @@
                             </td>
                             <td>@report.TargetType</td>
                             <td>@report.CategoryDisplay</td>
-                            <td>@report.ReporterUserName</td>
+                            <td>
+                                <a asp-controller="AdminMembers" asp-action="Edit" asp-route-id="@report.ReporterMemberID">
+                                    @report.ReporterUserName
+                                </a>
+                            </td>
                             <td>@(report.ReportedMemberUserName ?? "—")</td>
                             <td>@report.CreatedAt.ToString("yyyy-MM-dd")</td>
                             <td class="@(report.ProcessingDays < 0 ? "text-danger" : "")">@report.ProcessingDays</td>

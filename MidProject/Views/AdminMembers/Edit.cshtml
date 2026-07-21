@@ -87,7 +87,10 @@
                         <div class="border-bottom py-2">
                             <small class="text-muted">@r.CreatedAt</small><br />
                             <strong>原因：</strong> @r.Reason <br />
-                            <small class="text-secondary">備註：@r.AdminNote</small>
+                            <small class="text-secondary">備註：@r.AdminNote</small><br />
+                            <a asp-controller="Reports" asp-action="Details" asp-route-id="@r.ReportID" class="small">
+                                查看檢舉詳情
+                            </a>
                         </div>
                     }
                 </div>

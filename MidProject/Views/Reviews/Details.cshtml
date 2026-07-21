@@ -40,7 +40,9 @@
                             @memberName.Substring(0, 1)
                         </div>
                         <div>
-                            <div class="name">@memberName</div>
+                            <div class="name">
+                                <a asp-controller="AdminMembers" asp-action="Edit" asp-route-id="@Model.Review.MemberID">@memberName</a>
+                            </div>
                             <div class="sub">MemberID: @Model.Review.MemberID</div>
                         </div>
                     </div>
@@ -81,7 +83,10 @@
                 }
 
                 <div class="rv-info">
-                    <div class="rv-info-item">📍 餐廳：<b>@Model.Review.Restaurant.Name</b></div>
+                    <div class="rv-info-item">
+                        📍 餐廳：
+                        <b><a asp-controller="Restaurants" asp-action="Details" asp-route-id="@Model.Review.RestaurantID">@Model.Review.Restaurant.Name</a></b>
+                    </div>
                     <div class="rv-info-item">🚩 ReportCount：<b style="color:var(--danger)">@Model.Review.ReportCount</b></div>
                     <div class="rv-info-item">📅 CreatedAt：<b>@ReviewDisplayHelpers.FormatFull(Model.Review.CreatedAt)</b></div>
                     <div class="rv-info-item">
@@ -144,11 +149,15 @@
                         {
                             <div class="report-note">備註：@rp.AdminNote</div>
                         }
+                        <a asp-controller="Reports" asp-action="Details" asp-route-id="@rp.ReportID" class="report-link">
+                            查看檢舉詳情 →
+                        </a>
                     </div>
                 }
             }
-            @* TODO：換成你們 Reports 模組實際的路由，這裡先假設是 /Reports?reviewId= *@
-            <a class="report-link" href="/Reports?reviewId=@Model.Review.ReviewID">在檢舉管理查看完整處理紀錄 →</a>
+            <a class="report-link" asp-controller="Reports" asp-action="Index" asp-route-ReviewID="@Model.Review.ReviewID">
+                在檢舉管理查看完整處理紀錄 →
+            </a>
         </div>
     </div>
 </div>

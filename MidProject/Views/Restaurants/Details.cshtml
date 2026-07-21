@@ -102,7 +102,14 @@
                         }
                     </span>
                 </div>
-                <div class="info-row"><span class="info-key">擁有者</span><span>@Model.OwnerName（MemberID: @Model.OwnerMemberId）</span></div>
+                <div class="info-row">
+                    <span class="info-key">擁有者</span>
+                    <span>
+                        <a asp-controller="AdminMembers" asp-action="Edit" asp-route-id="@Model.OwnerMemberId">
+                            @Model.OwnerName（MemberID: @Model.OwnerMemberId）
+                        </a>
+                    </span>
+                </div>
             </section>
 
             <section class="card">
@@ -147,7 +154,7 @@
             <section class="card">
                 <h3>檢舉 / 回報摘要</h3>
                 <p class="muted">查看此餐廳相關的檢舉紀錄。</p>
-                <a class="btn" href="/Reports?restaurantId=@Model.Id">查看檢舉</a>
+                <a class="btn" asp-controller="Reports" asp-action="Index" asp-route-RestaurantID="@Model.Id">查看檢舉</a>
             </section>
 
             @if (Model.IsDeleted)

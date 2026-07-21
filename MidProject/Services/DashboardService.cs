@@ -20,6 +20,9 @@ public sealed class DashboardService : IDashboardService
 
     public async Task<DashboardIndexViewModel> GetIndexAsync(CancellationToken cancellationToken = default)
     {
+        var memberCount = await _dbContext.Members
+            .AsNoTracking()
+            .CountAsync(item => !item.IsDeleted, cancellationToken);
         var restaurantCount = await _dbContext.Restaurants
             .AsNoTracking()
             .CountAsync(item => !item.IsDeleted, cancellationToken);
@@ -37,13 +40,12 @@ public sealed class DashboardService : IDashboardService
             [
                 new(
                     "會員總數",
-                    null,
-                    "會員模組尚未整合",
+                    memberCount,
+                    "目前未刪除的會員",
                     "fas fa-users",
                     "primary",
-                    false,
-                    null,
-                    "保留位置，暫不連接會員資料或頁面。"),
+                    true,
+                    "/AdminMembers"),
                 new(
                     "餐廳總數",
                     restaurantCount,

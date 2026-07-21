@@ -130,6 +130,8 @@ public class ReportHandleDto
 // 列表查詢/篩選參數
 public class ReportQueryParams
 {
+    public int? RestaurantID { get; set; }       // 精確篩選指定餐廳的檢舉
+    public int? ReviewID { get; set; }           // 精確篩選指定評論的檢舉
     public string? Keyword { get; set; }         // 搜尋原因/檢舉者/被檢舉會員
     public string? Status { get; set; }          // Pending / Approved / Rejected
     public string? TargetType { get; set; }      // Restaurant / Review / Image（不含 Member）
