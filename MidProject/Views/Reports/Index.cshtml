@@ -1,0 +1,231 @@
+@using Microsoft.AspNetCore.Mvc.Rendering
+@model MidProject.Models.DTOs.PagedResult<MidProject.Models.DTOs.ReportDto>
+
+@{
+    ViewData["Title"] = "檢舉列表";
+
+    // 先在程式碼區塊把下拉選單選項算好存成變數，
+    // 避免直接把含雙引號字串的 C# 運算式寫進 HTML 屬性裡（會被 Razor 誤判屬性提前結束）
+    var statusOptions = new SelectList(new List<SelectListItem>
+    {
+        new SelectListItem("待處理", "Pending"),
+        new SelectListItem("檢舉成立", "Approved"),
+        new SelectListItem("駁回檢舉", "Rejected"),
+    }, "Value", "Text", ViewBag.CurrentStatus as string);
+
+    // 檢舉目標不包含會員（Member），下拉選單顯示中文，送出的值維持英文
+    var targetTypeOptions = new SelectList(new List<SelectListItem>
+    {
+        new SelectListItem("餐廳", "Restaurant"),
+        new SelectListItem("評論", "Review"),
+        new SelectListItem("圖片", "Image"),
+    }, "Value", "Text", ViewBag.CurrentTargetType as string);
+
+    var categoryOptions = new SelectList(new List<string> { "不實資訊", "廣告洗版", "人身攻擊", "仇恨言論", "色情內容", "垃圾訊息" }, ViewBag.CurrentCategory as string);
+
+    // 組出換頁連結，保留目前的搜尋條件，只換 Page 參數
+    string PageUrl(int page)
+    {
+        var q = Context.Request.Query;
+        var parts = new List<string>();
+        foreach (var key in new[] { "Keyword", "Status", "TargetType", "Category", "DateFrom", "DateTo", "SortBy", "SortDirection" })
+        {
+            var value = q[key].ToString();
+            if (!string.IsNullOrEmpty(value))
+                parts.Add($"{key}={Uri.EscapeDataString(value)}");
+        }
+        parts.Add($"Page={page}");
+        return "?" + string.Join("&", parts);
+    }
+
+    // 組出排序連結：點同一欄位會切換 asc/desc，點別的欄位預設從 desc 開始
+    var currentSortBy = ViewBag.CurrentSortBy as string ?? "CreatedAt";
+    var currentSortDirection = ViewBag.CurrentSortDirection as string ?? "desc";
+
+    string SortUrl(string column)
+    {
+        var nextDirection = (currentSortBy == column && currentSortDirection == "desc") ? "asc" : "desc";
+
+        var q = Context.Request.Query;
+        var parts = new List<string>();
+        foreach (var key in new[] { "Keyword", "Status", "TargetType", "Category", "DateFrom", "DateTo" })
+        {
+            var value = q[key].ToString();
+            if (!string.IsNullOrEmpty(value))
+                parts.Add($"{key}={Uri.EscapeDataString(value)}");
+        }
+        parts.Add($"SortBy={column}");
+        parts.Add($"SortDirection={nextDirection}");
+        parts.Add("Page=1");
+        return "?" + string.Join("&", parts);
+    }
+
+    // 排序箭頭圖示：目前排序中的欄位顯示對應方向的實心箭頭，其餘欄位顯示淡色的雙向箭頭
+    string SortIcon(string column)
+    {
+        if (currentSortBy != column) return "fas fa-sort text-muted";
+        return currentSortDirection == "asc" ? "fas fa-sort-up" : "fas fa-sort-down";
+    }
+}
+
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">檢舉管理</h1>
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb bg-transparent mb-0 p-0">
+            <li class="breadcrumb-item"><a asp-controller="Home" asp-action="Index">HOME</a></li>
+            <li class="breadcrumb-item active">檢舉列表</li>
+        </ol>
+    </nav>
+</div>
+
+<!-- 搜尋條件卡片 -->
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">搜尋條件</h6>
+    </div>
+    <div class="card-body">
+        <form method="get">
+            <div class="row g-3 align-items-end mb-4">
+                <div class="col-md-6">
+                    <label class="form-label small mb-1">關鍵字</label>
+                    <input type="text" name="Keyword" value="@Context.Request.Query["Keyword"]" class="form-control form-control-sm" placeholder="原因/檢舉者/被檢舉會員/處理狀態/檢舉目標/檢舉分類" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small mb-1">檢舉日期（從）</label>
+                    <input type="date" name="DateFrom" value="@Context.Request.Query["DateFrom"]" class="form-control form-control-sm" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small mb-1">檢舉日期（至）</label>
+                    <input type="date" name="DateTo" value="@Context.Request.Query["DateTo"]" class="form-control form-control-sm" />
+                </div>
+            </div>
+
+            <div class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label small mb-1">處理狀態</label>
+                    <select name="Status" class="form-control form-control-sm" asp-items="statusOptions">
+                        <option value="">全部</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small mb-1">檢舉目標</label>
+                    <select name="TargetType" class="form-control form-control-sm" asp-items="targetTypeOptions">
+                        <option value="">全部</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small mb-1">檢舉分類</label>
+                    <select name="Category" class="form-control form-control-sm" asp-items="categoryOptions">
+                        <option value="">全部</option>
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex">
+                    <button type="submit" class="btn btn-primary flex-fill mr-2">
+                        <i class="fas fa-search"></i> 搜尋
+                    </button>
+                    <a asp-action="Index" class="btn btn-outline-secondary flex-fill">清除</a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 列表卡片 -->
+<div class="card shadow mb-4">
+    <div class="card-header py-3 d-flex justify-content-between align-items-center">
+        <h6 class="m-0 font-weight-bold text-primary">檢舉列表</h6>
+        <span class="text-muted small">共 @Model.TotalCount 筆</span>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover" width="100%" cellspacing="0">
+                <thead class="thead-light">
+                    <tr>
+                        <th>
+                            <a href="@SortUrl("ReportID")" class="text-dark text-decoration-none">
+                                編號 <i class="@SortIcon("ReportID")"></i>
+                            </a>
+                        </th>
+                        <th>
+                            <a href="@SortUrl("Status")" class="text-dark text-decoration-none">
+                                處理狀態 <i class="@SortIcon("Status")"></i>
+                            </a>
+                        </th>
+                        <th>檢舉目標</th>
+                        <th>檢舉分類</th>
+                        <th>檢舉者</th>
+                        <th>被檢舉會員</th>
+                        <th>
+                            <a href="@SortUrl("CreatedAt")" class="text-dark text-decoration-none">
+                                檢舉日期 <i class="@SortIcon("CreatedAt")"></i>
+                            </a>
+                        </th>
+                        <th>處理天數</th>
+                        <th>處理管理員</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var report in Model.Items)
+                    {
+                        <tr>
+                            <td>@report.ReportID</td>
+                            <td>
+                                @{
+                                    var badgeClass = report.Status switch
+                                    {
+                                        "Pending" => "badge-warning",
+                                        "Approved" => "badge-success",
+                                        "Rejected" => "badge-secondary",
+                                        _ => "badge-secondary"
+                                    };
+                                }
+                                <span class="badge @badgeClass">@report.StatusDisplay</span>
+                            </td>
+                            <td>@report.TargetType</td>
+                            <td>@report.CategoryDisplay</td>
+                            <td>@report.ReporterUserName</td>
+                            <td>@(report.ReportedMemberUserName ?? "—")</td>
+                            <td>@report.CreatedAt.ToString("yyyy-MM-dd")</td>
+                            <td class="@(report.ProcessingDays < 0 ? "text-danger" : "")">@report.ProcessingDays</td>
+                            <td>@(report.HandledByUserName ?? "—")</td>
+                            <td>
+                                <a asp-action="Details" asp-route-id="@report.ReportID" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-eye"></i> 查看
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                    @if (!Model.Items.Any())
+                    {
+                        <tr><td colspan="10" class="text-center text-muted">沒有符合條件的資料</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        @if (Model.TotalPages > 1)
+        {
+            <nav aria-label="分頁導覽" class="mt-3">
+                <ul class="pagination pagination-sm justify-content-center mb-0">
+                    <li class="page-item @(Model.Page <= 1 ? "disabled" : "")">
+                        <a class="page-link" href="@PageUrl(Model.Page - 1)">上一頁</a>
+                    </li>
+                    @for (var p = 1; p <= Model.TotalPages; p++)
+                    {
+                        <li class="page-item @(p == Model.Page ? "active" : "")">
+                            <a class="page-link" href="@PageUrl(p)">@p</a>
+                        </li>
+                    }
+                    <li class="page-item @(Model.Page >= Model.TotalPages ? "disabled" : "")">
+                        <a class="page-link" href="@PageUrl(Model.Page + 1)">下一頁</a>
+                    </li>
+                </ul>
+            </nav>
+        }
+
+        <div class="text-muted small mt-2 text-center">
+            第 @Model.Page / @Model.TotalPages 頁，共 @Model.TotalCount 筆
+        </div>
+    </div>
+</div>

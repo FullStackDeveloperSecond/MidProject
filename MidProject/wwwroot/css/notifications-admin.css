@@ -1,0 +1,33 @@
+.notification-admin {
+    min-width: 0;
+}
+
+.notification-admin .notification-row {
+    cursor: pointer;
+}
+
+.notification-admin .notification-row:focus {
+    outline: 3px solid rgba(13, 110, 253, .25);
+    outline-offset: -3px;
+}
+
+.notification-admin .notification-title {
+    min-width: 14rem;
+    max-width: 24rem;
+    white-space: normal;
+}
+
+.notification-admin .notification-actions {
+    min-width: 12rem;
+    white-space: nowrap;
+}
+
+.notification-admin .notification-content {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.notification-admin .notification-details dt,
+.notification-admin .notification-details dd {
+    padding-block: .35rem;
+}

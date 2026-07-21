@@ -15,14 +15,16 @@
       "launchBrowser": true,
       "applicationUrl": "http://localhost:5058",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "Notifications__IdentityMode": "DevelopmentTemporary"
       }
     },
     "IIS Express": {
       "commandName": "IISExpress",
       "launchBrowser": true,
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "Notifications__IdentityMode": "DevelopmentTemporary"
       }
     }
   }

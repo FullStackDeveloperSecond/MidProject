@@ -1,0 +1,136 @@
+@model MidProject.Models.ViewModels.ReviewListViewModel
+@using MidProject.Helpers
+@{
+    ViewData["Title"] = "評論管理";
+}
+
+<link rel="stylesheet" href="~/css/reviews-admin.css" />
+
+<h1 class="page-title">評論管理</h1>
+
+@if (TempData["Toast"] != null)
+{
+    <div class="rv-toast"><span class="tk">✓</span>@TempData["Toast"]</div>
+}
+
+<div class="stat-row">
+    <a class="stat-card" href="@Url.Action("Index", new { tab = "normal" })">
+        <div class="icon" style="background:var(--brand-bg);color:var(--brand-dark)">✓</div>
+        <div><div class="num" style="color:var(--brand-dark)">@Model.NormalCount</div><div class="lbl">正常評論</div></div>
+    </a>
+    <a class="stat-card" href="@Url.Action("Index", new { tab = "pending" })">
+        <div class="icon" style="background:var(--warn-bg);color:var(--warn)">⚠</div>
+        <div><div class="num" style="color:var(--warn)">@Model.PendingCount</div><div class="lbl">審核中</div></div>
+    </a>
+    <a class="stat-card" href="@Url.Action("Index", new { tab = "deleted" })">
+        <div class="icon" style="background:var(--muted-bg);color:var(--muted)">🗑</div>
+        <div><div class="num" style="color:var(--muted)">@Model.DeletedCount</div><div class="lbl">已刪除</div></div>
+    </a>
+</div>
+
+@{
+    var tabs = new (string Key, string Label, int Count)[]
+    {
+        ("all", "全部", Model.NormalCount + Model.PendingCount),
+        ("normal", "正常", Model.NormalCount),
+        ("pending", "審核中", Model.PendingCount),
+        ("deleted", "已刪除", Model.DeletedCount),
+    };
+}
+<div class="tab-bar">
+    @foreach (var t in tabs)
+    {
+        <a class="tab-btn @(Model.Tab == t.Key ? "active" : "")"
+           href="@Url.Action("Index", new { tab = t.Key, search = Model.Search, rating = Model.Rating, time = Model.Time })">
+            @t.Label <span class="tab-count">@t.Count</span>
+        </a>
+    }
+</div>
+
+<form method="get" asp-action="Index" class="filter-row">
+    @* 保留目前的 tab，換頁篩選條件時不要跳回「全部」 *@
+    <input type="hidden" name="tab" value="@Model.Tab" />
+    <input class="search-box" type="text" name="search" placeholder="🔍 搜尋評論內容、會員、餐廳..." value="@Model.Search" />
+    <select class="f-select" name="rating" onchange="this.form.submit()">
+        <option value="">所有星等</option>
+        @for (int i = 5; i >= 1; i--)
+        {
+            <option value="@i" selected="@(Model.Rating == i)">@i 星</option>
+        }
+    </select>
+    <select class="f-select" name="time" onchange="this.form.submit()">
+        <option value="all" selected="@(Model.Time == "all")">所有時間</option>
+        <option value="7" selected="@(Model.Time == "7")">近 7 天</option>
+        <option value="30" selected="@(Model.Time == "30")">近 30 天</option>
+    </select>
+</form>
+
+<div class="panel">
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th><th>會員</th><th>餐廳</th><th>星等</th><th>內容</th>
+                <th>狀態</th><th>檢舉</th><th>時間</th>
+            </tr>
+        </thead>
+        <tbody>
+        @if (!Model.Items.Any())
+        {
+            <tr class="empty-row"><td colspan="8">沒有符合條件的評論</td></tr>
+        }
+        else
+        {
+            @foreach (var r in Model.Items)
+            {
+                var (label, cls) = ReviewDisplayHelpers.GetStatusPill(r.IsDeleted, r.Status);
+                var rowClass = r.IsDeleted ? "row-deleted" : (r.Status == "PendingReview" ? "row-pending" : "");
+                var memberName = ReviewDisplayHelpers.DisplayName(r.Member.NickName, r.Member.UserName);
+                <tr class="row-click @rowClass" onclick="location.href='@Url.Action("Details", new { id = r.ReviewID })'">
+                    <td style="color:var(--text-faint)">@r.ReviewID</td>
+                    <td>
+                        <div class="u-cell">
+                            <div class="av" style="@ReviewDisplayHelpers.AvatarStyle(memberName)">@memberName.Substring(0, 1)</div>
+                            @memberName
+                        </div>
+                    </td>
+                    <td>@r.Restaurant.Name</td>
+                    <td><span class="stars">@(new string('★', r.Rating))</span> @r.Rating</td>
+                    <td><span class="content-line">@r.Content</span></td>
+                    <td><span class="pill @cls">@label</span></td>
+                    <td>
+                        @if (r.ReportCount > 0)
+                        {
+                            <span class="report-chip">⚠ @r.ReportCount</span>
+                        }
+                        else
+                        {
+                            <span class="report-chip zero">—</span>
+                        }
+                    </td>
+                    <td style="color:var(--text-faint);font-size:11.5px;white-space:nowrap">@ReviewDisplayHelpers.FormatRelative(r.CreatedAt)</td>
+                </tr>
+            }
+        }
+        </tbody>
+    </table>
+</div>
+
+@if (Model.TotalCount > 0)
+{
+    var showStart = (Model.Page - 1) * Model.PageSize + 1;
+    var showEnd = Math.Min(Model.Page * Model.PageSize, Model.TotalCount);
+    <div class="rv-pagination">
+        <span>顯示 @showStart–@showEnd 筆，共 @Model.TotalCount 筆</span>
+        <div class="page-btns">
+            <a class="page-btn @(Model.Page <= 1 ? "disabled" : "")"
+               href="@Url.Action("Index", new { tab = Model.Tab, search = Model.Search, rating = Model.Rating, time = Model.Time, page = Math.Max(1, Model.Page - 1) })">‹</a>
+            @for (int p = 1; p <= Model.TotalPages; p++)
+            {
+                <a class="page-btn @(p == Model.Page ? "on" : "")"
+                   href="@Url.Action("Index", new { tab = Model.Tab, search = Model.Search, rating = Model.Rating, time = Model.Time, page = p })">@p</a>
+            }
+            <a class="page-btn @(Model.Page >= Model.TotalPages ? "disabled" : "")"
+               href="@Url.Action("Index", new { tab = Model.Tab, search = Model.Search, rating = Model.Rating, time = Model.Time, page = Math.Min(Model.TotalPages, Model.Page + 1) })">›</a>
+        </div>
+    </div>
+}

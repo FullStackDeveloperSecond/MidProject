@@ -319,6 +319,11 @@ namespace MidProject.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<int>("WarningCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
                     b.HasKey("MemberID");
 
                     b.HasIndex("AvatarImageID");
@@ -344,6 +349,8 @@ namespace MidProject.Migrations
                             t.HasCheckConstraint("CK_Members_Role", "[Role] IN ('User', 'Admin')");
 
                             t.HasCheckConstraint("CK_Members_Status", "[Status] IN ('Normal', 'Warning', 'Muted', 'Suspended', 'Deleted')");
+
+                            t.HasCheckConstraint("CK_Members_WarningCount", "[WarningCount] >= 0");
                         });
                 });
 
@@ -357,14 +364,13 @@ namespace MidProject.Migrations
 
                     b.Property<string>("Content")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
 
                     b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETDATE()");
+                        .HasColumnType("datetime2");
 
-                    b.Property<int?>("CreatedBy")
+                    b.Property<int>("CreatedBy")
                         .HasColumnType("int");
 
                     b.Property<DateTime?>("DeletedAt")
@@ -393,11 +399,24 @@ namespace MidProject.Migrations
                         .HasColumnType("nvarchar(20)")
                         .HasDefaultValue("Personal");
 
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
                     b.Property<DateTime>("ScheduledAt")
                         .HasColumnType("datetime2");
 
                     b.Property<DateTime?>("SentAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<int?>("SourceReportID")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SourceReportOutcome")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
 
                     b.Property<int?>("TargetLevelID")
                         .HasColumnType("int");
@@ -421,19 +440,31 @@ namespace MidProject.Migrations
 
                     b.HasIndex("DeletedBy");
 
-                    b.HasIndex("IsDeleted");
-
-                    b.HasIndex("IsSent");
-
                     b.HasIndex("MemberID");
 
                     b.HasIndex("NotificationType");
 
                     b.HasIndex("TargetLevelID");
 
+                    b.HasIndex("SourceReportID", "SourceReportOutcome")
+                        .IsUnique()
+                        .HasFilter("[SourceReportID] IS NOT NULL AND [SourceReportOutcome] IS NOT NULL");
+
+                    b.HasIndex("IsDeleted", "ScheduledAt", "NotificationID");
+
+                    b.HasIndex("IsSent", "IsDeleted", "ScheduledAt", "NotificationID");
+
                     b.ToTable("Notifications", t =>
                         {
+                            t.HasCheckConstraint("CK_Notifications_Audience", "([NotificationType] = 'Personal' AND [MemberID] IS NOT NULL AND [TargetRole] IS NULL AND [TargetStatus] IS NULL AND [TargetLevelID] IS NULL) OR ([NotificationType] = 'Condition' AND [MemberID] IS NULL)");
+
+                            t.HasCheckConstraint("CK_Notifications_DeletedState", "([IsDeleted] = 0 AND [DeletedAt] IS NULL AND [DeletedBy] IS NULL) OR ([IsDeleted] = 1 AND [IsSent] = 0 AND [DeletedAt] IS NOT NULL AND [DeletedBy] IS NOT NULL)");
+
                             t.HasCheckConstraint("CK_Notifications_NotificationType", "[NotificationType] IN ('Personal', 'Condition')");
+
+                            t.HasCheckConstraint("CK_Notifications_ReportSource", "([SourceReportID] IS NULL AND [SourceReportOutcome] IS NULL) OR ([SourceReportID] IS NOT NULL AND [SourceReportOutcome] IN ('Approved', 'Rejected'))");
+
+                            t.HasCheckConstraint("CK_Notifications_SentState", "([IsSent] = 0 AND [SentAt] IS NULL) OR ([IsSent] = 1 AND [SentAt] IS NOT NULL)");
 
                             t.HasCheckConstraint("CK_Notifications_TargetRole", "[TargetRole] IS NULL OR [TargetRole] IN ('User', 'Admin')");
 
@@ -451,6 +482,11 @@ namespace MidProject.Migrations
 
                     b.Property<string>("AdminNote")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
@@ -793,6 +829,11 @@ namespace MidProject.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("LevelID"));
 
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
                     b.Property<string>("LevelName")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -930,7 +971,8 @@ namespace MidProject.Migrations
                     b.HasOne("MidProject.Models.Member", "CreatedByMember")
                         .WithMany()
                         .HasForeignKey("CreatedBy")
-                        .OnDelete(DeleteBehavior.NoAction);
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
 
                     b.HasOne("MidProject.Models.Member", "DeletedByMember")
                         .WithMany()
