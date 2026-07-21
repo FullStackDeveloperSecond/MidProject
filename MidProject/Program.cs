@@ -62,6 +62,7 @@ builder.Services.AddScoped<INotificationAdminAccessEvaluator, NotificationAdminA
 builder.Services.AddScoped<NotificationAdminAuthorizationFilter>();
 builder.Services.AddScoped<IReportNotificationWindow, ReportNotificationWindow>();
 builder.Services.AddScoped<IDashboardNotificationWindow, DashboardNotificationWindow>();
+builder.Services.AddScoped<IDashboardService, DashboardService>();
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment() && builder.Configuration.GetValue<bool>("SeedData:Enabled"))
