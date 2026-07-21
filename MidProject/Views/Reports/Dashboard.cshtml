@@ -1,0 +1,155 @@
+@model MidProject.Models.DTOs.ReportDashboardDto
+
+@{
+    ViewData["Title"] = "檢舉總攬";
+}
+
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800">美食地圖管理系統</h1>
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb bg-transparent mb-0 p-0">
+            <li class="breadcrumb-item"><a asp-controller="Home" asp-action="Index">HOME</a></li>
+            <li class="breadcrumb-item active">回報</li>
+        </ol>
+    </nav>
+</div>
+
+<h6 class="text-gray-500 mb-3">累計</h6>
+
+<div class="row">
+    <!-- Pending 卡片 -->
+    <div class="col-xl-4 col-md-6 mb-4">
+        <a asp-action="Index" asp-route-Status="Pending" class="text-decoration-none d-block">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="d-flex align-items-baseline">
+                                <div class="h4 mb-0 font-weight-bold text-gray-800">@Model.PendingCount</div>
+                                <div class="h4 mb-0 font-weight-bold text-warning ml-2">待處理</div>
+                            </div>
+                            @if (Model.PendingNewThisMonth > 0)
+                            {
+                                <div class="text-xs text-success">
+                                    <i class="fas fa-arrow-up"></i> @Model.PendingNewThisMonth new this month
+                                </div>
+                            }
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-folder fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <!-- Approved 卡片 -->
+    <div class="col-xl-4 col-md-6 mb-4">
+        <a asp-action="Index" asp-route-Status="Approved" class="text-decoration-none d-block">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="d-flex align-items-baseline">
+                                <div class="h4 mb-0 font-weight-bold text-gray-800">@Model.ApprovedCount</div>
+                                <div class="h4 mb-0 font-weight-bold text-success ml-2">檢舉成立</div>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-check-circle fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+
+    <!-- Rejected 卡片 -->
+    <div class="col-xl-4 col-md-6 mb-4">
+        <a asp-action="Index" asp-route-Status="Rejected" class="text-decoration-none d-block">
+            <div class="card border-left-secondary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="d-flex align-items-baseline">
+                                <div class="h4 mb-0 font-weight-bold text-gray-800">@Model.RejectedCount</div>
+                                <div class="h4 mb-0 font-weight-bold text-secondary ml-2">駁回檢舉</div>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-clock fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </a>
+    </div>
+</div>
+
+<!-- 每月統計 -->
+<div class="card shadow mb-4">
+    <div class="card-header py-3 d-flex justify-content-between align-items-center">
+        <h6 class="m-0 font-weight-bold text-primary">每月統計（近 12 個月）</h6>
+        <a asp-action="Index" class="btn btn-sm btn-outline-primary">查看回報列表</a>
+    </div>
+    <div class="card-body">
+        <div class="chart-bar">
+            <canvas id="monthlyReportsChart"></canvas>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/vendor/chart.js/Chart.min.js"></script>
+    <script>
+        (function () {
+            var months = @Html.Raw(Json.Serialize(Model.MonthlyStats.Select(m => m.MonthLabel)));
+            var approvedData = @Html.Raw(Json.Serialize(Model.MonthlyStats.Select(m => m.Approved)));
+            var rejectedData = @Html.Raw(Json.Serialize(Model.MonthlyStats.Select(m => m.Rejected)));
+            var pendingData = @Html.Raw(Json.Serialize(Model.MonthlyStats.Select(m => m.Pending)));
+
+            var ctx = document.getElementById("monthlyReportsChart");
+
+            // 注意：SB Admin 2 內建的 Chart.js 通常是 2.x 版，座標軸設定用 xAxes/yAxes（陣列）這種舊寫法。
+            // 如果專案裡實際裝的是 Chart.js 3.x/4.x，這段語法會失效，要改成 scales: { x: {...}, y: {...} } 的新寫法。
+            new Chart(ctx, {
+                type: "bar",
+                data: {
+                    labels: months,
+                    datasets: [
+                        {
+                            label: "檢舉成立",
+                            backgroundColor: "#1cc88a",
+                            data: approvedData
+                        },
+                        {
+                            label: "駁回檢舉",
+                            backgroundColor: "#858796",
+                            data: rejectedData
+                        },
+                        {
+                            label: "待處理",
+                            backgroundColor: "#f6c23e",
+                            data: pendingData
+                        }
+                    ]
+                },
+                options: {
+                    maintainAspectRatio: false,
+                    scales: {
+                        xAxes: [{
+                            stacked: true,
+                            gridLines: { display: false }
+                        }],
+                        yAxes: [{
+                            stacked: true,
+                            ticks: { beginAtZero: true }
+                        }]
+                    },
+                    legend: { display: true, position: "bottom", labels: { fontSize: 18 } }
+                }
+            });
+        })();
+    </script>
+}

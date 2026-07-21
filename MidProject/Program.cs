@@ -36,6 +36,11 @@ if (string.IsNullOrWhiteSpace(connectionString))
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(connectionString));
+
+
+builder.Services.AddScoped<IReportRepository, ReportRepository>();
+builder.Services.AddScoped<IReportService, ReportService>();
+
 builder.Services.AddScoped<IReviewRepository, ReviewRepository>();
 builder.Services.AddScoped<IReviewService, ReviewService>();
 if (notificationIdentityMode.Mode == NotificationIdentityMode.DevelopmentTemporary)
@@ -62,6 +67,7 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment() && builder.Configuration.GetValue<bool>("SeedData:Enabled"))
 {
     await SeedData.InitializeAsync(app.Services);
+	await ReportsTestDataSeeder.SeedAsync(app.Services);
 }
 
 await using (var scope = app.Services.CreateAsyncScope())
