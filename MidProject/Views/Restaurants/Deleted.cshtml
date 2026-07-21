@@ -25,17 +25,17 @@
         <article class="stat-card"><span>前次停用原因</span><strong>@(Model.StatsLastReason ?? "-")</strong></article>
     </div>
 
-    <form method="get" asp-action="Deleted" class="toolbar">
+    <form method="get" asp-action="Deleted" class="toolbar" id="filterForm">
         <div class="filter-row deleted-filters">
             <input class="input" type="search" name="Search" value="@Model.Filter.Search" placeholder="搜尋停用餐廳...">
-            <select class="select" name="City" onchange="this.form.submit()">
+            <select class="select" name="City" onchange="this.form.requestSubmit()">
                 <option value="">全部縣市</option>
                 @foreach (var city in Model.AvailableCities)
                 {
                     <option value="@city" selected="@(city == Model.Filter.City)">@city</option>
                 }
             </select>
-            <select class="select" name="Reason" onchange="this.form.submit()">
+            <select class="select" name="Reason" onchange="this.form.requestSubmit()">
                 <option value="">全部停用原因</option>
                 @foreach (var reason in Model.AvailableReasons)
                 {
@@ -98,6 +98,12 @@
 
 <div id="modalRoot" class="modal-root" aria-hidden="true"></div>
 <div id="toast" class="toast" role="status"></div>
+<div id="pageLoadingOverlay" class="page-loading-overlay" aria-hidden="true">
+    <div class="page-loading-content">
+        <div class="page-loading-spinner"></div>
+        <p>載入中... 請稍後</p>
+    </div>
+</div>
 
 @section Scripts {
     <script src="~/js/restaurant-admin.js" asp-append-version="true"></script>
@@ -105,5 +111,6 @@
         document.querySelectorAll('.js-edit-btn').forEach(btn => {
             btn.addEventListener('click', () => RestaurantAdmin.openEditModal(btn.dataset.id));
         });
+        RestaurantAdmin.bindPageLoadingOverlay();
     </script>
 }

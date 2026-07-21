@@ -12,6 +12,31 @@ const RestaurantAdmin = (() => {
         return document.getElementById("modalRoot");
     }
 
+    // Full-page GET navigations (filter form submit, pagination links) give no
+    // visual feedback while the server is still working — the old page just sits
+    // there looking frozen until the new one arrives. Showing this overlay the
+    // instant the user triggers the navigation fills that dead time so it reads as
+    // "loading" instead of "stuck". It has nothing to hide itself again on success,
+    // since the whole document gets replaced anyway once the new page arrives; it
+    // only matters if the request fails and the browser stays on the same page.
+    function showPageLoadingOverlay() {
+        const overlay = document.getElementById("pageLoadingOverlay");
+        if (overlay) {
+            overlay.classList.add("show");
+        }
+    }
+
+    function bindPageLoadingOverlay() {
+        const filterForm = document.getElementById("filterForm");
+        if (filterForm) {
+            filterForm.addEventListener("submit", showPageLoadingOverlay);
+        }
+
+        document.querySelectorAll(".pager a").forEach(link => {
+            link.addEventListener("click", showPageLoadingOverlay);
+        });
+    }
+
     function openModalHtml(html, options = {}) {
         const root = modalRoot();
         if (!root) return;
@@ -462,6 +487,8 @@ const RestaurantAdmin = (() => {
         openEditModal,
         openImageLightbox,
         closeModal,
-        toast
+        toast,
+        showPageLoadingOverlay,
+        bindPageLoadingOverlay
     };
 })();
