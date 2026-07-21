@@ -22,7 +22,7 @@ public class RestaurantService : IRestaurantService
 
     public async Task<RestaurantIndexViewModel> GetIndexAsync(RestaurantFilterQuery filter)
     {
-        var stats = await _restaurantRepository.GetStatsAsync();
+        var stats = await _restaurantRepository.GetStatsAsync(filter);
         var (items, total) = await _restaurantRepository.GetActivePagedAsync(filter, PageSize);
         var activeTags = (await _tagRepository.GetAllAsync()).Where(t => !t.IsDeleted).ToList();
 
