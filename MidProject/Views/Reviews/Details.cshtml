@@ -1,0 +1,205 @@
+@model MidProject.Models.ViewModels.ReviewDetailViewModel
+@using MidProject.Helpers
+@{
+    ViewData["Title"] = $"評論 #{Model.Review.ReviewID} 詳情";
+    var (label, cls) = ReviewDisplayHelpers.GetStatusPill(Model.Review.IsDeleted, Model.Review.Status);
+    var activeImages = Model.Review.ReviewImages?.Where(ri => ri.Image != null && !ri.Image.IsDeleted).ToList()
+                        ?? new List<MidProject.Models.ReviewImage>();
+    var hasAnyImages = Model.Review.ReviewImages != null && Model.Review.ReviewImages.Any();
+    var memberName = ReviewDisplayHelpers.DisplayName(Model.Review.Member.NickName, Model.Review.Member.UserName);
+    var previewContent = Model.Review.Content != null && Model.Review.Content.Length > 60
+        ? Model.Review.Content.Substring(0, 60) + "…"
+        : Model.Review.Content;
+}
+
+
+<link rel="stylesheet" href="~/css/reviews-admin.css" />
+
+@if (TempData["Toast"] != null)
+{
+    <div class="rv-toast"><span class="tk">✓</span>@TempData["Toast"]</div>
+}
+
+<div class="rv-breadcrumb">
+    <a class="link" asp-action="Index">評論管理</a>
+    <span class="sep">/</span>
+    <span>評論 #@Model.Review.ReviewID 詳情</span>
+</div>
+
+<div class="detail-grid">
+    <div class="rv-card">
+        <div class="rv-card-head">
+            📝 評論 #@Model.Review.ReviewID
+            <span class="pill @cls sp">@label</span>
+        </div>
+        <div class="rv-card-body">
+            <div class="review-box">
+                <div class="rv-meta">
+                    <div class="rv-author">
+                        <div class="av" style="@(ReviewDisplayHelpers.AvatarStyle(memberName));width:34px;height:34px;font-size:13px">
+                            @memberName.Substring(0, 1)
+                        </div>
+                        <div>
+                            <div class="name">@memberName</div>
+                            <div class="sub">MemberID: @Model.Review.MemberID</div>
+                        </div>
+                    </div>
+                    <div class="rv-rating">
+                        <div class="st">
+                            @(new string('★', Model.Review.Rating))<span style="color:#DDD">@(new string('★', 5 - Model.Review.Rating))</span>
+                        </div>
+                        <div class="num">Rating: @Model.Review.Rating</div>
+                    </div>
+                </div>
+
+                <div class="rv-content">「@Model.Review.Content」</div>
+
+                @if (activeImages.Any())
+                {
+                    <div class="rv-photos">
+                        @foreach (var ri in activeImages)
+                        {
+                            <div class="rv-photo-wrap">
+                                <a href="@ri.Image!.ImageURL" target="_blank" rel="noopener" class="rv-photo" title="點擊看原圖">
+                                    <img src="@ri.Image!.ImageURL" alt="評論圖片" loading="lazy"
+                                         onerror="this.parentElement.classList.add('rv-photo--broken');this.remove();" />
+                                </a>
+                                <form asp-action="DeleteImage" method="post" style="display:inline">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="imageId" value="@ri.ImageID" />
+                                    <input type="hidden" name="reviewId" value="@Model.Review.ReviewID" />
+                                    <button type="submit" class="rv-photo-del" title="刪除這張圖片" aria-label="刪除圖片"
+                                            onclick="return confirm('確定要刪除這張圖片嗎？')">✕</button>
+                                </form>
+                            </div>
+                        }
+                    </div>
+                }
+                else if (hasAnyImages)
+                {
+                    <div class="rv-photo-empty">所有圖片皆已刪除</div>
+                }
+
+                <div class="rv-info">
+                    <div class="rv-info-item">📍 餐廳：<b>@Model.Review.Restaurant.Name</b></div>
+                    <div class="rv-info-item">🚩 ReportCount：<b style="color:var(--danger)">@Model.Review.ReportCount</b></div>
+                    <div class="rv-info-item">📅 CreatedAt：<b>@ReviewDisplayHelpers.FormatFull(Model.Review.CreatedAt)</b></div>
+                    <div class="rv-info-item">
+                        🔄 UpdatedAt：<b>@(Model.Review.UpdatedAt.HasValue ? ReviewDisplayHelpers.FormatFull(Model.Review.UpdatedAt.Value) : "—")</b>
+                    </div>
+                    @if (Model.Review.IsDeleted)
+                    {
+                        <div class="rv-info-item">
+                            🗑 DeletedAt：<b>@(Model.Review.DeletedAt.HasValue ? ReviewDisplayHelpers.FormatFull(Model.Review.DeletedAt.Value) : "—")</b>
+                        </div>
+                        <div class="rv-info-item">
+                            👤 DeletedBy：
+                            <b>@(Model.Review.DeletedByMember != null ? ReviewDisplayHelpers.DisplayName(Model.Review.DeletedByMember.NickName, Model.Review.DeletedByMember.UserName) : "—")</b>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+
+        <div class="action-bar">
+            @if (Model.Review.IsDeleted)
+            {
+                <button type="button" class="action-btn confirm-green" onclick="document.getElementById('restore-modal').style.display='flex'">↩ 還原這則評論</button>
+            }
+            else
+            {
+                <button type="button" class="action-btn danger" onclick="document.getElementById('delete-modal').style.display='flex'">🗑 軟刪除這則評論</button>
+            }
+        </div>
+    </div>
+
+    <div class="rv-card">
+        <div class="rv-card-head">
+            🚩 檢舉紀錄
+            <span class="sp" style="font-size:11.5px;color:var(--text-soft);font-weight:400">@Model.Reports.Count 筆</span>
+        </div>
+        <div class="rv-card-body">
+            @if (!Model.Reports.Any())
+            {
+                <div class="report-empty">這則評論目前沒有檢舉紀錄</div>
+            }
+            else
+            {
+                @foreach (var rp in Model.Reports)
+                {
+                    var (rLabel, rCls) = ReviewDisplayHelpers.GetReportStatusLabel(rp.Status);
+                    var reporterName = rp.ReporterMember != null
+                        ? ReviewDisplayHelpers.DisplayName(rp.ReporterMember.NickName, rp.ReporterMember.UserName)
+                        : "未知會員";
+                    <div class="report-item">
+                        <div class="report-top">
+                            <div class="av" style="@(ReviewDisplayHelpers.AvatarStyle(reporterName));width:22px;height:22px;font-size:9.5px">@reporterName.Substring(0, 1)</div>
+                            <span class="name">@reporterName</span>
+                            <span class="report-status @rCls">@rLabel</span>
+                            <span class="time">@ReviewDisplayHelpers.FormatRelative(rp.CreatedAt)</span>
+                        </div>
+                        <div class="report-reason">@rp.Reason</div>
+                        @if (!string.IsNullOrWhiteSpace(rp.AdminNote))
+                        {
+                            <div class="report-note">備註：@rp.AdminNote</div>
+                        }
+                    </div>
+                }
+            }
+            @* TODO：換成你們 Reports 模組實際的路由，這裡先假設是 /Reports?reviewId= *@
+            <a class="report-link" href="/Reports?reviewId=@Model.Review.ReviewID">在檢舉管理查看完整處理紀錄 →</a>
+        </div>
+    </div>
+</div>
+
+<!-- 刪除確認彈窗 -->
+<div class="modal-overlay" id="delete-modal" style="display:none" onclick="if(event.target===this){this.style.display='none'}">
+    <div class="rv-modal-box" role="dialog" aria-modal="true" aria-labelledby="delete-modal-title">
+        <div class="rv-modal-icon" style="background:var(--danger-bg);color:var(--danger)">🗑</div>
+        <div class="rv-modal-title" id="delete-modal-title">確定要刪除這則評論嗎？</div>
+        <div class="rv-modal-text">評論將標記為「已刪除」，不會出現在一般列表中，之後仍可還原。</div>
+        <div class="rv-modal-preview">
+            「@previewContent」
+            <span class="src">— @memberName 對 @Model.Review.Restaurant.Name 的 @Model.Review.Rating 星評論</span>
+        </div>
+        <div class="rv-modal-btns">
+            <button type="button" class="rv-modal-btn cancel" onclick="document.getElementById('delete-modal').style.display='none'">取消</button>
+            <form asp-action="SoftDelete" asp-route-id="@Model.Review.ReviewID" method="post" style="flex:1;display:flex">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="rv-modal-btn confirm-red" style="width:100%">確定刪除</button>
+            </form>
+        </div>
+        <div class="rv-modal-sql">UPDATE Reviews SET IsDeleted=1, DeletedAt=GETDATE(),<br>DeletedBy=@@AdminID WHERE ReviewID=@Model.Review.ReviewID</div>
+    </div>
+</div>
+
+<!-- 還原確認彈窗 -->
+<div class="modal-overlay" id="restore-modal" style="display:none" onclick="if(event.target===this){this.style.display='none'}">
+    <div class="rv-modal-box" role="dialog" aria-modal="true" aria-labelledby="restore-modal-title">
+        <div class="rv-modal-icon">↩</div>
+        <div class="rv-modal-title" id="restore-modal-title">確定要恢復這則評論嗎？</div>
+        <div class="rv-modal-text">評論將恢復顯示，前台用戶會重新看到這則評論。</div>
+        <div class="rv-modal-preview">
+            「@previewContent」
+            <span class="src">— @memberName 對 @Model.Review.Restaurant.Name 的 @Model.Review.Rating 星評論</span>
+        </div>
+        <div class="rv-modal-btns">
+            <button type="button" class="rv-modal-btn cancel" onclick="document.getElementById('restore-modal').style.display='none'">取消</button>
+            <form asp-action="Restore" asp-route-id="@Model.Review.ReviewID" method="post" style="flex:1;display:flex">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="rv-modal-btn confirm-green" style="width:100%">確定恢復</button>
+            </form>
+        </div>
+        <div class="rv-modal-sql">UPDATE Reviews SET IsDeleted=0, DeletedAt=NULL,<br>DeletedBy=NULL WHERE ReviewID=@Model.Review.ReviewID</div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+            document.getElementById('delete-modal').style.display = 'none';
+            document.getElementById('restore-modal').style.display = 'none';
+        }
+    });
+</script>

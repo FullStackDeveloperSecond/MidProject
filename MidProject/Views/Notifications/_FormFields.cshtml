@@ -1,0 +1,74 @@
+@model MidProject.Models.ViewModels.Notifications.NotificationFormViewModel
+
+<div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+<div class="row g-3">
+    <div class="col-md-6">
+        <label asp-for="NotificationType" class="form-label">通知類型</label>
+        <select asp-for="NotificationType" class="form-select">
+            <option value="Personal">Personal</option>
+            <option value="Condition">Condition</option>
+        </select>
+        <span asp-validation-for="NotificationType" class="text-danger"></span>
+    </div>
+    <div class="col-md-6">
+        <label asp-for="MemberID" class="form-label">個人會員（Personal）</label>
+        <select asp-for="MemberID" class="form-select">
+            <option value="">不指定</option>
+            @foreach (var option in Model.MemberOptions)
+            {
+                <option value="@option.Value">@option.Label</option>
+            }
+        </select>
+        <span asp-validation-for="MemberID" class="text-danger"></span>
+    </div>
+    <div class="col-md-4">
+        <label asp-for="TargetRole" class="form-label">目標角色（Condition）</label>
+        <select asp-for="TargetRole" class="form-select">
+            <option value="">全部角色</option>
+            @foreach (var option in Model.RoleOptions)
+            {
+                <option value="@option.Value">@option.Label</option>
+            }
+        </select>
+        <span asp-validation-for="TargetRole" class="text-danger"></span>
+    </div>
+    <div class="col-md-4">
+        <label asp-for="TargetStatus" class="form-label">目標狀態（Condition）</label>
+        <select asp-for="TargetStatus" class="form-select">
+            <option value="">全部狀態</option>
+            @foreach (var option in Model.StatusOptions)
+            {
+                <option value="@option.Value">@option.Label</option>
+            }
+        </select>
+        <span asp-validation-for="TargetStatus" class="text-danger"></span>
+    </div>
+    <div class="col-md-4">
+        <label asp-for="TargetLevelID" class="form-label">目標等級（Condition）</label>
+        <select asp-for="TargetLevelID" class="form-select">
+            <option value="">全部等級</option>
+            @foreach (var option in Model.LevelOptions)
+            {
+                <option value="@option.Value">@option.Label</option>
+            }
+        </select>
+        <span asp-validation-for="TargetLevelID" class="text-danger"></span>
+    </div>
+    <div class="col-12">
+        <label asp-for="Title" class="form-label">標題</label>
+        <input asp-for="Title" class="form-control" maxlength="100" />
+        <span asp-validation-for="Title" class="text-danger"></span>
+    </div>
+    <div class="col-12">
+        <label asp-for="Content" class="form-label">內容</label>
+        <textarea asp-for="Content" class="form-control" rows="8" maxlength="1000"></textarea>
+        <span asp-validation-for="Content" class="text-danger"></span>
+    </div>
+    <div class="col-md-6">
+        <label asp-for="ScheduledAt" class="form-label">排程時間（台灣時間）</label>
+        <input asp-for="ScheduledAt" type="datetime-local" class="form-control" value="@Model.ScheduledAt?.ToString("yyyy-MM-ddTHH:mm")" />
+        <div class="form-text">以分鐘為判斷精度；同一分鐘會立即標記為已發送。</div>
+        <span asp-validation-for="ScheduledAt" class="text-danger"></span>
+    </div>
+</div>
