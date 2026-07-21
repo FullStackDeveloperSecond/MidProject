@@ -1,0 +1,61 @@
+@model MidProject.Models.ViewModels.Tags.TagsIndexViewModel
+@{
+    ViewData["Title"] = "餐廳標籤一覽";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/restaurant-admin.css" asp-append-version="true" />
+}
+
+<div class="ra-page">
+    <div class="ra-topbar">
+        <h1>餐廳標籤一覽</h1>
+    </div>
+
+    @if (TempData["Toast"] != null)
+    {
+        <div class="alert">@TempData["Toast"]</div>
+    }
+
+    <form method="post" asp-action="Create" class="tag-page-row">
+        @Html.AntiForgeryToken()
+        <input class="input" name="name" placeholder="輸入新標籤名稱，例如：越南料理" maxlength="50" required>
+        <button type="submit" class="btn">+ 新增標籤</button>
+    </form>
+
+    <p class="hint">點擊停用後標籤將執行軟刪除（IsDeleted = 1），並自動移至下方停用區。</p>
+
+    <div class="tag-grid">
+        @foreach (var tag in Model.ActiveTags)
+        {
+            <article class="tag-card">
+                <div>
+                    <strong>@tag.Name</strong>
+                    <p class="muted">使用中 @tag.UsageCount 間餐廳</p>
+                </div>
+                <form method="post" asp-action="Toggle" asp-route-id="@tag.Id">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-danger">停用</button>
+                </form>
+            </article>
+        }
+    </div>
+
+    <div class="divider">停用中 @Model.InactiveTags.Count 個標籤（IsDeleted = 1）</div>
+
+    <div class="tag-grid">
+        @foreach (var tag in Model.InactiveTags)
+        {
+            <article class="tag-card inactive">
+                <div>
+                    <strong>@tag.Name</strong>
+                    <p class="muted">已停用，原 @tag.UsageCount 間餐廳使用</p>
+                </div>
+                <form method="post" asp-action="Toggle" asp-route-id="@tag.Id">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-restore">啟用</button>
+                </form>
+            </article>
+        }
+    </div>
+</div>

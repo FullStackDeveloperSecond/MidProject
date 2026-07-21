@@ -14,6 +14,8 @@ public class UserLevel
     [StringLength(50)]
     public string? Rewards { get; set; }
 
+    public bool IsDeleted { get; set; }
+
     public ICollection<Member> Members { get; set; } = new List<Member>();
     public ICollection<Notification> Notifications { get; set; } = new List<Notification>();
 }

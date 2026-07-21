@@ -1,0 +1,211 @@
+@model MidProject.Models.ViewModels.Restaurants.RestaurantDetailViewModel
+@{
+    ViewData["Title"] = Model.Name;
+    var backAction = Model.IsDeleted ? "Deleted" : "Index";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/restaurant-admin.css" asp-append-version="true" />
+}
+
+<div class="ra-page">
+    <div class="detail-header">
+        <div class="detail-title">
+            <a class="btn" asp-action="@backAction">← 返回</a>
+            <h2>@Model.Name</h2>
+            @if (Model.IsDeleted)
+            {
+                <span class="tag closed">停用中</span>
+            }
+        </div>
+        <div class="page-actions">
+            @if (Model.IsDeleted)
+            {
+                <button type="button" class="btn js-edit-btn" data-id="@Model.Id">編輯</button>
+                <form method="post" asp-action="Restore" asp-route-id="@Model.Id" class="d-inline">
+                    @Html.AntiForgeryToken()
+                    <button type="submit" class="btn btn-restore">解除停用</button>
+                </form>
+            }
+            else
+            {
+                <button type="button" class="btn js-edit-btn" data-id="@Model.Id">編輯</button>
+                <button type="button" class="btn btn-danger" id="disableBtn">停用</button>
+            }
+        </div>
+    </div>
+
+    @if (Model.IsDeleted)
+    {
+        <div class="alert">此資料目前 IsDeleted = 1。可先編輯修正資料，再解除停用回到餐廳一覽。</div>
+    }
+
+    <div class="detail-grid">
+        <div>
+            <section class="card">
+                <h3>餐廳圖片</h3>
+                <div class="detail-image-grid">
+                    <div class="detail-cover">
+                        @if (!string.IsNullOrEmpty(Model.CoverImageUrl))
+                        {
+                            <button type="button" class="detail-image-button cover js-view-image" data-src="@Model.CoverImageUrl">
+                                <img src="@Model.CoverImageUrl" alt="封面圖">
+                            </button>
+                        }
+                        else
+                        {
+                            <div class="image-empty">尚未上傳封面圖</div>
+                        }
+                    </div>
+                    <div class="detail-env-list">
+                        @if (Model.EnvironmentImageUrls.Any())
+                        {
+                            @for (var i = 0; i < Math.Min(Model.EnvironmentImageUrls.Count, 6); i++)
+                            {
+                                var hiddenCount = Model.EnvironmentImageUrls.Count - 6;
+                                var isOverflow = i == 5 && hiddenCount > 0;
+                                <button type="button" class="detail-image-button environment js-view-image @(isOverflow ? "has-more" : "")" data-src="@Model.EnvironmentImageUrls[i]">
+                                    <img src="@Model.EnvironmentImageUrls[i]" alt="環境圖">
+                                    @if (isOverflow)
+                                    {
+                                        <span class="image-more-overlay">+@hiddenCount</span>
+                                    }
+                                </button>
+                            }
+                        }
+                        else
+                        {
+                            <div class="image-empty">尚未上傳環境圖</div>
+                        }
+                    </div>
+                </div>
+            </section>
+
+            <section class="card">
+                <h3>基本資訊</h3>
+                <div class="info-row"><span class="info-key">餐廳名稱</span><span>@Model.Name</span></div>
+                <div class="info-row"><span class="info-key">縣市</span><span>@Model.City</span></div>
+                <div class="info-row"><span class="info-key">行政區</span><span>@Model.District</span></div>
+                <div class="info-row"><span class="info-key">詳細地址</span><span>@Model.DetailedAddress</span></div>
+                <div class="info-row"><span class="info-key">電話</span><span>@(Model.Phone ?? "尚未填寫")</span></div>
+                <div class="info-row"><span class="info-key">備註</span><span>@(Model.Note ?? "尚未填寫")</span></div>
+                <div class="info-row">
+                    <span class="info-key">標籤</span>
+                    <span>
+                        @if (!Model.Tags.Any())
+                        {
+                            <span class="muted">尚未設定</span>
+                        }
+                        @foreach (var tag in Model.Tags)
+                        {
+                            <a class="tag" href="@Url.Action("Index", "Restaurants", new { TagId = tag.Id })">@tag.Name</a>
+                        }
+                    </span>
+                </div>
+                <div class="info-row"><span class="info-key">擁有者</span><span>@Model.OwnerName（MemberID: @Model.OwnerMemberId）</span></div>
+            </section>
+
+            <section class="card">
+                <h3>營業時間</h3>
+                <div class="hours-grid">
+                    @foreach (var day in Model.HoursByDay)
+                    {
+                        <div class="hour-day">
+                            <b>@day.DayLabel</b>
+                            @if (day.IsClosed)
+                            {
+                                <span class="muted">公休</span>
+                            }
+                            else
+                            {
+                                foreach (var slot in day.Slots)
+                                {
+                                    <div class="hour-slot">@slot.Open.ToString("HH:mm")<span class="hour-slot-sep">–</span>@slot.Close.ToString("HH:mm")</div>
+                                }
+                            }
+                        </div>
+                    }
+                </div>
+            </section>
+        </div>
+
+        <div>
+            <section class="card">
+                <h3>評分摘要</h3>
+                <strong style="font-size:42px">@Model.AverageRating.ToString("0.0")</strong>
+                <p><span class="stars">★★★★★</span></p>
+                <p class="muted">共 @Model.ReviewCount 則評論</p>
+                <a class="btn" href="/Reviews?restaurantId=@Model.Id">查看評論</a>
+            </section>
+
+            <section class="card">
+                <h3>座標</h3>
+                <div class="info-row"><span class="info-key">Latitude</span><span>@(Model.Latitude?.ToString() ?? "尚未填寫")</span></div>
+                <div class="info-row"><span class="info-key">Longitude</span><span>@(Model.Longitude?.ToString() ?? "尚未填寫")</span></div>
+            </section>
+
+            <section class="card">
+                <h3>檢舉 / 回報摘要</h3>
+                <p class="muted">查看此餐廳相關的檢舉紀錄。</p>
+                <a class="btn" href="/Reports?restaurantId=@Model.Id">查看檢舉</a>
+            </section>
+
+            @if (Model.IsDeleted)
+            {
+                <section class="card">
+                    <h3>停用資訊</h3>
+                    <div class="info-row"><span class="info-key">停用時間</span><span>@(Model.DeletedAt?.ToString("yyyy-MM-dd HH:mm") ?? "-")</span></div>
+                    <div class="info-row"><span class="info-key">執行者</span><span>@(Model.DeletedByName ?? "-")</span></div>
+                    <div class="info-row"><span class="info-key">停用原因</span><span class="tag violation">@Model.DeleteReason</span></div>
+                </section>
+            }
+        </div>
+    </div>
+</div>
+
+<div id="modalRoot" class="modal-root" aria-hidden="true"></div>
+<div id="toast" class="toast" role="status"></div>
+
+@if (!Model.IsDeleted)
+{
+    <div class="modal-root" id="disableModalRoot" aria-hidden="true">
+        <div class="ra-modal" role="dialog" aria-modal="true">
+            <div class="modal-head">
+                <h2>停用餐廳</h2>
+                <button type="button" class="btn btn-icon" id="closeDisableModal" aria-label="關閉">×</button>
+            </div>
+            <form method="post" asp-action="Disable" asp-route-id="@Model.Id">
+                @Html.AntiForgeryToken()
+                <div class="modal-body">
+                    <label class="field">
+                        <span>停用原因</span>
+                        <input class="input" type="text" name="reason" value="違規內容" required>
+                    </label>
+                </div>
+                <div class="modal-foot">
+                    <button type="button" class="btn" id="cancelDisableModal">取消</button>
+                    <button type="submit" class="btn btn-danger">確認停用</button>
+                </div>
+            </form>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <script src="~/js/restaurant-admin.js" asp-append-version="true"></script>
+    <script>
+        document.querySelectorAll('.js-edit-btn').forEach(btn => {
+            btn.addEventListener('click', () => RestaurantAdmin.openEditModal(btn.dataset.id));
+        });
+        document.querySelectorAll('.js-view-image').forEach(btn => {
+            btn.addEventListener('click', () => RestaurantAdmin.openImageLightbox(btn.dataset.src));
+        });
+        var disableBtn = document.getElementById('disableBtn');
+        var disableModalRoot = document.getElementById('disableModalRoot');
+        if (disableBtn && disableModalRoot) {
+            disableBtn.addEventListener('click', () => disableModalRoot.classList.add('open'));
+            document.getElementById('closeDisableModal').addEventListener('click', () => disableModalRoot.classList.remove('open'));
+            document.getElementById('cancelDisableModal').addEventListener('click', () => disableModalRoot.classList.remove('open'));
+        }
+    </script>
+}
