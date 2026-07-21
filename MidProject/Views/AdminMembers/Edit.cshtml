@@ -1,0 +1,333 @@
+@model Member
+@{
+    var reports = ViewBag.ApprovedReports as List<Report> ?? new List<Report>();
+    var levelsSorted = ((IEnumerable<UserLevel>)ViewBag.Levels).OrderBy(l => l.MinExp).ToList();
+    var levelIndex = levelsSorted.FindIndex(l => l.LevelID == Model.LevelID);
+    var levelNumber = levelIndex + 1;
+    int? nextThreshold = (levelIndex >= 0 && levelIndex < levelsSorted.Count - 1) ? levelsSorted[levelIndex + 1].MinExp : (int?)null;
+
+    (string Label, string BadgeClass, string Style, string Emoji) StatusInfo(string status) => status switch
+    {
+        "Normal" => ("正常", "bg-success", "", "✅"),
+        "Warning" => ("警告", "bg-warning text-dark", "", "⚠️"),
+        "Muted" => ("禁言", "text-white", "background-color:#fd7e14;", "🔇"),
+        "Suspended" => ("停權", "bg-danger", "", "⛔"),
+        "Deleted" => ("刪除", "bg-secondary", "", "🗑️"),
+        _ => (status, "bg-secondary", "", "")
+    };
+    var currentStatus = StatusInfo(Model.Status);
+    var avatarUrl = Model.AvatarImage?.ImageURL;
+    var defaultAvatar = "/uploads/MemberAvatar/avatar24-01.jpg";
+    var isSuspended = Model.Status == "Suspended";
+}
+
+<h2>會員詳細 / 編輯</h2>
+
+@if (TempData["AvatarError"] != null)
+{
+    <div class="alert alert-danger">@TempData["AvatarError"]</div>
+}
+@if (TempData["NicknameError"] != null)
+{
+    <div class="alert alert-danger">@TempData["NicknameError"]</div>
+}
+@if (isSuspended)
+{
+    <div class="alert alert-secondary d-flex justify-content-between align-items-center">
+        <span>⛔ 此會員目前為停權狀態，欄位已鎖定無法編輯。</span>
+        <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#liftSuspensionModal">
+            🔓 解除停權
+        </button>
+    </div>
+}
+
+<form asp-action="Edit" method="post" id="editForm" class="@(isSuspended ? "opacity-50" : "")">
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card p-3 mb-3">
+                <div class="text-center mb-3">
+                    @if (!string.IsNullOrEmpty(avatarUrl))
+                    {
+                        <img src="@avatarUrl" width="100" height="100" class="rounded-circle" />
+                    }
+                    else
+                    {
+                        <img src="@defaultAvatar" width="100" height="100" class="rounded-circle" />
+                    }
+                    <div class="mt-2">
+                        <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#avatarModal" disabled="@isSuspended">
+                            🗑️ 移除照片
+                        </button>
+                    </div>
+                </div>
+                <p><strong>等級：</strong> LV@(levelNumber) @Model.UserLevel?.LevelName</p>
+                <p><strong>經驗值：</strong> @Model.Experience@(nextThreshold.HasValue ? $" / {nextThreshold} EXP" : " (滿級)")</p>
+                <div class="mb-2">
+                    <strong>點數：</strong>
+                    <div class="input-group input-group-sm mt-1" style="max-width: 180px;">
+                        <button type="button" class="btn btn-outline-secondary" id="pointsMinus" disabled="@isSuspended">-</button>
+                        <input type="number" name="points" id="pointsInput" class="form-control text-center" value="@Model.Points" min="0" readonly="@isSuspended" />
+                        <button type="button" class="btn btn-outline-secondary" id="pointsPlus" disabled="@isSuspended">+</button>
+                    </div>
+                </div>
+                <p>
+                    <strong>目前狀態：</strong>
+                    <a href="#" data-bs-toggle="modal" data-bs-target="#violationModal" class="text-decoration-none">
+                        <span class="badge @currentStatus.BadgeClass" style="@currentStatus.Style">@currentStatus.Emoji @currentStatus.Label</span>
+                    </a>
+                </p>
+                <p><strong>註冊時間：</strong> @Model.CreatedAt</p>
+            </div>
+
+            <div class="card p-3">
+                <h5>⚠️ 違規受理紀錄 (@reports.Count)</h5>
+                <div style="max-height: 300px; overflow-y: auto;">
+                    @foreach (var r in reports)
+                    {
+                        <div class="border-bottom py-2">
+                            <small class="text-muted">@r.CreatedAt</small><br />
+                            <strong>原因：</strong> @r.Reason <br />
+                            <small class="text-secondary">備註：@r.AdminNote</small>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <div class="card p-3">
+                <input type="hidden" asp-for="MemberID" />
+
+                <div class="mb-3">
+                    <label class="form-label">帳號</label>
+                    <input asp-for="UserName" class="form-control bg-light" readonly tabindex="-1" />
+                    <span class="form-text text-muted">帳號為登入識別，建立後不可變更。</span>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">名稱</label>
+                    <div class="input-group">
+                        <input value="@Model.NickName" class="form-control bg-light" readonly tabindex="-1" />
+                        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#nicknameModal" disabled="@isSuspended">
+                            ✏️ 變更名稱
+                        </button>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">生日</label>
+                    <input value="@(Model.Birthday?.ToString("yyyy-MM-dd") ?? "未設定")" class="form-control bg-light" readonly tabindex="-1" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">信箱</label>
+                    <input value="@Model.Email" class="form-control bg-light" readonly tabindex="-1" />
+                    <span class="form-text text-muted">信箱為登入識別之一，如需變更請洽會員本人確認身分。</span>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">會員狀態</label>
+                    <select asp-for="Status" class="form-select" id="statusSelect" disabled="@isSuspended">
+                        <option value="Normal">正常</option>
+                        <option value="Warning">警告</option>
+                        <option value="Muted">禁言</option>
+                        <option value="Suspended">停權</option>
+                    </select>
+                </div>
+
+                @if (Model.Status != "Normal")
+                {
+                    <div class="mb-3">
+                        <label class="form-label">處罰期限</label>
+                        <p class="mb-1 small">檢舉累積次數：@(reports.Count)次</p>
+                        <p class="mb-1 small">懲罰開始時間：@Model.UpdatedAt.ToString("yyyy-MM-dd HH:mm")</p>
+                        <p class="mb-1 small">懲罰結束時間：@(Model.PenaltyEndAt?.ToString("yyyy-MM-dd HH:mm") ?? "永久")</p>
+                    </div>
+                }
+
+                <div class="mb-3">
+                    <label class="form-label">狀態變更原因 / 管理員備註 (AdminNote)</label>
+                    <textarea asp-for="AdminNote" class="form-control" rows="3" readonly="@isSuspended"></textarea>
+                    <span asp-validation-for="AdminNote" class="text-danger"></span>
+                </div>
+
+                <div class="mt-3">
+                    <button type="submit" class="btn btn-success" disabled="@isSuspended">💾 保存變更</button>
+                    <a asp-action="Index" class="btn btn-secondary">❌ 取消</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+
+<!-- 名稱變更 Modal -->
+<div class="modal fade" id="nicknameModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form asp-action="ChangeNickName" method="post">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">變更會員名稱</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="id" value="@Model.MemberID" />
+                    <div class="mb-3">
+                        <label class="form-label">新名稱</label>
+                        <input type="text" name="nickName" class="form-control" value="@Model.NickName" required maxlength="50" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">請填寫變更原因（例如：名稱不雅）</label>
+                        <textarea name="reason" class="form-control" rows="2" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">確認變更</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 照片移除 Modal -->
+<div class="modal fade" id="avatarModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form asp-action="RemoveAvatar" method="post">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">移除會員照片</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="id" value="@Model.MemberID" />
+                    <p class="text-muted">移除後將改回預設照片。</p>
+                    <div class="mb-3">
+                        <label class="form-label">請填寫移除原因（例如：照片不雅）</label>
+                        <textarea name="reason" class="form-control" rows="2" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-danger">確認移除</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 解除停權 Modal：僅將欄位解鎖並帶入選擇的狀態/原因，實際保存仍需按主表單的「保存變更」 -->
+<div class="modal fade" id="liftSuspensionModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">🔓 解除停權</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small">確認後會解鎖下方表單欄位，仍需按「保存變更」才會真正保存。</p>
+                <div class="mb-3">
+                    <label class="form-label">解除後的會員狀態</label>
+                    <select id="liftNewStatus" class="form-select" required>
+                        <option value="Normal">正常</option>
+                        <option value="Warning">警告</option>
+                        <option value="Muted">禁言</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">請填寫解除停權原因</label>
+                    <textarea id="liftReason" class="form-control" rows="2" required></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-warning" id="confirmLiftSuspension">確認，解鎖表單</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 違規總覽 Modal -->
+<div class="modal fade" id="violationModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">⚠️ 違規總覽 / 懲處條件</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted">依累積受理檢舉次數套用懲處：</p>
+                <ol class="list-group list-group-numbered">
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>⚠️ 警告</span>
+                        <span class="text-muted small">累積 1 次受理檢舉</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>🔇 禁言 1 週</span>
+                        <span class="text-muted small">累積 2 次受理檢舉</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>🔇 禁言 1 個月</span>
+                        <span class="text-muted small">累積 3 次受理檢舉</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span>⛔ 停權</span>
+                        <span class="text-muted small">累積 4 次受理檢舉</span>
+                    </li>
+                </ol>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    // 點數 +/- 按鈕（僅調整畫面數值，需按「保存變更」才會送出）
+    (function () {
+        var pointsInput = document.getElementById('pointsInput');
+        document.getElementById('pointsMinus').addEventListener('click', function () {
+            var value = parseInt(pointsInput.value, 10) || 0;
+            pointsInput.value = Math.max(0, value - 1);
+        });
+        document.getElementById('pointsPlus').addEventListener('click', function () {
+            var value = parseInt(pointsInput.value, 10) || 0;
+            pointsInput.value = value + 1;
+        });
+    })();
+
+    // 解除停權：僅解鎖表單欄位並帶入選擇的狀態/原因，不會直接送出，需再按「保存變更」才會真正保存
+    (function () {
+        var confirmBtn = document.getElementById('confirmLiftSuspension');
+        if (!confirmBtn) return;
+
+        confirmBtn.addEventListener('click', function () {
+            var newStatus = document.getElementById('liftNewStatus').value;
+            var reason = document.getElementById('liftReason').value.trim();
+            if (!reason) {
+                alert('請輸入解除停權原因');
+                return;
+            }
+
+            // 解鎖主表單欄位
+            document.getElementById('editForm').classList.remove('opacity-50');
+            ['statusSelect'].forEach(function (id) {
+                document.getElementById(id).disabled = false;
+            });
+            document.getElementById('pointsMinus').disabled = false;
+            document.getElementById('pointsPlus').disabled = false;
+            document.getElementById('pointsInput').readOnly = false;
+            document.querySelector('[data-bs-target="#nicknameModal"]').disabled = false;
+            document.querySelector('[data-bs-target="#avatarModal"]').disabled = false;
+            var adminNoteEl = document.querySelector('textarea[name="AdminNote"]');
+            adminNoteEl.readOnly = false;
+            document.querySelector('#editForm button[type="submit"]').disabled = false;
+
+            // 帶入選擇的狀態與原因
+            document.getElementById('statusSelect').value = newStatus;
+            var tag = '[解除停權] ' + reason;
+            adminNoteEl.value = adminNoteEl.value ? (tag + '\n' + adminNoteEl.value) : tag;
+
+            // 關閉視窗
+            bootstrap.Modal.getInstance(document.getElementById('liftSuspensionModal')).hide();
+        });
+    })();
+</script>
+}

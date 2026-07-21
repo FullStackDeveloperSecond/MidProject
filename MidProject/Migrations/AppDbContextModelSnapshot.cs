@@ -953,7 +953,7 @@ namespace MidProject.Migrations
                         .HasForeignKey("DeletedBy")
                         .OnDelete(DeleteBehavior.NoAction);
 
-                    b.HasOne("MidProject.Models.UserLevel", "Level")
+                    b.HasOne("MidProject.Models.UserLevel", "UserLevel")
                         .WithMany("Members")
                         .HasForeignKey("LevelID")
                         .OnDelete(DeleteBehavior.NoAction)
@@ -963,7 +963,7 @@ namespace MidProject.Migrations
 
                     b.Navigation("DeletedByMember");
 
-                    b.Navigation("Level");
+                    b.Navigation("UserLevel");
                 });
 
             modelBuilder.Entity("MidProject.Models.Notification", b =>

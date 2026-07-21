@@ -1,0 +1,58 @@
+﻿@{
+    Layout = null; // 登入頁獨立使用，不載入主版
+}
+
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>後台管理系統 - 登入</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" />
+</head>
+<body class="bg-light d-flex align-items-center justify-content-center" style="height: 100vh;">
+
+    <div class="card shadow" style="width: 100%; max-width: 400px;">
+        <div class="card-body p-4">
+            <h3 class="text-center mb-4">美食地圖 | 登入</h3>
+
+            @if (TempData["RegisterSuccess"] != null)
+            {
+                <div class="alert alert-success py-2 small">@TempData["RegisterSuccess"]</div>
+            }
+
+            @if (!ViewData.ModelState.IsValid)
+            {
+                <div class="alert alert-danger py-2 small">
+                    <div asp-validation-summary="All"></div>
+                </div>
+            }
+
+            <form asp-action="Login" method="post">
+                @Html.AntiForgeryToken() @* 防範 CSRF 攻擊 *@
+
+                <div class="mb-3">
+                    <label for="email" class="form-label">Email</label>
+                    <input type="email" id="email" name="email" class="form-control" placeholder="admin@example.com" required />
+                </div>
+
+                <div class="mb-4">
+                    <label for="password" class="form-label">密碼</label>
+                    <input type="password" id="password" name="password" class="form-control" placeholder="請輸入密碼" required />
+                </div>
+
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-primary py-2">🔓 Login</button>
+                    <a href="/" class="btn btn-outline-secondary">Cancel (回首頁)</a>
+                </div>
+                <div class="text-center mt-3 small">
+                    <a asp-action="Register">註冊新會員</a>
+                    <span class="text-muted">｜</span>
+                    <a asp-action="RegisterAdmin">註冊管理員</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+</body>
+</html>

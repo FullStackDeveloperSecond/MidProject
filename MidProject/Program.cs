@@ -37,6 +37,14 @@ if (string.IsNullOrWhiteSpace(connectionString))
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(connectionString));
 
+//���U Cookie ���ҪA��
+builder.Services.AddAuthentication(Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        // �p�G���n�J�ξ��ҥ��ġA�|�۰ʸ���ܦ����|
+        options.LoginPath = "/Account/Login";
+        options.AccessDeniedPath = "/Home/Index";
+    });
 
 builder.Services.AddScoped<IReportRepository, ReportRepository>();
 builder.Services.AddScoped<IReportService, ReportService>();
@@ -101,6 +109,16 @@ if (!app.Environment.IsDevelopment())
 
 app.UseStaticFiles();
 app.UseRouting();
+
+//�ҥ�����
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapControllerRoute(
+    name: "default",
+    pattern: "{controller=Home}/{action=Index}/{id?}");
+
+app.Run();
 app.UseAuthorization();
 
 app.MapControllerRoute(
