@@ -43,9 +43,9 @@ namespace MidProject.Repositories
         {
             if (isDeleted)
             {
-                return await _db.Reviews.CountAsync(r => r.IsDeleted);
+                return await _db.Reviews.CountAsync(r => r.IsDeleted || r.Restaurant!.IsDeleted);
             }
-            return await _db.Reviews.CountAsync(r => !r.IsDeleted && r.Status == status);
+            return await _db.Reviews.CountAsync(r => !r.IsDeleted && !r.Restaurant!.IsDeleted && r.Status == status);
         }
 
         public async Task<Review?> GetByIdAsync(int id)
@@ -95,7 +95,8 @@ namespace MidProject.Repositories
             await _db.SaveChangesAsync();
         }
 
-        /// <summary>對應規格書 4.2：全部要排除 IsDeleted = true，其餘依 Tab / 星等 / 時間 / 搜尋疊加篩選條件。</summary>
+        /// <summary>對應規格書 4.2：全部要排除 IsDeleted = true，其餘依 Tab / 星等 / 時間 / 搜尋疊加篩選條件。
+        /// 一則評論視為「已刪除」的條件：自己被軟刪除，或所屬餐廳被停用（Restaurant.IsDeleted）。</summary>
         private IQueryable<Review> BuildFilteredQuery(string tab, string? search, int? rating, string time)
         {
             var query = _db.Reviews
@@ -105,10 +106,10 @@ namespace MidProject.Repositories
 
             query = tab switch
             {
-                "normal" => query.Where(r => !r.IsDeleted && r.Status == "Active"),
-                "pending" => query.Where(r => !r.IsDeleted && r.Status == "PendingReview"),
-                "deleted" => query.Where(r => r.IsDeleted),
-                _ => query.Where(r => !r.IsDeleted), // "all"
+                "normal" => query.Where(r => !r.IsDeleted && !r.Restaurant!.IsDeleted && r.Status == "Active"),
+                "pending" => query.Where(r => !r.IsDeleted && !r.Restaurant!.IsDeleted && r.Status == "PendingReview"),
+                "deleted" => query.Where(r => r.IsDeleted || r.Restaurant!.IsDeleted),
+                _ => query.Where(r => !r.IsDeleted && !r.Restaurant!.IsDeleted), // "all"
             };
 
             if (rating.HasValue && rating.Value > 0)

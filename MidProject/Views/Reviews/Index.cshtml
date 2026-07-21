@@ -106,8 +106,9 @@
         {
             @foreach (var r in Model.Items)
             {
-                var (label, cls) = ReviewDisplayHelpers.GetStatusPill(r.IsDeleted, r.Status);
-                var rowClass = r.IsDeleted ? "row-deleted" : (r.Status == "PendingReview" ? "row-pending" : "");
+                var effectivelyDeleted = r.IsDeleted || r.Restaurant.IsDeleted;
+                var (label, cls) = ReviewDisplayHelpers.GetStatusPill(effectivelyDeleted, r.Status);
+                var rowClass = effectivelyDeleted ? "row-deleted" : (r.Status == "PendingReview" ? "row-pending" : "");
                 var memberName = ReviewDisplayHelpers.DisplayName(r.Member.NickName, r.Member.UserName);
                 <tr class="row-click @rowClass" onclick="location.href='@Url.Action("Details", new { id = r.ReviewID })'">
                     <td style="color:var(--text-faint)">@r.ReviewID</td>
