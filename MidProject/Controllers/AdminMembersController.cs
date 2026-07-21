@@ -254,6 +254,16 @@ public class AdminMembersController : Controller
     {
         if (member.Status == "Deleted") return;
 
+        // 1. 懲罰期限已過：狀態自動恢復為正常（僅限有期限的懲處，如禁言；停權為永久，需人工解除）
+        if (member.PenaltyEndAt.HasValue && member.PenaltyEndAt.Value <= DateTime.Now)
+        {
+            member.Status = "Normal";
+            member.PenaltyEndAt = null;
+            member.UpdatedAt = DateTime.Now;
+            await _context.SaveChangesAsync();
+            return;
+        }
+
         var approvedCount = await _context.Reports
             .CountAsync(r => r.ReportedMemberID == member.MemberID && r.Status == "Approved" && !r.IsDeleted);
 

@@ -129,7 +129,8 @@
                 @if (Model.Status != "Normal")
                 {
                     <div class="mb-3">
-                        <label class="form-label">處分期限</label>
+                        <label class="form-label">處罰期限</label>
+                        <p class="mb-1 small">檢舉累積次數：@(reports.Count)次</p>
                         <p class="mb-1 small">懲罰開始時間：@Model.UpdatedAt.ToString("yyyy-MM-dd HH:mm")</p>
                         <p class="mb-1 small">懲罰結束時間：@(Model.PenaltyEndAt?.ToString("yyyy-MM-dd HH:mm") ?? "永久")</p>
                     </div>
