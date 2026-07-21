@@ -68,8 +68,11 @@
     }
 }
 
-<div class="d-sm-flex align-items-center justify-content-between mb-4">
-    <h1 class="h3 mb-0 text-gray-800">檢舉管理</h1>
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+    <div>
+        <h1 class="h3 mb-1">檢舉管理</h1>
+        <p class="text-muted mb-0">查詢並處理會員提交的檢舉案件</p>
+    </div>
     <nav aria-label="breadcrumb">
         <ol class="breadcrumb bg-transparent mb-0 p-0">
             <li class="breadcrumb-item"><a asp-controller="Home" asp-action="Index">HOME</a></li>
@@ -81,7 +84,7 @@
 <!-- 搜尋條件卡片 -->
 <div class="card shadow mb-4">
     <div class="card-header py-3">
-        <h6 class="m-0 font-weight-bold text-primary">搜尋條件</h6>
+        <h6 class="m-0 fw-bold text-primary">搜尋條件</h6>
     </div>
     <div class="card-body">
         <form method="get">
@@ -103,25 +106,25 @@
             <div class="row g-3 align-items-end">
                 <div class="col-md-3">
                     <label class="form-label small mb-1">處理狀態</label>
-                    <select name="Status" class="form-control form-control-sm" asp-items="statusOptions">
+                    <select name="Status" class="form-select form-select-sm" asp-items="statusOptions">
                         <option value="">全部</option>
                     </select>
                 </div>
                 <div class="col-md-3">
                     <label class="form-label small mb-1">檢舉目標</label>
-                    <select name="TargetType" class="form-control form-control-sm" asp-items="targetTypeOptions">
+                    <select name="TargetType" class="form-select form-select-sm" asp-items="targetTypeOptions">
                         <option value="">全部</option>
                     </select>
                 </div>
                 <div class="col-md-3">
                     <label class="form-label small mb-1">檢舉分類</label>
-                    <select name="Category" class="form-control form-control-sm" asp-items="categoryOptions">
+                    <select name="Category" class="form-select form-select-sm" asp-items="categoryOptions">
                         <option value="">全部</option>
                     </select>
                 </div>
                 <div class="col-md-3 d-flex">
-                    <button type="submit" class="btn btn-primary flex-fill mr-2">
-                        <i class="fas fa-search"></i> 搜尋
+                    <button type="submit" class="btn btn-primary flex-fill me-2">
+                        <i class="fas fa-search me-1"></i>搜尋
                     </button>
                     <a asp-action="Index" class="btn btn-outline-secondary flex-fill">清除</a>
                 </div>
@@ -133,13 +136,13 @@
 <!-- 列表卡片 -->
 <div class="card shadow mb-4">
     <div class="card-header py-3 d-flex justify-content-between align-items-center">
-        <h6 class="m-0 font-weight-bold text-primary">檢舉列表</h6>
+        <h6 class="m-0 fw-bold text-primary">檢舉列表</h6>
         <span class="text-muted small">共 @Model.TotalCount 筆</span>
     </div>
     <div class="card-body">
         <div class="table-responsive">
-            <table class="table table-bordered table-hover" width="100%" cellspacing="0">
-                <thead class="thead-light">
+            <table class="table table-bordered table-hover align-middle mb-0">
+                <thead class="table-light">
                     <tr>
                         <th>
                             <a href="@SortUrl("ReportID")" class="text-dark text-decoration-none">
@@ -174,10 +177,10 @@
                                 @{
                                     var badgeClass = report.Status switch
                                     {
-                                        "Pending" => "badge-warning",
-                                        "Approved" => "badge-success",
-                                        "Rejected" => "badge-secondary",
-                                        _ => "badge-secondary"
+                                        "Pending" => "bg-warning text-dark",
+                                        "Approved" => "bg-success",
+                                        "Rejected" => "bg-secondary",
+                                        _ => "bg-secondary"
                                     };
                                 }
                                 <span class="badge @badgeClass">@report.StatusDisplay</span>
@@ -189,9 +192,9 @@
                             <td>@report.CreatedAt.ToString("yyyy-MM-dd")</td>
                             <td class="@(report.ProcessingDays < 0 ? "text-danger" : "")">@report.ProcessingDays</td>
                             <td>@(report.HandledByUserName ?? "—")</td>
-                            <td>
-                                <a asp-action="Details" asp-route-id="@report.ReportID" class="btn btn-sm btn-outline-primary">
-                                    <i class="fas fa-eye"></i> 查看
+                            <td class="text-end">
+                                <a asp-action="Details" asp-route-id="@report.ReportID" class="btn btn-info btn-sm">
+                                    <i class="fas fa-eye me-1"></i>查看
                                 </a>
                             </td>
                         </tr>

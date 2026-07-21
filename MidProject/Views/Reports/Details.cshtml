@@ -4,8 +4,11 @@
     ViewData["Title"] = "檢舉詳情";
 }
 
-<div class="d-sm-flex align-items-center justify-content-between mb-4">
-    <h1 class="h3 mb-0 text-gray-800">檢舉詳情 #@Model.ReportID</h1>
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+    <div>
+        <h1 class="h3 mb-1">檢舉詳情 #@Model.ReportID</h1>
+        <p class="text-muted mb-0">查看檢舉內容並完成管理員審核</p>
+    </div>
     <nav aria-label="breadcrumb">
         <ol class="breadcrumb bg-transparent mb-0 p-0">
             <li class="breadcrumb-item"><a asp-controller="Home" asp-action="Index">HOME</a></li>
@@ -19,7 +22,7 @@
 {
     <div class="alert alert-success alert-dismissible fade show" role="alert">
         @TempData["Message"]
-        <button type="button" class="close" data-dismiss="alert">&times;</button>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="關閉"></button>
     </div>
 }
 
@@ -29,7 +32,7 @@
              另外補充目標內容、檢舉原因、處理備註這幾項只有詳情頁才需要的細節 -->
         <div class="card shadow mb-4">
             <div class="card-header py-3">
-                <h6 class="m-0 font-weight-bold text-primary">檢舉內容</h6>
+                <h6 class="m-0 fw-bold text-primary">檢舉內容</h6>
             </div>
             <div class="card-body">
                 <dl class="row mb-0">
@@ -41,10 +44,10 @@
                         @{
                             var badgeClass = Model.Status switch
                             {
-                                "Pending" => "badge-warning",
-                                "Approved" => "badge-success",
-                                "Rejected" => "badge-secondary",
-                                _ => "badge-secondary"
+                                "Pending" => "bg-warning text-dark",
+                                "Approved" => "bg-success",
+                                "Rejected" => "bg-secondary",
+                                _ => "bg-secondary"
                             };
                         }
                         <span class="badge @badgeClass">@Model.StatusDisplay</span>
@@ -108,21 +111,21 @@
     <div class="col-lg-5">
         <div class="card shadow mb-4">
             <div class="card-header py-3">
-                <h6 class="m-0 font-weight-bold text-primary">處理檢舉</h6>
+                <h6 class="m-0 fw-bold text-primary">處理檢舉</h6>
             </div>
             <div class="card-body">
                 <form id="handleForm" asp-action="Handle" asp-route-id="@Model.ReportID" method="post">
                     @Html.AntiForgeryToken()
-                    <div class="form-group">
+                    <div class="mb-3">
                         <label class="form-label">處理結果</label>
-                        <select name="Status" class="form-control">
+                        <select name="Status" class="form-select">
                             <option value="Approved">檢舉成立</option>
                             <option value="Rejected">駁回檢舉</option>
                         </select>
                     </div>
-                    <div class="form-group">
+                    <div class="mb-3">
                         <label class="form-label">檢舉分類（可修改）</label>
-                        <select name="Category" class="form-control">
+                        <select name="Category" class="form-select">
                             @foreach (var cat in new[] { "不實資訊", "廣告洗版", "人身攻擊", "仇恨言論", "色情內容", "垃圾訊息" })
                             {
                                 @if (cat == Model.Category)
@@ -136,7 +139,7 @@
                             }
                         </select>
                     </div>
-                    <div class="form-group">
+                    <div class="mb-3">
                         <label class="form-label">管理員備註</label>
                         <textarea name="AdminNote" class="form-control" rows="3"></textarea>
                     </div>
@@ -150,8 +153,8 @@
         @if (Model.Status != "Pending")
         {
             <!-- 只有已經審核完畢（核准/駁回）的檢舉才能通知檢舉會員審核結果，按下後開啟下方的通知視窗 -->
-            <button type="button" class="btn btn-outline-primary btn-block mb-4" id="notifyReopenBtn">
-                <i class="fas fa-paper-plane"></i> 通知紀錄
+            <button type="button" class="btn btn-outline-primary w-100 mb-4" id="notifyReopenBtn">
+                <i class="fas fa-paper-plane me-1"></i>通知紀錄
             </button>
         }
     </div>
@@ -163,47 +166,47 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">檢舉通知</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="關閉"></button>
             </div>
             <div class="modal-body">
                 <div class="card mb-3">
                     <div class="card-header py-2 bg-primary">
-                        <h6 class="m-0 font-weight-bold text-white">通知檢舉者內容</h6>
+                        <h6 class="m-0 fw-bold text-white">通知檢舉者內容</h6>
                     </div>
                     <div class="card-body">
-                        <div class="form-group">
+                        <div class="mb-3">
                             <label class="form-label">標題</label>
                             <input type="text" id="reporterTitle" class="form-control" />
                         </div>
-                        <div class="form-group">
+                        <div class="mb-3">
                             <label class="form-label">內容</label>
                             <textarea id="reporterContent" class="form-control" rows="8"></textarea>
                         </div>
                         <button type="button" class="btn btn-primary btn-sm" id="saveReporterNotify">儲存</button>
-                        <span class="ml-2 text-success small d-none" id="reporterSavedMsg"><i class="fas fa-check"></i> 已送出</span>
+                        <span class="ms-2 text-success small d-none" id="reporterSavedMsg"><i class="fas fa-check me-1"></i>已送出</span>
                     </div>
                 </div>
 
                 <div class="card mb-3 d-none" id="reportedMemberNotifyCard">
                     <div class="card-header py-2 bg-info">
-                        <h6 class="m-0 font-weight-bold text-white">通知被檢舉會員內容</h6>
+                        <h6 class="m-0 fw-bold text-white">通知被檢舉會員內容</h6>
                     </div>
                     <div class="card-body">
-                        <div class="form-group">
+                        <div class="mb-3">
                             <label class="form-label">標題</label>
                             <input type="text" id="reportedMemberTitle" class="form-control" />
                         </div>
-                        <div class="form-group">
+                        <div class="mb-3">
                             <label class="form-label">內容</label>
                             <textarea id="reportedMemberContent" class="form-control" rows="8"></textarea>
                         </div>
                         <button type="button" class="btn btn-primary btn-sm" id="saveReportedMemberNotify">儲存</button>
-                        <span class="ml-2 text-success small d-none" id="reportedMemberSavedMsg"><i class="fas fa-check"></i> 已送出</span>
+                        <span class="ms-2 text-success small d-none" id="reportedMemberSavedMsg"><i class="fas fa-check me-1"></i>已送出</span>
                     </div>
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">關閉</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button>
             </div>
         </div>
     </div>
@@ -215,6 +218,8 @@
             var reportId = @Model.ReportID;
             var notifyReporterUrl = '@Url.Action("NotifyReporter", "Reports", new { id = Model.ReportID })';
             var notifyReportedMemberUrl = '@Url.Action("NotifyReportedMember", "Reports", new { id = Model.ReportID })';
+            var notifyModalElement = document.getElementById('notifyModal');
+            var notifyModal = bootstrap.Modal.getOrCreateInstance(notifyModalElement);
 
             function antiForgeryToken() {
                 return $('#handleForm input[name="__RequestVerificationToken"]').val();
@@ -234,7 +239,7 @@
                     $('#reportedMemberNotifyCard').addClass('d-none');
                 }
 
-                $('#notifyModal').modal('show');
+                notifyModal.show();
             }
 
             // 送出處理改成 AJAX，成功後不整頁重新整理，直接跳出通知視窗
@@ -308,7 +313,7 @@
             });
 
             // 關閉視窗後重新整理頁面，讓左側的處理狀態／處理時間等欄位同步最新結果
-            $('#notifyModal').on('hidden.bs.modal', function () {
+            notifyModalElement.addEventListener('hidden.bs.modal', function () {
                 window.location.reload();
             });
         })();
