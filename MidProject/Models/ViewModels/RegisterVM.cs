@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace MidProject.Models.ViewModels
 {
-    public class RegisterVM
+    public class RegisterVM : IValidatableObject
     {
         [Display(Name = "帳號")]
         [Required(ErrorMessage = "{0}必填")]
@@ -33,5 +33,13 @@ namespace MidProject.Models.ViewModels
         [Compare(nameof(Password), ErrorMessage = "{0}與{1}不一致")]
         [DataType(DataType.Password)]
         public string ConfirmPassword { get; set; } = string.Empty;
+
+        public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+        {
+            if (Birthday.HasValue && Birthday.Value >= DateOnly.FromDateTime(DateTime.Today))
+            {
+                yield return new ValidationResult("生日需在今天以前，不可選擇今天或未來日期。", new[] { nameof(Birthday) });
+            }
+        }
     }
 }

@@ -43,7 +43,7 @@
                 </div>
                 <div class="mb-3">
                     <label asp-for="Birthday" class="form-label"></label>
-                    <input asp-for="Birthday" type="date" class="form-control" />
+                    <input asp-for="Birthday" type="date" class="form-control" max="@DateTime.Today.ToString("yyyy-MM-dd")" />
                     <span asp-validation-for="Birthday" class="text-danger small"></span>
                 </div>
                 <div class="mb-3">
