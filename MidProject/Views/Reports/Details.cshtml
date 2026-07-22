@@ -191,6 +191,7 @@
                             <textarea id="reporterContent" class="form-control" rows="8"></textarea>
                         </div>
                         <button type="button" class="btn btn-primary btn-sm" id="saveReporterNotify">儲存</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm ms-1" id="editReporterNotify">編輯</button>
                         <span class="ms-2 text-success small d-none" id="reporterSavedMsg"><i class="fas fa-check me-1"></i>已送出</span>
                     </div>
                 </div>
@@ -209,6 +210,7 @@
                             <textarea id="reportedMemberContent" class="form-control" rows="8"></textarea>
                         </div>
                         <button type="button" class="btn btn-primary btn-sm" id="saveReportedMemberNotify">儲存</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm ms-1" id="editReportedMemberNotify">編輯</button>
                         <span class="ms-2 text-success small d-none" id="reportedMemberSavedMsg"><i class="fas fa-check me-1"></i>已送出</span>
                     </div>
                 </div>
@@ -224,6 +226,8 @@
     <script>
         (function () {
             var reportId = @Model.ReportID;
+            // 此檢舉開頁時是否為「待處理」：待處理案件剛送出處理後，通知視窗的「儲存」直接開放，不套用編輯鎖定
+            var isPendingReport = @(Model.Status == "Pending" ? "true" : "false");
             var notifyReporterUrl = '@Url.Action("NotifyReporter", "Reports", new { id = Model.ReportID })';
             var notifyReportedMemberUrl = '@Url.Action("NotifyReportedMember", "Reports", new { id = Model.ReportID })';
             var notifyModalElement = document.getElementById('notifyModal');
@@ -233,16 +237,91 @@
                 return $('#handleForm input[name="__RequestVerificationToken"]').val();
             }
 
-            function openNotifyModal(status, reporter, reportedMember) {
+            // 每張通知卡片的「編輯／儲存」狀態控制：
+            // 進入時欄位鎖定、「儲存」停用，必須先按「編輯」解鎖欄位，且實際改動過標題或內容後，「儲存」才會啟用。
+            function createEditableCard(opts) {
+                var $title = $('#' + opts.titleId);
+                var $content = $('#' + opts.contentId);
+                var $editBtn = $('#' + opts.editBtnId);
+                var $saveBtn = $('#' + opts.saveBtnId);
+                var baselineTitle = '';
+                var baselineContent = '';
+                var editMode = false;
+                var gated = true;
+
+                function refreshSaveState() {
+                    // 未 gated（待處理案件剛送出處理）：「儲存」一律可用，不需先按「編輯」
+                    if (!gated) {
+                        $saveBtn.prop('disabled', false);
+                        return;
+                    }
+                    var changed = $title.val() !== baselineTitle || $content.val() !== baselineContent;
+                    $saveBtn.prop('disabled', !(editMode && changed));
+                }
+
+                // 鎖定（已處理案件的通知紀錄）：欄位唯讀、「儲存」停用、「編輯」可用，須先按「編輯」並改動內容才能儲存
+                function lock() {
+                    gated = true;
+                    editMode = false;
+                    baselineTitle = $title.val();
+                    baselineContent = $content.val();
+                    $title.prop('readonly', true);
+                    $content.prop('readonly', true);
+                    $editBtn.prop('disabled', false);
+                    $saveBtn.prop('disabled', true);
+                }
+
+                // 直接開放（待處理案件剛送出處理）：欄位可編輯、「儲存」直接可用
+                function openFree() {
+                    gated = false;
+                    editMode = true;
+                    baselineTitle = $title.val();
+                    baselineContent = $content.val();
+                    $title.prop('readonly', false);
+                    $content.prop('readonly', false);
+                    $editBtn.prop('disabled', true);
+                    $saveBtn.prop('disabled', false);
+                }
+
+                $editBtn.on('click', function () {
+                    editMode = true;
+                    $title.prop('readonly', false);
+                    $content.prop('readonly', false);
+                    $editBtn.prop('disabled', true);
+                    $content.trigger('focus');
+                    refreshSaveState();
+                });
+
+                $title.on('input', refreshSaveState);
+                $content.on('input', refreshSaveState);
+
+                return { lock: lock, openFree: openFree };
+            }
+
+            var reporterCard = createEditableCard({
+                titleId: 'reporterTitle', contentId: 'reporterContent',
+                editBtnId: 'editReporterNotify', saveBtnId: 'saveReporterNotify'
+            });
+            var reportedMemberCard = createEditableCard({
+                titleId: 'reportedMemberTitle', contentId: 'reportedMemberContent',
+                editBtnId: 'editReportedMemberNotify', saveBtnId: 'saveReportedMemberNotify'
+            });
+
+            function openNotifyModal(status, reporter, reportedMember, gated) {
+                // gated === false（待處理案件剛送出處理）→ 直接開放儲存；否則套用編輯鎖定
+                var applyState = function (card) { if (gated === false) { card.openFree(); } else { card.lock(); } };
+
                 $('#reporterTitle').val(reporter.title);
                 $('#reporterContent').val(reporter.content);
                 $('#reporterSavedMsg').addClass('d-none');
+                applyState(reporterCard);
 
                 if (status === 'Approved' && reportedMember) {
                     $('#reportedMemberNotifyCard').removeClass('d-none');
                     $('#reportedMemberTitle').val(reportedMember.title);
                     $('#reportedMemberContent').val(reportedMember.content);
                     $('#reportedMemberSavedMsg').addClass('d-none');
+                    applyState(reportedMemberCard);
                 } else {
                     $('#reportedMemberNotifyCard').addClass('d-none');
                 }
@@ -263,7 +342,8 @@
                     headers: { 'X-Requested-With': 'XMLHttpRequest' }
                 }).done(function (res) {
                     if (res.success) {
-                        openNotifyModal(res.status, res.reporter, res.reportedMember);
+                        // 原本是待處理的案件剛送出處理 → 直接開放儲存（gated=false）；重新處理已處理案件則維持鎖定
+                        openNotifyModal(res.status, res.reporter, res.reportedMember, !isPendingReport);
                     }
                 }).fail(function () {
                     alert('處理失敗，請重新整理頁面後再試一次');
@@ -293,9 +373,10 @@
                     headers: { 'X-Requested-With': 'XMLHttpRequest' }
                 }).done(function () {
                     $('#reporterSavedMsg').removeClass('d-none');
+                    // 送出後重新鎖定，須再按「編輯」並改動內容才能再次送出
+                    reporterCard.lock();
                 }).fail(function () {
                     alert('通知檢舉者失敗');
-                }).always(function () {
                     $btn.prop('disabled', false);
                 });
             });
@@ -313,9 +394,10 @@
                     headers: { 'X-Requested-With': 'XMLHttpRequest' }
                 }).done(function () {
                     $('#reportedMemberSavedMsg').removeClass('d-none');
+                    // 送出後重新鎖定，須再按「編輯」並改動內容才能再次送出
+                    reportedMemberCard.lock();
                 }).fail(function () {
                     alert('通知被檢舉會員失敗');
-                }).always(function () {
                     $btn.prop('disabled', false);
                 });
             });

@@ -37,6 +37,10 @@ public static class ReportsTestDataSeeder
         var reporters = members.Where(m => m.MemberID != admin.MemberID).ToList();
         if (reporters.Count == 0) reporters = members;
 
+        // 管理員不應被檢舉懲處：若被檢舉會員是 Admin，累積受理檢舉會觸發自動停權，
+        // 進而讓通知模組的固定管理員失格、啟動驗證失敗。故被檢舉會員一律排除 Admin。
+        var adminIds = members.Where(m => m.Role == "Admin").Select(m => m.MemberID).ToHashSet();
+
         var now = DateTime.Now;
 
         var categories = new[] { "不實資訊", "廣告洗版", "人身攻擊", "仇恨言論", "色情內容", "垃圾訊息" };
@@ -80,17 +84,25 @@ public static class ReportsTestDataSeeder
                 if (createdAt > now) createdAt = now; // 避免當月產生未來時間
 
                 // 目標類型隨機分配（跟 i % 3 脫鉤，避免跟 status 的分配同步導致每種狀態都只對應到單一目標類型）
+                // 同時記下該目標內容的擁有者（被檢舉會員），供已處理檢舉回填 ReportedMemberID
                 int? restaurantId = null, reviewId = null, imageId = null;
+                int? targetOwnerId = null;
                 switch (random.Next(3))
                 {
                     case 0:
-                        restaurantId = restaurants[i % restaurants.Count].RestaurantID;
+                        var rest = restaurants[i % restaurants.Count];
+                        restaurantId = rest.RestaurantID;
+                        targetOwnerId = rest.MemberID;
                         break;
                     case 1:
-                        reviewId = reviews[i % reviews.Count].ReviewID;
+                        var rev = reviews[i % reviews.Count];
+                        reviewId = rev.ReviewID;
+                        targetOwnerId = rev.MemberID;
                         break;
                     case 2:
-                        imageId = images[i % images.Count].ImageID;
+                        var img = images[i % images.Count];
+                        imageId = img.ImageID;
+                        targetOwnerId = img.UploadedByMemberID;
                         break;
                 }
 
@@ -106,11 +118,16 @@ public static class ReportsTestDataSeeder
                     CreatedAt = createdAt
                 };
 
-                // 已處理（Approved/Rejected）的檢舉補上處理時間、處理人、備註
+                // 已處理（Approved/Rejected）的檢舉補上處理時間、處理人、備註，
+                // 並回填被檢舉會員（＝目標內容擁有者），讓 AdminMembers 的檢舉累積次數／自動懲處生效；
+                // 但排除 Admin，避免管理員被自動停權。
                 if (status != "Pending")
                 {
                     report.HandledAt = createdAt.AddDays(1) > now ? now : createdAt.AddDays(1);
                     report.HandledByMemberID = admin.MemberID;
+                    report.ReportedMemberID = (targetOwnerId.HasValue && !adminIds.Contains(targetOwnerId.Value))
+                        ? targetOwnerId
+                        : null;
                     report.AdminNote = status == "Approved"
                         ? "已確認違規，檢舉成立。"
                         : "查無明確違規事證，駁回檢舉。";
