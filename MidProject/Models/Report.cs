@@ -14,6 +14,9 @@ public class Report
     [Required, StringLength(500)]
     public string Reason { get; set; } = string.Empty;
 
+    [Required, StringLength(10)]
+    public string Category { get; set; } = "未分類";
+
     [Required, StringLength(20)]
     public string Status { get; set; } = "Pending";
 
