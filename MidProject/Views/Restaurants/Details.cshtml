@@ -11,7 +11,7 @@
 <div class="ra-page">
     <div class="detail-header">
         <div class="detail-title">
-            <a class="btn" asp-action="@backAction">← 返回</a>
+            <a class="btn" id="backBtn" asp-action="@backAction">← 返回</a>
             <h2>@Model.Name</h2>
             @if (Model.IsDeleted)
             {
@@ -154,7 +154,7 @@
             <section class="card">
                 <h3>檢舉 / 回報摘要</h3>
                 <p class="muted">查看此餐廳相關的檢舉紀錄。</p>
-                <a class="btn" asp-controller="Reports" asp-action="Index" asp-route-RestaurantID="@Model.Id">查看檢舉</a>
+                <a class="btn" href="@Url.Action("Index", "Reports", new { Keyword = Model.Name })">查看檢舉</a>
             </section>
 
             @if (Model.IsDeleted)
@@ -203,6 +203,13 @@
     <script>
         document.querySelectorAll('.js-edit-btn').forEach(btn => {
             btn.addEventListener('click', () => RestaurantAdmin.openEditModal(btn.dataset.id));
+        });
+        document.getElementById('backBtn').addEventListener('click', function (e) {
+            var sameOriginReferrer = document.referrer && new URL(document.referrer).origin === location.origin;
+            if (sameOriginReferrer && window.history.length > 1) {
+                e.preventDefault();
+                history.back();
+            }
         });
         document.querySelectorAll('.js-view-image').forEach(btn => {
             btn.addEventListener('click', () => RestaurantAdmin.openImageLightbox(btn.dataset.src));

@@ -12,29 +12,90 @@ const RestaurantAdmin = (() => {
         return document.getElementById("modalRoot");
     }
 
-    // Full-page GET navigations (filter form submit, pagination links) give no
-    // visual feedback while the server is still working — the old page just sits
-    // there looking frozen until the new one arrives. Showing this overlay the
-    // instant the user triggers the navigation fills that dead time so it reads as
-    // "loading" instead of "stuck". It has nothing to hide itself again on success,
-    // since the whole document gets replaced anyway once the new page arrives; it
-    // only matters if the request fails and the browser stays on the same page.
-    function showPageLoadingOverlay() {
-        const overlay = document.getElementById("pageLoadingOverlay");
-        if (overlay) {
-            overlay.classList.add("show");
-        }
-    }
+    // Filter form submits and pagination clicks fetch just the content partial
+    // and swap it into `contentId`, instead of a full-page GET navigation. Two
+    // timing rules keep the loading overlay from flashing on fast responses:
+    // it only appears if the request is still running after SHOW_DELAY_MS (most
+    // filter queries resolve well under that), and once shown it stays for at
+    // least MIN_VISIBLE_MS so it never reads as a single flicker.
+    const AJAX_SHOW_DELAY_MS = 300;
+    const AJAX_MIN_VISIBLE_MS = 450;
 
-    function bindPageLoadingOverlay() {
-        const filterForm = document.getElementById("filterForm");
-        if (filterForm) {
-            filterForm.addEventListener("submit", showPageLoadingOverlay);
+    function bindAjaxContent(config) {
+        const content = document.getElementById(config.contentId);
+        const overlay = config.overlayId ? document.getElementById(config.overlayId) : null;
+        if (!content) {
+            return;
         }
 
-        document.querySelectorAll(".pager a").forEach(link => {
-            link.addEventListener("click", showPageLoadingOverlay);
-        });
+        function bindInteractions() {
+            const form = document.getElementById(config.formId);
+            if (form) {
+                form.addEventListener("submit", (e) => {
+                    e.preventDefault();
+                    const params = new URLSearchParams(new FormData(form));
+                    navigate(form.getAttribute("action") + "?" + params.toString());
+                });
+            }
+
+            content.querySelectorAll(".pager a").forEach(link => {
+                link.addEventListener("click", (e) => {
+                    e.preventDefault();
+                    navigate(link.getAttribute("href"));
+                });
+            });
+
+            if (typeof config.afterRender === "function") {
+                config.afterRender();
+            }
+        }
+
+        function navigate(url, updateHistory = true) {
+            let overlayShownAt = null;
+            const showTimer = overlay ? setTimeout(() => {
+                overlay.classList.add("show");
+                overlayShownAt = Date.now();
+            }, AJAX_SHOW_DELAY_MS) : null;
+
+            fetch(url, { headers: { "X-Requested-With": "XMLHttpRequest" } })
+                .then(res => {
+                    if (!res.ok) {
+                        throw new Error("navigation failed");
+                    }
+                    return res.text();
+                })
+                .then(html => {
+                    clearTimeout(showTimer);
+                    const apply = () => {
+                        content.innerHTML = html;
+                        if (overlay) {
+                            overlay.classList.remove("show");
+                        }
+                        if (updateHistory) {
+                            history.pushState({ raAjax: true }, "", url);
+                        }
+                        bindInteractions();
+                    };
+                    const elapsed = overlayShownAt !== null ? Date.now() - overlayShownAt : 0;
+                    const remaining = overlayShownAt !== null ? AJAX_MIN_VISIBLE_MS - elapsed : 0;
+                    if (remaining > 0) {
+                        setTimeout(apply, remaining);
+                    } else {
+                        apply();
+                    }
+                })
+                .catch(() => {
+                    clearTimeout(showTimer);
+                    if (overlay) {
+                        overlay.classList.remove("show");
+                    }
+                    window.location.href = url;
+                });
+        }
+
+        bindInteractions();
+
+        window.addEventListener("popstate", () => navigate(window.location.href, false));
     }
 
     function openModalHtml(html, options = {}) {
@@ -482,13 +543,50 @@ const RestaurantAdmin = (() => {
         }
     }
 
+    function initFilterDistrictCascade() {
+        const citySelect = document.getElementById("filterCitySelect");
+        const districtSelect = document.getElementById("filterDistrictSelect");
+        const dataEl = document.getElementById("filterCityDistrictsJson");
+        if (!citySelect || !districtSelect || !dataEl) {
+            return;
+        }
+
+        const cityDistrictMap = JSON.parse(dataEl.textContent);
+
+        function populate(selectedDistrict) {
+            const city = citySelect.value;
+            let optionsHtml;
+            if (!city) {
+                optionsHtml = Object.keys(cityDistrictMap).map(c => {
+                    const opts = cityDistrictMap[c]
+                        .map(d => `<option value="${d}" ${d === selectedDistrict ? "selected" : ""}>${d}</option>`)
+                        .join("");
+                    return `<optgroup label="${c}">${opts}</optgroup>`;
+                }).join("");
+            } else {
+                const districts = cityDistrictMap[city] || [];
+                optionsHtml = districts
+                    .map(d => `<option value="${d}" ${d === selectedDistrict ? "selected" : ""}>${d}</option>`)
+                    .join("");
+            }
+            districtSelect.innerHTML = `<option value="">全部行政區</option>${optionsHtml}`;
+        }
+
+        citySelect.addEventListener("change", () => {
+            populate("");
+            citySelect.form.requestSubmit();
+        });
+
+        populate(districtSelect.dataset.selected || "");
+    }
+
     return {
         openCreateModal,
         openEditModal,
         openImageLightbox,
         closeModal,
         toast,
-        showPageLoadingOverlay,
-        bindPageLoadingOverlay
+        bindAjaxContent,
+        initFilterDistrictCascade
     };
 })();

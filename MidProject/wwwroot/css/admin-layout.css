@@ -81,6 +81,46 @@
     cursor: not-allowed;
 }
 
+.admin-nav-group-toggle {
+    width: 100%;
+    background: none;
+    border: none;
+    font: inherit;
+    cursor: pointer;
+}
+
+.admin-nav-chevron {
+    margin-left: auto;
+    font-size: 0.75rem;
+    transition: transform 0.15s ease;
+}
+
+.admin-nav-group-toggle.collapsed .admin-nav-chevron {
+    transform: rotate(-90deg);
+}
+
+.admin-nav-subgroup {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    padding: 0.25rem 0 0.25rem 2.1rem;
+}
+
+.admin-nav-sublink {
+    display: block;
+    padding: 0.5rem 0.75rem;
+    color: rgba(255, 255, 255, 0.65);
+    border-radius: 0.4rem;
+    text-decoration: none;
+    font-size: 0.92rem;
+}
+
+.admin-nav-sublink:hover,
+.admin-nav-sublink.active {
+    color: #fff;
+    background: var(--admin-sidebar-hover);
+}
+
 .admin-main {
     display: flex;
     flex: 1 1 auto;
