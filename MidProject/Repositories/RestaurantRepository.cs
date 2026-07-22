@@ -94,7 +94,7 @@ public class RestaurantRepository : IRestaurantRepository
         return (items, totalCount);
     }
 
-    public async Task<List<Restaurant>> GetDeletedAsync(RestaurantDeletedFilterQuery filter)
+    private IQueryable<Restaurant> ApplyDeletedFilters(RestaurantDeletedFilterQuery filter)
     {
         var query = ApplyCommonFilters(ListQuery().Where(r => r.IsDeleted), filter.Search, filter.City, null, null);
 
@@ -103,7 +103,27 @@ public class RestaurantRepository : IRestaurantRepository
             query = query.Where(r => r.DeleteReason == filter.Reason);
         }
 
-        return await query.OrderByDescending(r => r.DeletedAt ?? r.CreatedAt).ToListAsync();
+        return query;
+    }
+
+    public async Task<(List<Restaurant> Items, int TotalCount)> GetDeletedPagedAsync(RestaurantDeletedFilterQuery filter, int pageSize)
+    {
+        var query = ApplyDeletedFilters(filter).OrderByDescending(r => r.DeletedAt ?? r.CreatedAt);
+
+        var totalCount = await query.CountAsync();
+        var page = Math.Max(1, filter.Page);
+        var items = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+
+        return (items, totalCount);
+    }
+
+    // 「最近停用」統計卡片要反映目前篩選條件下真正最新的一筆，跟目前瀏覽第幾頁無關，
+    // 所以獨立查一次（不受 Skip/Take 影響），而不是直接拿分頁後那批資料的第一筆。
+    public async Task<Restaurant?> GetMostRecentlyDeletedAsync(RestaurantDeletedFilterQuery filter)
+    {
+        return await ApplyDeletedFilters(filter)
+            .OrderByDescending(r => r.DeletedAt ?? r.CreatedAt)
+            .FirstOrDefaultAsync();
     }
 
     public async Task<Restaurant?> GetByIdAsync(int id)

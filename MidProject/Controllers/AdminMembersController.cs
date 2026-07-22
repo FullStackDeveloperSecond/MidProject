@@ -81,6 +81,8 @@ public class AdminMembersController : Controller
         ViewBag.TodayOnly = todayOnly;
         ViewBag.CurrentPage = page;
         ViewBag.TotalPages = (int)Math.Ceiling((double)totalItems / pageSize);
+        ViewBag.TotalItems = totalItems;
+        ViewBag.PageSize = pageSize;
         ViewBag.Levels = await _context.UserLevels.OrderBy(l => l.MinExp).ToListAsync(); // 供篩選下拉選單與經驗值進度使用
 
         return View(members);

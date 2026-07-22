@@ -176,12 +176,6 @@
     justify-content: center;
 }
 
-.ra-page .btn.pg.on {
-    border-color: var(--ra-green-2);
-    color: var(--ra-green);
-    font-weight: 700;
-}
-
 .table-wrap {
     overflow-x: auto;
     border: 1px solid var(--ra-line);
@@ -261,15 +255,6 @@
 .ra-page .tag.closed {
     background: var(--ra-red-soft);
     color: var(--ra-red);
-}
-
-.pager {
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
-    gap: 6px;
-    margin-top: 12px;
-    flex-wrap: wrap;
 }
 
 .alert {

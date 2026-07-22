@@ -45,17 +45,22 @@ public class RestaurantService : IRestaurantService
 
     public async Task<RestaurantDeletedIndexViewModel> GetDeletedIndexAsync(RestaurantDeletedFilterQuery filter)
     {
-        var items = await _restaurantRepository.GetDeletedAsync(filter);
+        const int pageSize = 10;
+        var (items, totalCount) = await _restaurantRepository.GetDeletedPagedAsync(filter, pageSize);
         var rows = items.Select(MapDeletedRow).ToList();
+        var mostRecent = await _restaurantRepository.GetMostRecentlyDeletedAsync(filter);
         var reasons = await _restaurantRepository.GetDistinctDeleteReasonsAsync();
 
         return new RestaurantDeletedIndexViewModel
         {
-            StatsDisabledTotal = rows.Count,
-            StatsMostRecentName = rows.FirstOrDefault()?.Name,
-            StatsMostRecentAt = rows.FirstOrDefault()?.DeletedAt,
-            StatsLastReason = rows.FirstOrDefault()?.DeleteReason,
+            StatsDisabledTotal = totalCount,
+            StatsMostRecentName = mostRecent?.Name,
+            StatsMostRecentAt = mostRecent?.DeletedAt,
+            StatsLastReason = mostRecent?.DeleteReason,
             Items = rows,
+            TotalItems = totalCount,
+            PageSize = pageSize,
+            CurrentPage = Math.Max(1, filter.Page),
             Filter = filter,
             AvailableCities = RestaurantOptions.Cities,
             AvailableReasons = reasons

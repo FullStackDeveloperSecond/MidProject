@@ -7,6 +7,7 @@
 
 @section Styles {
     <link rel="stylesheet" href="~/css/notifications-admin.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/shared-pagination.css" asp-append-version="true" />
 }
 
 <div class="notification-admin">
@@ -163,16 +164,30 @@
         </div>
     </div>
 
-    <nav class="mt-3" aria-label="通知列表分頁">
-        <ul class="pagination justify-content-center">
-        @for (var pageNumber = 1; pageNumber <= Model.TotalPages; pageNumber++)
-        {
-            <li class="page-item @(pageNumber == query.Page ? "active" : null)">
-                <a class="page-link" href="@Url.Action("Index", new { query.Keyword, query.NotificationType, query.IsSent, query.ScheduledAtMinute, query.DeletionScope, query.SortField, query.SortDirection, Page = pageNumber })">@pageNumber</a>
-            </li>
-        }
-        </ul>
-    </nav>
+    @if (Model.TotalCount > 0)
+    {
+        var showStart = (query.Page - 1) * Model.PageSize + 1;
+        var showEnd = Math.Min(query.Page * Model.PageSize, Model.TotalCount);
+        <div class="sp-pagination">
+            <div class="sp-summary">目前顯示 @showStart–@showEnd 筆，共 @Model.TotalCount 筆</div>
+            <nav aria-label="通知列表分頁">
+                <ul class="pagination">
+                    <li class="page-item @(query.Page <= 1 ? "disabled" : "")">
+                        <a class="page-link" href="@Url.Action("Index", new { query.Keyword, query.NotificationType, query.IsSent, query.ScheduledAtMinute, query.DeletionScope, query.SortField, query.SortDirection, Page = Math.Max(1, query.Page - 1) })">上一頁</a>
+                    </li>
+                    @for (var pageNumber = 1; pageNumber <= Model.TotalPages; pageNumber++)
+                    {
+                        <li class="page-item @(pageNumber == query.Page ? "active" : null)">
+                            <a class="page-link" href="@Url.Action("Index", new { query.Keyword, query.NotificationType, query.IsSent, query.ScheduledAtMinute, query.DeletionScope, query.SortField, query.SortDirection, Page = pageNumber })">@pageNumber</a>
+                        </li>
+                    }
+                    <li class="page-item @(query.Page >= Model.TotalPages ? "disabled" : "")">
+                        <a class="page-link" href="@Url.Action("Index", new { query.Keyword, query.NotificationType, query.IsSent, query.ScheduledAtMinute, query.DeletionScope, query.SortField, query.SortDirection, Page = Math.Min(Model.TotalPages, query.Page + 1) })">下一頁</a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+    }
 </div>
 
 @section Scripts {

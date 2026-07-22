@@ -22,6 +22,7 @@
 @* Layout = null; *@
 
 <link rel="stylesheet" href="~/css/reviews-admin.css" />
+<link rel="stylesheet" href="~/css/shared-pagination.css" />
 
 <h1 class="page-title">評論管理</h1>
 
@@ -145,18 +146,23 @@
 {
     var showStart = (Model.Page - 1) * Model.PageSize + 1;
     var showEnd = Math.Min(Model.Page * Model.PageSize, Model.TotalCount);
-    <div class="rv-pagination">
-        <span>顯示 @showStart–@showEnd 筆，共 @Model.TotalCount 筆</span>
-        <div class="page-btns">
-            <a class="page-btn @(Model.Page <= 1 ? "disabled" : "")"
-               href="@Url.Action("Index", new { tab = Model.Tab, search = Model.Search, rating = Model.Rating, time = Model.Time, sortBy = Model.SortBy, sortDir = Model.SortDir, page = Math.Max(1, Model.Page - 1) })">‹</a>
-            @for (int p = 1; p <= Model.TotalPages; p++)
-            {
-                <a class="page-btn @(p == Model.Page ? "on" : "")"
-                   href="@Url.Action("Index", new { tab = Model.Tab, search = Model.Search, rating = Model.Rating, time = Model.Time, sortBy = Model.SortBy, sortDir = Model.SortDir, page = p })">@p</a>
-            }
-            <a class="page-btn @(Model.Page >= Model.TotalPages ? "disabled" : "")"
-               href="@Url.Action("Index", new { tab = Model.Tab, search = Model.Search, rating = Model.Rating, time = Model.Time, sortBy = Model.SortBy, sortDir = Model.SortDir, page = Math.Min(Model.TotalPages, Model.Page + 1) })">›</a>
-        </div>
+    <div class="sp-pagination">
+        <div class="sp-summary">目前顯示 @showStart–@showEnd 筆，共 @Model.TotalCount 筆</div>
+        <nav aria-label="分頁導覽">
+            <ul class="pagination">
+                <li class="page-item @(Model.Page <= 1 ? "disabled" : "")">
+                    <a class="page-link" href="@Url.Action("Index", new { tab = Model.Tab, search = Model.Search, rating = Model.Rating, time = Model.Time, sortBy = Model.SortBy, sortDir = Model.SortDir, page = Math.Max(1, Model.Page - 1) })">上一頁</a>
+                </li>
+                @for (int p = 1; p <= Model.TotalPages; p++)
+                {
+                    <li class="page-item @(p == Model.Page ? "active" : "")">
+                        <a class="page-link" href="@Url.Action("Index", new { tab = Model.Tab, search = Model.Search, rating = Model.Rating, time = Model.Time, sortBy = Model.SortBy, sortDir = Model.SortDir, page = p })">@p</a>
+                    </li>
+                }
+                <li class="page-item @(Model.Page >= Model.TotalPages ? "disabled" : "")">
+                    <a class="page-link" href="@Url.Action("Index", new { tab = Model.Tab, search = Model.Search, rating = Model.Rating, time = Model.Time, sortBy = Model.SortBy, sortDir = Model.SortDir, page = Math.Min(Model.TotalPages, Model.Page + 1) })">下一頁</a>
+                </li>
+            </ul>
+        </nav>
     </div>
 }

@@ -38,7 +38,7 @@ const RestaurantAdmin = (() => {
                 });
             }
 
-            content.querySelectorAll(".pager a").forEach(link => {
+            content.querySelectorAll(".sp-pagination .page-link").forEach(link => {
                 link.addEventListener("click", (e) => {
                     e.preventDefault();
                     navigate(link.getAttribute("href"));
