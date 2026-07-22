@@ -23,6 +23,7 @@
 }
 
 .ra-page {
+    position: relative;
     color: var(--ra-text);
 }
 
@@ -118,6 +119,12 @@
     min-height: 78px;
     padding-top: 10px;
     resize: vertical;
+}
+
+.ra-page .filter-changed {
+    border-color: #7cb9ff;
+    background: #eef6ff;
+    box-shadow: 0 0 0 2px rgba(124, 185, 255, 0.35);
 }
 
 .ra-page .btn {
@@ -764,7 +771,7 @@
 }
 
 .page-loading-overlay {
-    position: fixed;
+    position: absolute;
     inset: 0;
     z-index: 2000;
     display: none;
