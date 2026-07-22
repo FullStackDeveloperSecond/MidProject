@@ -7,16 +7,16 @@ namespace MidProject.Services
     public class ReviewService : IReviewService
     {
         private readonly IReviewRepository _repo;
-        private const int PageSize = 6;
+        private const int PageSize = 10;
 
         public ReviewService(IReviewRepository repo)
         {
             _repo = repo;
         }
 
-        public async Task<ReviewListViewModel> GetReviewListAsync(string tab, string? search, int? rating, string time, int page)
+        public async Task<ReviewListViewModel> GetReviewListAsync(string tab, string? search, int? rating, string time, string sortBy, string sortDir, int page)
         {
-            var (items, total, actualPage) = await _repo.GetFilteredReviewsAsync(tab, search, rating, time, page, PageSize);
+            var (items, total, actualPage) = await _repo.GetFilteredReviewsAsync(tab, search, rating, time, sortBy, sortDir, page, PageSize);
             var totalPages = Math.Max(1, (int)Math.Ceiling(total / (double)PageSize));
 
             return new ReviewListViewModel
@@ -26,11 +26,14 @@ namespace MidProject.Services
                 Search = search,
                 Rating = rating,
                 Time = time,
+                SortBy = sortBy == "rating" || sortBy == "report" ? sortBy : "time",
+                SortDir = sortDir == "asc" ? "asc" : "desc",
                 Page = actualPage,
                 PageSize = PageSize,
                 TotalPages = totalPages,
                 TotalCount = total,
 
+                // 三格統計卡片 — 對應規格書 4.1，跟目前的篩選條件無關，永遠統計全部
                 NormalCount = await _repo.CountByStatusAsync(false, "Active"),
                 PendingCount = await _repo.CountByStatusAsync(false, "PendingReview"),
                 DeletedCount = await _repo.CountByStatusAsync(true, null),
@@ -68,6 +71,7 @@ namespace MidProject.Services
             review.UpdatedAt = DateTime.Now;
             await _repo.SaveChangesAsync();
 
+            // 規格書第 7 節：軟刪除後要重算餐廳的 AverageRating / ReviewCount
             await RecalculateRestaurantStatsAsync(review.RestaurantID);
             return true;
         }
@@ -98,6 +102,7 @@ namespace MidProject.Services
                 return false;
             }
 
+            // 規格書 5.5 / 8：只做軟刪除，不刪實體檔
             image.IsDeleted = true;
             image.DeletedAt = DateTime.Now;
             image.DeletedBy = adminMemberId;
@@ -105,7 +110,10 @@ namespace MidProject.Services
             return true;
         }
 
-
+        /// <summary>
+        /// 規格書第 7 節重算規則：只統計 IsDeleted = false 且 Status = Active 的評論。
+        /// 沒有評論時 AverageRating = 0、ReviewCount = 0。
+        /// </summary>
         private async Task RecalculateRestaurantStatsAsync(int restaurantId)
         {
             var activeReviews = await _repo.GetActiveReviewsForRestaurantAsync(restaurantId);

@@ -27,7 +27,17 @@
                 <dt class="col-sm-3">NotificationID</dt><dd class="col-sm-9">@Model.NotificationID</dd>
                 <dt class="col-sm-3">通知類型</dt><dd class="col-sm-9">@Model.NotificationType</dd>
                 <dt class="col-sm-3">對象摘要</dt><dd class="col-sm-9">@Model.AudienceSummary</dd>
-                <dt class="col-sm-3">MemberID</dt><dd class="col-sm-9">@(Model.MemberID?.ToString() ?? "—")</dd>
+                <dt class="col-sm-3">MemberID</dt>
+                <dd class="col-sm-9">
+                    @if (Model.MemberID.HasValue)
+                    {
+                        <a asp-controller="AdminMembers" asp-action="Edit" asp-route-id="@Model.MemberID.Value">@Model.MemberID</a>
+                    }
+                    else
+                    {
+                        @:—
+                    }
+                </dd>
                 <dt class="col-sm-3">TargetRole</dt><dd class="col-sm-9">@(Model.TargetRole ?? "—")</dd>
                 <dt class="col-sm-3">TargetStatus</dt><dd class="col-sm-9">@(Model.TargetStatus ?? "—")</dd>
                 <dt class="col-sm-3">TargetLevelID</dt><dd class="col-sm-9">@(Model.TargetLevelID?.ToString() ?? "—")</dd>
@@ -38,7 +48,19 @@
                 <dt class="col-sm-3">CreatedBy</dt><dd class="col-sm-9">@Model.CreatedBy</dd>
                 <dt class="col-sm-3">DeletedAt</dt><dd class="col-sm-9">@(Model.DeletedAt?.ToString("yyyy/MM/dd HH:mm") ?? "—")</dd>
                 <dt class="col-sm-3">DeletedBy</dt><dd class="col-sm-9">@(Model.DeletedBy?.ToString() ?? "—")</dd>
-                <dt class="col-sm-3">Report 來源</dt><dd class="col-sm-9">@(Model.SourceReportID.HasValue ? $"Report {Model.SourceReportID}／{Model.SourceReportOutcome}" : "—")</dd>
+                <dt class="col-sm-3">Report 來源</dt>
+                <dd class="col-sm-9">
+                    @if (Model.SourceReportID.HasValue)
+                    {
+                        <a asp-controller="Reports" asp-action="Details" asp-route-id="@Model.SourceReportID.Value">
+                            Report @Model.SourceReportID／@Model.SourceReportOutcome
+                        </a>
+                    }
+                    else
+                    {
+                        @:—
+                    }
+                </dd>
             </dl>
         </div>
     </div>

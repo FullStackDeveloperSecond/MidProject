@@ -2,10 +2,13 @@ using MidProject.Models.ViewModels;
 
 namespace MidProject.Services.IServices
 {
-
+    /// <summary>
+    /// 評論模組的商業邏輯：組出 ViewModel、統計彙整、軟刪除／還原、
+    /// 以及軟刪除／還原後重算餐廳分數。實際查資料庫的細節交給 IReviewRepository。
+    /// </summary>
     public interface IReviewService
     {
-        Task<ReviewListViewModel> GetReviewListAsync(string tab, string? search, int? rating, string time, int page);
+        Task<ReviewListViewModel> GetReviewListAsync(string tab, string? search, int? rating, string time, string sortBy, string sortDir, int page);
 
         /// <summary>找不到該評論時回傳 null，Controller 負責轉成 404。</summary>
         Task<ReviewDetailViewModel?> GetReviewDetailAsync(int id);

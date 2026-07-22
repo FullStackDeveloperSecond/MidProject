@@ -58,10 +58,14 @@
                         @{
                             var targetController = Model.RestaurantID.HasValue ? "Restaurants"
                                 : Model.ReviewID.HasValue ? "Reviews"
-                                : Model.ImageID.HasValue ? "Images" : null;
+                                : null;
                             var targetId = Model.RestaurantID ?? Model.ReviewID ?? Model.ImageID;
                         }
                         @Model.TargetType
+                        @if (Model.ImageID.HasValue)
+                        {
+                            <span class="text-muted">#@Model.ImageID</span>
+                        }
                         @if (Model.RestaurantName != null)
                         {
                             @: （
@@ -81,7 +85,11 @@
                     <dd class="col-sm-9">@Model.CategoryDisplay</dd>
 
                     <dt class="col-sm-3">檢舉者</dt>
-                    <dd class="col-sm-9">@Model.ReporterUserName</dd>
+                    <dd class="col-sm-9">
+                        <a asp-controller="AdminMembers" asp-action="Edit" asp-route-id="@Model.ReporterMemberID">
+                            @Model.ReporterUserName
+                        </a>
+                    </dd>
 
                     <dt class="col-sm-3">被檢舉會員</dt>
                     <dd class="col-sm-9">@(Model.ReportedMemberUserName ?? "—")</dd>

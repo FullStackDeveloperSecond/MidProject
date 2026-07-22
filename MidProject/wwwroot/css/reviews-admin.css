@@ -96,6 +96,10 @@
   .panel{ background: var(--surface); border:1px solid var(--border); border-radius: var(--radius-md); overflow:hidden; }
   table{ width:100%; border-collapse:collapse; }
   thead th{ text-align:left; font-size:11px; font-weight:600; color: var(--text-soft); background: #FAFAF7; padding:9px 12px; border-bottom:1px solid var(--border); white-space:nowrap; }
+  .rv-sort-link{ color: var(--text-soft); text-decoration:none; cursor:pointer; white-space:nowrap; }
+  .rv-sort-link:hover{ color: var(--brand-dark); }
+  .rv-name-link{ color: var(--text); text-decoration:none; border-bottom:1px dashed var(--border); }
+  .rv-name-link:hover{ color: var(--brand-dark); border-bottom-color: var(--brand-dark); }
   tbody td{ padding:10px 12px; font-size:12.5px; border-bottom:1px solid var(--border); vertical-align:middle; }
   tbody tr:last-child td{ border-bottom:none; }
   tbody tr.row-click{ cursor:pointer; }
@@ -150,9 +154,7 @@
   .rv-content{ font-size:13.5px; line-height:1.75; color: var(--text); }
   .rv-photos{ display:flex; gap:9px; margin-top:12px; flex-wrap:wrap; }
   .rv-photo-wrap{ position:relative; }
-  .rv-photo{ width:56px; height:56px; border-radius:7px; background:#fff; border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:22px; overflow:hidden; text-decoration:none; cursor:pointer; }
-  .rv-photo img{ width:100%; height:100%; object-fit:cover; display:block; }
-  .rv-photo--broken::after{ content:'🍽️'; }
+  .rv-photo{ width:56px; height:56px; border-radius:7px; background:#fff; border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:22px; }
   .rv-photo-del{
     position:absolute; top:-6px; right:-6px; width:19px; height:19px; border-radius:50%;
     background: var(--danger); color:#fff; border:2px solid #fff; font-size:10px; line-height:1;

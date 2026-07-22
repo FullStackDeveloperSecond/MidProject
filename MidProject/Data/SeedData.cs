@@ -301,7 +301,6 @@ public static class SeedData
             RestaurantID = restaurantId,
             ReviewID = reviewId,
             ImageID = imageId,
-            Category = "未分類",
             Reason = reason,
             Category = resolvedCategory,
             Status = status,

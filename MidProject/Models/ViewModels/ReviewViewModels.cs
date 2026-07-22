@@ -14,6 +14,8 @@ namespace MidProject.Models.ViewModels
         public string? Search { get; set; }
         public int? Rating { get; set; }
         public string Time { get; set; } = "all";
+        public string SortBy { get; set; } = "time";  // time / rating / report
+        public string SortDir { get; set; } = "desc";  // desc=大到小/新到舊, asc=反過來
 
         // 分頁資訊
         public int Page { get; set; }

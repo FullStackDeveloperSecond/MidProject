@@ -17,6 +17,10 @@ public class RestaurantsController : Controller
     public async Task<IActionResult> Index([FromQuery] RestaurantFilterQuery filter)
     {
         var model = await _restaurantService.GetIndexAsync(filter);
+        if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+        {
+            return PartialView("_IndexContent", model);
+        }
         return View(model);
     }
 
@@ -24,6 +28,10 @@ public class RestaurantsController : Controller
     public async Task<IActionResult> Deleted([FromQuery] RestaurantDeletedFilterQuery filter)
     {
         var model = await _restaurantService.GetDeletedIndexAsync(filter);
+        if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
+        {
+            return PartialView("_DeletedContent", model);
+        }
         return View(model);
     }
 

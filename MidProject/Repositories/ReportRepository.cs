@@ -31,6 +31,12 @@ public class ReportRepository : IReportRepository
         if (!string.IsNullOrWhiteSpace(query.Category))
             q = q.Where(r => r.Category == query.Category);
 
+        if (query.RestaurantID.HasValue)
+            q = q.Where(r => r.RestaurantID == query.RestaurantID.Value);
+
+        if (query.ReviewID.HasValue)
+            q = q.Where(r => r.ReviewID == query.ReviewID.Value);
+
         // 依檢舉目標類型篩選（使用者只能針對餐廳/評論/圖片檢舉，不含會員）
         q = query.TargetType switch
         {
