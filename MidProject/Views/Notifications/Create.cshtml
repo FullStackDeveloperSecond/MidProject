@@ -1,0 +1,21 @@
+@model MidProject.Models.ViewModels.Notifications.NotificationFormViewModel
+@{ ViewData["Title"] = "新增通知"; }
+@section Styles { <link rel="stylesheet" href="~/css/notifications-admin.css" asp-append-version="true" /> }
+
+<div class="notification-admin">
+    <div class="mb-3"><h1 class="h2">新增通知</h1><p class="text-muted">建立 Personal 或 Condition 通知</p></div>
+    <div class="card">
+        <div class="card-header fw-semibold">通知資料</div>
+        <div class="card-body">
+            <form asp-action="Create" method="post">
+                @Html.AntiForgeryToken()
+                <partial name="_FormFields" model="Model" />
+                <div class="d-flex gap-2 mt-4">
+                    <button type="submit" class="btn btn-primary">儲存</button>
+                    <a asp-action="Index" class="btn btn-secondary">返回</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+@section Scripts { <partial name="_ValidationScriptsPartial" /> }

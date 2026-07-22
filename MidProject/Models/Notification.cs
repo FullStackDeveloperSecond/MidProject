@@ -21,17 +21,25 @@ public class Notification
     [Required, StringLength(100)]
     public string Title { get; set; } = string.Empty;
 
-    [Required]
+    [Required, StringLength(1000)]
     public string Content { get; set; } = string.Empty;
 
     public DateTime ScheduledAt { get; set; }
     public DateTime? SentAt { get; set; }
     public bool IsSent { get; set; }
-    public DateTime CreatedAt { get; set; } = DateTime.Now;
-    public int? CreatedBy { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public int CreatedBy { get; set; }
     public bool IsDeleted { get; set; }
     public DateTime? DeletedAt { get; set; }
     public int? DeletedBy { get; set; }
+
+    public int? SourceReportID { get; set; }
+
+    [StringLength(10)]
+    public string? SourceReportOutcome { get; set; }
+
+    [Timestamp]
+    public byte[] RowVersion { get; set; } = Array.Empty<byte>();
 
     public Member? Member { get; set; }
     public UserLevel? TargetLevel { get; set; }

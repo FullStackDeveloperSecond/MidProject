@@ -11,6 +11,9 @@ public class Report
     public int? ReviewID { get; set; }
     public int? ImageID { get; set; }
 
+    [Required, StringLength(10)]
+    public string Category { get; set; } = null!;
+
     [Required, StringLength(500)]
     public string Reason { get; set; } = string.Empty;
 
@@ -20,7 +23,7 @@ public class Report
     [Required, StringLength(20)]
     public string Status { get; set; } = "Pending";
 
-    public DateTime CreatedAt { get; set; } = DateTime.Now;
+	public DateTime CreatedAt { get; set; } = DateTime.Now;
     public DateTime? HandledAt { get; set; }
     public int? HandledByMemberID { get; set; }
     public string? AdminNote { get; set; }
