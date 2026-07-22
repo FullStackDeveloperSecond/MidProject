@@ -34,9 +34,9 @@
                 <a class="admin-nav-link @dashboardActive" asp-controller="Home" asp-action="Index">
                     <i class="fas fa-tachometer-alt"></i><span>Dashboard</span>
                 </a>
-                <span class="admin-nav-link disabled" aria-disabled="true" title="會員模組尚未整合">
-                    <i class="fas fa-users"></i><span>會員管理</span><small>尚未整合</small>
-                </span>
+                <a class="admin-nav-link @NavActive("AdminMembers")" asp-controller="AdminMembers" asp-action="Index">
+                    <i class="fas fa-users"></i><span>會員管理</span>
+                </a>
                 <div class="admin-nav-group">
                     <button class="admin-nav-link admin-nav-group-toggle @(restaurantsGroupActive ? "active" : "")" type="button"
                             data-bs-toggle="collapse" data-bs-target="#navRestaurantsGroup"
