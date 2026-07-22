@@ -165,47 +165,4 @@ public class AccountController : Controller
         return RedirectToAction(nameof(Login));
     }
 
-    // 後台管理員註冊 (GET: /Account/RegisterAdmin) — 測試/開發用途，公開頁面
-    [HttpGet]
-    public IActionResult RegisterAdmin()
-    {
-        if (User.Identity.IsAuthenticated) return RedirectToAction("Index", "AdminMembers");
-        return View();
-    }
-
-    // 後台管理員註冊 (POST: /Account/RegisterAdmin)
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> RegisterAdmin(RegisterVM model)
-    {
-        if (!ModelState.IsValid) return View(model);
-
-        if (await _context.Members.AnyAsync(m => m.UserName == model.UserName))
-        {
-            ModelState.AddModelError(nameof(model.UserName), "此帳號已被使用。");
-            return View(model);
-        }
-        if (await _context.Members.AnyAsync(m => m.Email == model.Email))
-        {
-            ModelState.AddModelError(nameof(model.Email), "此 Email 已被註冊。");
-            return View(model);
-        }
-
-        var member = new Member
-        {
-            UserName = model.UserName,
-            NickName = string.IsNullOrWhiteSpace(model.NickName) ? model.UserName : model.NickName,
-            Email = model.Email,
-            PasswordHash = PasswordHashService.HashPassword(model.Password),
-            Birthday = model.Birthday,
-            Role = "Admin",
-            Status = "Normal",
-            LevelID = 1
-        };
-        _context.Members.Add(member);
-        await _context.SaveChangesAsync();
-
-        TempData["RegisterSuccess"] = "管理員帳號註冊成功，請登入。";
-        return RedirectToAction(nameof(Login));
-    }
 }
