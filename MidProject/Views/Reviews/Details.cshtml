@@ -2,7 +2,9 @@
 @using MidProject.Helpers
 @{
     ViewData["Title"] = $"評論 #{Model.Review.ReviewID} 詳情";
-    var (label, cls) = ReviewDisplayHelpers.GetStatusPill(Model.Review.IsDeleted, Model.Review.Status);
+    var restaurantDisabled = Model.Review.Restaurant.IsDeleted;
+    var effectivelyDeleted = Model.Review.IsDeleted || restaurantDisabled;
+    var (label, cls) = ReviewDisplayHelpers.GetStatusPill(effectivelyDeleted, Model.Review.Status);
     var activeImages = Model.Review.ReviewImages?.Where(ri => ri.Image != null && !ri.Image.IsDeleted).ToList()
                         ?? new List<MidProject.Models.ReviewImage>();
     var hasAnyImages = Model.Review.ReviewImages != null && Model.Review.ReviewImages.Any();
@@ -12,6 +14,9 @@
         : Model.Review.Content;
 }
 
+@* 假設：整站已經有共用的 _Layout.cshtml 提供頂部列跟側邊欄。
+   第一次先自己測試的話，可以把下面這行取消註解： *@
+@* Layout = null; *@
 
 <link rel="stylesheet" href="~/css/reviews-admin.css" />
 
@@ -36,9 +41,12 @@
             <div class="review-box">
                 <div class="rv-meta">
                     <div class="rv-author">
-                        <div class="av" style="@(ReviewDisplayHelpers.AvatarStyle(memberName));width:34px;height:34px;font-size:13px">
-                            @memberName.Substring(0, 1)
-                        </div>
+                        @* TODO：換成你們會員模組實際的路由，這裡先假設是 /Members/Details/{id} *@
+                        <a href="/Members/Details/@Model.Review.MemberID" class="rv-avatar-link" title="查看會員 @memberName 的後台資料">
+                            <div class="av" style="@(ReviewDisplayHelpers.AvatarStyle(memberName));width:34px;height:34px;font-size:13px">
+                                @memberName.Substring(0, 1)
+                            </div>
+                        </a>
                         <div>
                             <div class="name">@memberName</div>
                             <div class="sub">MemberID: @Model.Review.MemberID</div>
@@ -60,10 +68,7 @@
                         @foreach (var ri in activeImages)
                         {
                             <div class="rv-photo-wrap">
-                                <a href="@ri.Image!.ImageURL" target="_blank" rel="noopener" class="rv-photo" title="點擊看原圖">
-                                    <img src="@ri.Image!.ImageURL" alt="評論圖片" loading="lazy"
-                                         onerror="this.parentElement.classList.add('rv-photo--broken');this.remove();" />
-                                </a>
+                                <div class="rv-photo">🍽️</div>
                                 <form asp-action="DeleteImage" method="post" style="display:inline">
                                     @Html.AntiForgeryToken()
                                     <input type="hidden" name="imageId" value="@ri.ImageID" />
@@ -101,9 +106,24 @@
             </div>
         </div>
 
-
+        @if (restaurantDisabled)
+        {
+            <div class="notice" style="background:var(--muted-bg);color:var(--text)">
+                🏪 這則評論所屬的餐廳「@Model.Review.Restaurant.Name」已被停用，因此顯示為「已刪除」，跟評論本身有沒有被單獨刪除無關。
+                @if (!Model.Review.IsDeleted)
+                {
+                    <text>如果要讓這則評論恢復顯示，需要先請餐廳管理那邊重新啟用這間餐廳。</text>
+                }
+            </div>
+        }
         <div class="action-bar">
-            @if (Model.Review.IsDeleted)
+            @if (restaurantDisabled)
+            {
+                <div style="text-align:center;color:var(--text-faint);font-size:12.5px;padding:6px 0">
+                    餐廳已停用中，暫時無法對這則評論執行軟刪除或還原
+                </div>
+            }
+            else if (Model.Review.IsDeleted)
             {
                 <button type="button" class="action-btn confirm-green" onclick="document.getElementById('restore-modal').style.display='flex'">↩ 還原這則評論</button>
             }

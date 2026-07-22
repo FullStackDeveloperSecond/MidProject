@@ -2,12 +2,17 @@ using MidProject.Models;
 
 namespace MidProject.Repositories.IRepositories
 {
-
+    /// <summary>
+    /// 評論模組的資料存取介面。
+    /// 只負責「怎麼從資料庫撈資料 / 存資料」，不放商業邏輯（分頁換算、統計彙整、
+    /// 重算餐廳分數等邏輯放在 Services/ReviewService.cs）。
+    /// </summary>
     public interface IReviewRepository
     {
-        /// <summary>依 Tab / 搜尋 / 星等 / 時間篩選並分頁，回傳這一頁的資料、總筆數，以及夾在合法範圍內的頁碼。</summary>
+        /// <summary>依 Tab / 搜尋 / 星等 / 時間篩選並分頁，回傳這一頁的資料、總筆數，以及夾在合法範圍內的頁碼。
+        /// sortBy 傳 "time" / "rating" / "report"，sortDir 傳 "asc" 或 "desc"。</summary>
         Task<(List<Review> Items, int TotalCount, int Page)> GetFilteredReviewsAsync(
-            string tab, string? search, int? rating, string time, int page, int pageSize);
+            string tab, string? search, int? rating, string time, string sortBy, string sortDir, int page, int pageSize);
 
         /// <summary>依狀態算數量。isDeleted=true 時忽略 status，直接算所有已刪除的。</summary>
         Task<int> CountByStatusAsync(bool isDeleted, string? status);

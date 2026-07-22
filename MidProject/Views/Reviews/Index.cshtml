@@ -2,7 +2,24 @@
 @using MidProject.Helpers
 @{
     ViewData["Title"] = "評論管理";
+
+    // 排序連結小工具：col 是 "time" / "rating" / "report"
+    // 點還沒排序的欄位 → 用該欄位、預設 desc；點已經在排序的欄位 → 方向反過來
+    string SortHref(string col)
+    {
+        var nextDir = (Model.SortBy == col && Model.SortDir == "desc") ? "asc" : "desc";
+        return Url.Action("Index", new { tab = Model.Tab, search = Model.Search, rating = Model.Rating, time = Model.Time, sortBy = col, sortDir = nextDir, page = 1 })!;
+    }
+    string SortArrow(string col) => Model.SortBy != col ? "" : (Model.SortDir == "asc" ? "▲" : "▼");
+
+    // 點會員/餐廳名字 → 用他的名字重新搜尋，看他所有的評論（不限目前的 Tab/星等/時間）
+    string SearchByNameHref(string name)
+        => Url.Action("Index", new { tab = "all", search = name, sortBy = "time", sortDir = "desc", page = 1 })!;
 }
+
+@* 假設：整站已經有共用的 _Layout.cshtml 提供頂部列跟側邊欄（規格書寫明 Layout 不是 Terry 負責的部分），
+   這裡只放 <main> 裡面要顯示的內容。第一次先自己測試的話，可以把下面這行取消註解： *@
+@* Layout = null; *@
 
 <link rel="stylesheet" href="~/css/reviews-admin.css" />
 
@@ -41,15 +58,17 @@
     @foreach (var t in tabs)
     {
         <a class="tab-btn @(Model.Tab == t.Key ? "active" : "")"
-           href="@Url.Action("Index", new { tab = t.Key, search = Model.Search, rating = Model.Rating, time = Model.Time })">
+           href="@Url.Action("Index", new { tab = t.Key, search = Model.Search, rating = Model.Rating, time = Model.Time, sortBy = Model.SortBy, sortDir = Model.SortDir })">
             @t.Label <span class="tab-count">@t.Count</span>
         </a>
     }
 </div>
 
 <form method="get" asp-action="Index" class="filter-row">
-    @* 保留目前的 tab，換頁篩選條件時不要跳回「全部」 *@
+    @* 保留目前的 tab / 排序，換頁篩選條件時不要跳回「全部」或重排 *@
     <input type="hidden" name="tab" value="@Model.Tab" />
+    <input type="hidden" name="sortBy" value="@Model.SortBy" />
+    <input type="hidden" name="sortDir" value="@Model.SortDir" />
     <input class="search-box" type="text" name="search" placeholder="🔍 搜尋評論內容、會員、餐廳..." value="@Model.Search" />
     <select class="f-select" name="rating" onchange="this.form.submit()">
         <option value="">所有星等</option>
@@ -69,8 +88,12 @@
     <table>
         <thead>
             <tr>
-                <th>ID</th><th>會員</th><th>餐廳</th><th>星等</th><th>內容</th>
-                <th>狀態</th><th>檢舉</th><th>時間</th>
+                <th>ID</th><th>會員</th><th>餐廳</th>
+                <th><a class="rv-sort-link" href="@SortHref("rating")" title="點擊依星等排序">星等 @SortArrow("rating")</a></th>
+                <th>內容</th>
+                <th>狀態</th>
+                <th><a class="rv-sort-link" href="@SortHref("report")" title="點擊依檢舉數排序">檢舉 @SortArrow("report")</a></th>
+                <th><a class="rv-sort-link" href="@SortHref("time")" title="點擊依時間排序">時間 @SortArrow("time")</a></th>
             </tr>
         </thead>
         <tbody>
@@ -82,18 +105,21 @@
         {
             @foreach (var r in Model.Items)
             {
-                var (label, cls) = ReviewDisplayHelpers.GetStatusPill(r.IsDeleted, r.Status);
-                var rowClass = r.IsDeleted ? "row-deleted" : (r.Status == "PendingReview" ? "row-pending" : "");
+                var effectivelyDeleted = r.IsDeleted || r.Restaurant.IsDeleted;
+                var (label, cls) = ReviewDisplayHelpers.GetStatusPill(effectivelyDeleted, r.Status);
+                var rowClass = effectivelyDeleted ? "row-deleted" : (r.Status == "PendingReview" ? "row-pending" : "");
                 var memberName = ReviewDisplayHelpers.DisplayName(r.Member.NickName, r.Member.UserName);
                 <tr class="row-click @rowClass" onclick="location.href='@Url.Action("Details", new { id = r.ReviewID })'">
                     <td style="color:var(--text-faint)">@r.ReviewID</td>
                     <td>
                         <div class="u-cell">
                             <div class="av" style="@ReviewDisplayHelpers.AvatarStyle(memberName)">@memberName.Substring(0, 1)</div>
-                            @memberName
+                            <a class="rv-name-link" onclick="event.stopPropagation()" href="@SearchByNameHref(memberName)" title="查看這位會員的所有評論">@memberName</a>
                         </div>
                     </td>
-                    <td>@r.Restaurant.Name</td>
+                    <td>
+                        <a class="rv-name-link" onclick="event.stopPropagation()" href="@SearchByNameHref(r.Restaurant.Name)" title="查看這間餐廳的所有評論">@r.Restaurant.Name</a>
+                    </td>
                     <td><span class="stars">@(new string('★', r.Rating))</span> @r.Rating</td>
                     <td><span class="content-line">@r.Content</span></td>
                     <td><span class="pill @cls">@label</span></td>
@@ -123,14 +149,14 @@
         <span>顯示 @showStart–@showEnd 筆，共 @Model.TotalCount 筆</span>
         <div class="page-btns">
             <a class="page-btn @(Model.Page <= 1 ? "disabled" : "")"
-               href="@Url.Action("Index", new { tab = Model.Tab, search = Model.Search, rating = Model.Rating, time = Model.Time, page = Math.Max(1, Model.Page - 1) })">‹</a>
+               href="@Url.Action("Index", new { tab = Model.Tab, search = Model.Search, rating = Model.Rating, time = Model.Time, sortBy = Model.SortBy, sortDir = Model.SortDir, page = Math.Max(1, Model.Page - 1) })">‹</a>
             @for (int p = 1; p <= Model.TotalPages; p++)
             {
                 <a class="page-btn @(p == Model.Page ? "on" : "")"
-                   href="@Url.Action("Index", new { tab = Model.Tab, search = Model.Search, rating = Model.Rating, time = Model.Time, page = p })">@p</a>
+                   href="@Url.Action("Index", new { tab = Model.Tab, search = Model.Search, rating = Model.Rating, time = Model.Time, sortBy = Model.SortBy, sortDir = Model.SortDir, page = p })">@p</a>
             }
             <a class="page-btn @(Model.Page >= Model.TotalPages ? "disabled" : "")"
-               href="@Url.Action("Index", new { tab = Model.Tab, search = Model.Search, rating = Model.Rating, time = Model.Time, page = Math.Min(Model.TotalPages, Model.Page + 1) })">›</a>
+               href="@Url.Action("Index", new { tab = Model.Tab, search = Model.Search, rating = Model.Rating, time = Model.Time, sortBy = Model.SortBy, sortDir = Model.SortDir, page = Math.Min(Model.TotalPages, Model.Page + 1) })">›</a>
         </div>
     </div>
 }
