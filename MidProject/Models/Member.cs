@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace MidProject.Models;
 
@@ -31,6 +32,8 @@ public class Member
     [Required, StringLength(20)]
     public string Status { get; set; } = "Normal";
 
+    public int WarningCount { get; set; }
+
     public string? AdminNote { get; set; }
     public DateTime? PenaltyEndAt { get; set; }
     public DateOnly? Birthday { get; set; }
@@ -45,7 +48,6 @@ public class Member
     public DateTime? DeletedAt { get; set; }
     public int? DeletedBy { get; set; }
 
-    public UserLevel? Level { get; set; }
     public Image? AvatarImage { get; set; }
     public Member? DeletedByMember { get; set; }
 
@@ -54,4 +56,6 @@ public class Member
     public ICollection<Image> UploadedImages { get; set; } = new List<Image>();
     public ICollection<FavoriteFolder> FavoriteFolders { get; set; } = new List<FavoriteFolder>();
     public ICollection<Favorite> Favorites { get; set; } = new List<Favorite>();
+    [ForeignKey("LevelID")]
+    public virtual UserLevel UserLevel { get; set; } = null!;
 }

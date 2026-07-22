@@ -8,6 +8,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="ExtentReports" Version="5.0.4" />
+    <PackageReference Include="IppDotNetSdkForQuickBooksApiV3" Version="14.7.1.4" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.22" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="8.0.22">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -21,6 +23,12 @@
 
   <ItemGroup>
     <Folder Include="Models\DTOs\" />
+    <Folder Include="Models\ViewModels\" />
+    <Folder Include="Models\ViewModels\" />
+    <Folder Include="Repositories\IRepositories\" />
+    <Folder Include="Repositories\IRepositories\" />
+    <Folder Include="Services\IServices\" />
+    <Folder Include="Services\IServices\" />
   </ItemGroup>
 
 </Project>

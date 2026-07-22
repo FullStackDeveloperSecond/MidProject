@@ -20,9 +20,12 @@ public static class SeedData
 
         var levels = new List<UserLevel>
         {
-            new() { LevelName = "新手會員", MinExp = 0, Rewards = "基本會員權益" },
-            new() { LevelName = "美食探索者", MinExp = 500, Rewards = "評論徽章" },
-            new() { LevelName = "美食達人", MinExp = 1500, Rewards = "達人標章" }
+            new() { LevelName = "新食客", MinExp = 0, Rewards = "基本會員權益" },
+            new() { LevelName = "尋味人", MinExp = 500, Rewards = "評論徽章" },
+            new() { LevelName = "品味家", MinExp = 1300, Rewards = "達人標章" },
+            new() { LevelName = "老饕客", MinExp = 3400, Rewards = "專屬活動邀請" },
+            new() { LevelName = "鑑味師", MinExp = 8800, Rewards = "VIP 標章" },
+            new() { LevelName = "食之神", MinExp = 23000, Rewards = "尊爵頭銜" }
         };
         context.UserLevels.AddRange(levels);
         await context.SaveChangesAsync();
@@ -47,7 +50,7 @@ public static class SeedData
             admin,
             CreateMember("Aiden_42", "怡安", "aiden@example.com", "Normal", levels[1].LevelID, 620, 120, now.AddDays(-20)),
             CreateMember("Mason17", "小森", "mason@example.com", "Normal", levels[0].LevelID, 280, 80, now.AddDays(-15)),
-            CreateMember("Ethan.85", "亦辰", "ethan@example.com", "Warning", levels[0].LevelID, 180, 30, now.AddDays(-10), "評論用語需注意"),
+            CreateMember("Ethan.85", "亦辰", "ethan@example.com", "Warning", levels[0].LevelID, 180, 30, now.AddDays(-10), "評論用語需注意", warningCount: 1),
             CreateMember("Logan_23", "洛根", "logan@example.com", "Muted", levels[1].LevelID, 760, 150, now.AddDays(-40), "多次發送廣告留言", now.AddDays(7)),
             CreateMember("Caleb76", "凱勒", "caleb@example.com", "Suspended", levels[0].LevelID, 100, 10, now.AddDays(-30), "疑似惡意檢舉，永久停權"),
             CreateMember("Dylan09", "迪倫", "dylan@example.com", "Normal", levels[2].LevelID, 1680, 310, now.AddDays(-90)),
@@ -207,7 +210,7 @@ public static class SeedData
         await context.SaveChangesAsync();
     }
 
-    private static Member CreateMember(string userName, string nickName, string email, string status, int levelId, int experience, int points, DateTime createdAt, string? adminNote = null, DateTime? penaltyEndAt = null, bool isDeleted = false, DateTime? deletedAt = null, int? deletedBy = null)
+    private static Member CreateMember(string userName, string nickName, string email, string status, int levelId, int experience, int points, DateTime createdAt, string? adminNote = null, DateTime? penaltyEndAt = null, bool isDeleted = false, DateTime? deletedAt = null, int? deletedBy = null, int warningCount = 0)
     {
         return new Member
         {
@@ -220,6 +223,7 @@ public static class SeedData
             LevelID = levelId,
             Experience = experience,
             Points = points,
+            WarningCount = warningCount,
             AdminNote = adminNote,
             PenaltyEndAt = penaltyEndAt,
             IsDeleted = isDeleted,
@@ -282,8 +286,14 @@ public static class SeedData
         };
     }
 
-    private static Report CreateReport(int reporterId, int? reportedMemberId = null, int? restaurantId = null, int? reviewId = null, int? imageId = null, string reason = "", string status = "Pending", DateTime? createdAt = null, DateTime? handledAt = null, int? handledBy = null, string? adminNote = null)
+    private static Report CreateReport(int reporterId, int? reportedMemberId = null, int? restaurantId = null, int? reviewId = null, int? imageId = null, string reason = "", string status = "Pending", DateTime? createdAt = null, DateTime? handledAt = null, int? handledBy = null, string? adminNote = null, string? category = null)
     {
+        var resolvedCategory = category ?? (reportedMemberId.HasValue ? "會員"
+            : reviewId.HasValue ? "評論"
+            : restaurantId.HasValue ? "餐廳"
+            : imageId.HasValue ? "圖片"
+            : "其他");
+
         return new Report
         {
             ReporterMemberID = reporterId,
@@ -293,6 +303,7 @@ public static class SeedData
             ImageID = imageId,
             Category = "未分類",
             Reason = reason,
+            Category = resolvedCategory,
             Status = status,
             CreatedAt = createdAt ?? DateTime.Now,
             HandledAt = handledAt,

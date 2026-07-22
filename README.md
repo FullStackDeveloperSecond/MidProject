@@ -31,6 +31,7 @@ MidProject/
 
 database/
 ├── 20260715153559_AddCategoryToReports.sql # 已有資料庫單獨升級用
+├── 20260718074506_AddWarningCountToMembers.sql # 已有資料庫新增會員警告次數
 ├── MidProject_CreateDatabaseAndSchema.sql
 ├── MidProject_InitialCreate.sql
 └── README_資料庫建置教學.md

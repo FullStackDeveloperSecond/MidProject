@@ -35,6 +35,7 @@ public class AppDbContext : DbContext
             entity.HasIndex(e => e.MinExp).IsUnique();
             entity.Property(e => e.LevelName).HasMaxLength(50).IsRequired();
             entity.Property(e => e.Rewards).HasMaxLength(50);
+            entity.Property(e => e.IsDeleted).HasDefaultValue(false);
             entity.ToTable(table => table.HasCheckConstraint("CK_UserLevels_MinExp", "[MinExp] >= 0"));
         });
 
@@ -54,6 +55,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.IsLocked).HasDefaultValue(false);
             entity.Property(e => e.IsDeleted).HasDefaultValue(false);
             entity.Property(e => e.Status).HasMaxLength(20).IsRequired().HasDefaultValue("Normal");
+            entity.Property(e => e.WarningCount).HasDefaultValue(0);
             entity.Property(e => e.LevelID).HasDefaultValue(1);
             entity.Property(e => e.Experience).HasDefaultValue(0);
             entity.Property(e => e.Points).HasDefaultValue(0);
@@ -63,10 +65,11 @@ public class AppDbContext : DbContext
             {
                 table.HasCheckConstraint("CK_Members_Role", "[Role] IN ('User', 'Admin')");
                 table.HasCheckConstraint("CK_Members_Status", "[Status] IN ('Normal', 'Warning', 'Muted', 'Suspended', 'Deleted')");
+                table.HasCheckConstraint("CK_Members_WarningCount", "[WarningCount] >= 0");
                 table.HasCheckConstraint("CK_Members_Experience", "[Experience] >= 0");
                 table.HasCheckConstraint("CK_Members_Points", "[Points] >= 0");
             });
-            entity.HasOne(e => e.Level).WithMany(e => e.Members).HasForeignKey(e => e.LevelID).OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne(e => e.UserLevel).WithMany(e => e.Members).HasForeignKey(e => e.LevelID).OnDelete(DeleteBehavior.NoAction);
             entity.HasOne(e => e.AvatarImage).WithMany().HasForeignKey(e => e.AvatarImageID).OnDelete(DeleteBehavior.NoAction);
             entity.HasOne(e => e.DeletedByMember).WithMany().HasForeignKey(e => e.DeletedBy).OnDelete(DeleteBehavior.NoAction);
         });
@@ -227,21 +230,29 @@ public class AppDbContext : DbContext
         {
             entity.HasKey(e => e.NotificationID);
             entity.HasIndex(e => e.NotificationType);
-            entity.HasIndex(e => e.IsSent);
-            entity.HasIndex(e => e.IsDeleted);
+            entity.HasIndex(e => new { e.IsDeleted, e.ScheduledAt, e.NotificationID });
+            entity.HasIndex(e => new { e.IsSent, e.IsDeleted, e.ScheduledAt, e.NotificationID });
+            entity.HasIndex(e => new { e.SourceReportID, e.SourceReportOutcome })
+                .IsUnique()
+                .HasFilter("[SourceReportID] IS NOT NULL AND [SourceReportOutcome] IS NOT NULL");
             entity.Property(e => e.NotificationType).HasMaxLength(20).IsRequired().HasDefaultValue("Personal");
             entity.Property(e => e.TargetRole).HasMaxLength(10);
             entity.Property(e => e.TargetStatus).HasMaxLength(20);
             entity.Property(e => e.Title).HasMaxLength(100).IsRequired();
-            entity.Property(e => e.Content).IsRequired();
+            entity.Property(e => e.Content).HasMaxLength(1000).IsRequired();
             entity.Property(e => e.IsSent).HasDefaultValue(false);
-            entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETDATE()");
             entity.Property(e => e.IsDeleted).HasDefaultValue(false);
+            entity.Property(e => e.SourceReportOutcome).HasMaxLength(10);
+            entity.Property(e => e.RowVersion).IsRowVersion();
             entity.ToTable(table =>
             {
                 table.HasCheckConstraint("CK_Notifications_NotificationType", "[NotificationType] IN ('Personal', 'Condition')");
                 table.HasCheckConstraint("CK_Notifications_TargetRole", "[TargetRole] IS NULL OR [TargetRole] IN ('User', 'Admin')");
                 table.HasCheckConstraint("CK_Notifications_TargetStatus", "[TargetStatus] IS NULL OR [TargetStatus] IN ('Normal', 'Warning', 'Muted', 'Suspended', 'Deleted')");
+                table.HasCheckConstraint("CK_Notifications_Audience", "([NotificationType] = 'Personal' AND [MemberID] IS NOT NULL AND [TargetRole] IS NULL AND [TargetStatus] IS NULL AND [TargetLevelID] IS NULL) OR ([NotificationType] = 'Condition' AND [MemberID] IS NULL)");
+                table.HasCheckConstraint("CK_Notifications_ReportSource", "([SourceReportID] IS NULL AND [SourceReportOutcome] IS NULL) OR ([SourceReportID] IS NOT NULL AND [SourceReportOutcome] IN ('Approved', 'Rejected'))");
+                table.HasCheckConstraint("CK_Notifications_SentState", "([IsSent] = 0 AND [SentAt] IS NULL) OR ([IsSent] = 1 AND [SentAt] IS NOT NULL)");
+                table.HasCheckConstraint("CK_Notifications_DeletedState", "([IsDeleted] = 0 AND [DeletedAt] IS NULL AND [DeletedBy] IS NULL) OR ([IsDeleted] = 1 AND [IsSent] = 0 AND [DeletedAt] IS NOT NULL AND [DeletedBy] IS NOT NULL)");
             });
             entity.HasOne(e => e.Member).WithMany().HasForeignKey(e => e.MemberID).OnDelete(DeleteBehavior.NoAction);
             entity.HasOne(e => e.TargetLevel).WithMany(e => e.Notifications).HasForeignKey(e => e.TargetLevelID).OnDelete(DeleteBehavior.NoAction);

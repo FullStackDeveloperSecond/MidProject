@@ -17,10 +17,13 @@ public class Report
     [Required, StringLength(500)]
     public string Reason { get; set; } = string.Empty;
 
+    [Required, StringLength(10)]
+    public string Category { get; set; } = "未分類";
+
     [Required, StringLength(20)]
     public string Status { get; set; } = "Pending";
 
-    public DateTime CreatedAt { get; set; } = DateTime.Now;
+	public DateTime CreatedAt { get; set; } = DateTime.Now;
     public DateTime? HandledAt { get; set; }
     public int? HandledByMemberID { get; set; }
     public string? AdminNote { get; set; }

@@ -1,0 +1,30 @@
+@model IEnumerable<UserLevel>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>會員等級維護</h2>
+    <a asp-action="Create" class="btn btn-primary">➕ 新增等級</a>
+</div>
+
+<table class="table table-hover align-middle">
+    <thead>
+        <tr>
+            <th>LevelID</th>
+            <th>LevelName</th>
+            <th>MinExp</th>
+            <th>Rewards</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var lv in Model)
+        {
+            <tr>
+                <td>@lv.LevelID</td>
+                <td>@lv.LevelName</td>
+                <td>@lv.MinExp</td>
+                <td>@lv.Rewards</td>
+                <td><a asp-action="Edit" asp-route-id="@lv.LevelID" class="btn btn-sm btn-outline-secondary">編輯</a></td>
+            </tr>
+        }
+    </tbody>
+</table>

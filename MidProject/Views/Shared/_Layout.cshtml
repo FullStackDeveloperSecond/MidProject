@@ -1,43 +1,80 @@
+@{
+    var currentController = ViewContext.RouteData.Values["controller"]?.ToString() ?? string.Empty;
+    string NavActive(string controller) =>
+        string.Equals(currentController, controller, StringComparison.OrdinalIgnoreCase) ? "active" : string.Empty;
+    var dashboardActive = currentController is "Home" or "Dashboard" ? "active" : string.Empty;
+}
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - 美食地圖</title>
+    <title>@ViewData["Title"] - 美食地圖後台</title>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/vendor/fontawesome-free/css/all.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/admin-layout.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/MidProject.styles.css" asp-append-version="true" />
+    @await RenderSectionAsync("Styles", required: false)
 </head>
-<body>
-    <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
-            <div class="container-fluid">
-                <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">美食地圖</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
-                        aria-expanded="false" aria-label="切換導覽列">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
-                    <ul class="navbar-nav flex-grow-1">
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">基礎架構</a>
-                        </li>
-                    </ul>
+<body class="admin-body">
+    <div class="admin-shell">
+        <aside class="admin-sidebar collapse d-lg-flex" id="adminSidebar">
+            <a class="admin-brand" asp-controller="Home" asp-action="Index">
+                <i class="fas fa-utensils"></i>
+                <span>美食地圖後台</span>
+            </a>
+
+            <nav class="admin-nav" aria-label="後台主要導覽">
+                <a class="admin-nav-link @dashboardActive" asp-controller="Home" asp-action="Index">
+                    <i class="fas fa-tachometer-alt"></i><span>Dashboard</span>
+                </a>
+                <span class="admin-nav-link disabled" aria-disabled="true" title="會員模組尚未整合">
+                    <i class="fas fa-users"></i><span>會員管理</span><small>尚未整合</small>
+                </span>
+                <a class="admin-nav-link @NavActive("Restaurants")" asp-controller="Restaurants" asp-action="Index">
+                    <i class="fas fa-store"></i><span>餐廳管理</span>
+                </a>
+                <a class="admin-nav-link @NavActive("Reviews")" asp-controller="Reviews" asp-action="Index">
+                    <i class="fas fa-comments"></i><span>評論管理</span>
+                </a>
+                <a class="admin-nav-link @NavActive("Reports")" asp-controller="Reports" asp-action="Index">
+                    <i class="fas fa-flag"></i><span>檢舉管理</span>
+                </a>
+                <a class="admin-nav-link @NavActive("Notifications")" asp-controller="Notifications" asp-action="Index">
+                    <i class="fas fa-bell"></i><span>通知管理</span>
+                </a>
+            </nav>
+        </aside>
+
+        <div class="admin-main">
+            <header class="admin-topbar navbar navbar-expand bg-white border-bottom shadow-sm">
+                <div class="container-fluid px-3 px-lg-4">
+                    <button class="btn btn-outline-secondary d-lg-none" type="button" data-bs-toggle="collapse"
+                            data-bs-target="#adminSidebar" aria-controls="adminSidebar" aria-expanded="false" aria-label="切換導覽列">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <span class="navbar-text ms-auto d-flex align-items-center gap-2">
+                        <i class="fas fa-user-circle text-secondary"></i>
+                        <span>管理員</span>
+                    </span>
                 </div>
-            </div>
-        </nav>
-    </header>
-    <div class="container">
-        <main role="main" class="pb-3">
-            @RenderBody()
-        </main>
+            </header>
+
+            <main class="admin-content" role="main">
+                <div class="container-fluid px-3 px-lg-4 py-4">
+                    @RenderBody()
+                </div>
+            </main>
+
+            <footer class="admin-footer border-top bg-white text-muted">
+                <div class="container-fluid px-3 px-lg-4 py-3 text-center">
+                    &copy; @DateTime.Now.Year 美食地圖管理系統
+                </div>
+            </footer>
+        </div>
     </div>
 
-    <footer class="border-top footer text-muted">
-        <div class="container">
-            &copy; 2026 - 美食地圖
-        </div>
-    </footer>
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
