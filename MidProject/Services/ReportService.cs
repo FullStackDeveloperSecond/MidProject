@@ -74,6 +74,17 @@ public class ReportService : IReportService
         report.HandledAt = DateTime.Now;
         report.HandledByMemberID = adminMemberId;
 
+        // 回填「被檢舉會員」＝該檢舉目標（餐廳/評論/圖片）背後的建立者/上傳者。
+        // AdminMembers/Edit 的「檢舉累積次數」與自動懲處是以 Reports.ReportedMemberID + Status=Approved 計數，
+        // 若這裡不回填，被檢舉會員的累積次數永遠是 0，故在管理員處理檢舉時一併寫入。
+        // 但排除 Admin：管理員被自動懲處停權會讓通知模組的固定管理員失格、啟動驗證失敗。
+        var reportedOwner = report.Restaurant?.Member
+            ?? report.Review?.Member
+            ?? report.Image?.UploadedByMember;
+        report.ReportedMemberID = (reportedOwner != null && reportedOwner.Role != "Admin")
+            ? reportedOwner.MemberID
+            : null;
+
         await _repository.SaveChangesAsync();
         return true;
     }
