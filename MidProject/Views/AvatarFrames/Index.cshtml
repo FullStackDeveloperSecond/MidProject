@@ -1,0 +1,122 @@
+@model MidProject.Models.ViewModels.PointsStore.AvatarFramesIndexViewModel
+@{
+    ViewData["Title"] = "頭像外框商品管理";
+
+    string RarityLabel(string rarity) => rarity switch
+    {
+        "Rare" => "稀有",
+        "Limited" => "限定",
+        _ => "一般"
+    };
+
+    string RarityBadgeClass(string rarity) => rarity switch
+    {
+        "Rare" => "bg-info text-dark",
+        "Limited" => "bg-warning text-dark",
+        _ => "bg-light text-dark border"
+    };
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>頭像外框商品管理</h2>
+    <div class="d-flex gap-2">
+        <a asp-action="Deleted" class="btn btn-outline-secondary">🗑 已刪除商品</a>
+        <a asp-action="Create" class="btn btn-primary">➕ 新增商品</a>
+    </div>
+</div>
+
+@if (TempData["Toast"] != null)
+{
+    <div class="alert alert-success">@TempData["Toast"]</div>
+}
+
+<div class="row mb-3 g-3">
+    <div class="col-md-3">
+        <div class="card bg-light p-3 h-100">
+            <h6 class="text-muted mb-1">商品總數</h6>
+            <h4 class="mb-0">@Model.TotalCount</h4>
+            <small class="text-muted">@Model.ActiveCount 項上架中</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-light p-3 h-100">
+            <h6 class="text-muted mb-1">本月兌換次數</h6>
+            <h4 class="mb-0">@Model.MonthlyRedemptionCount</h4>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-light p-3 h-100">
+            <h6 class="text-muted mb-1">本月消耗點數</h6>
+            <h4 class="mb-0">@Model.MonthlyPointsSpent.ToString("N0")</h4>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-light p-3 h-100">
+            <h6 class="text-muted mb-1">平均點數售價</h6>
+            <h4 class="mb-0">@Model.AveragePointsPrice.ToString("N0")</h4>
+        </div>
+    </div>
+</div>
+
+<table class="table table-hover align-middle">
+    <thead>
+        <tr>
+            <th>商品</th>
+            <th>分類</th>
+            <th>點數售價</th>
+            <th>累計兌換</th>
+            <th>狀態</th>
+            <th class="text-end">操作</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var f in Model.Frames)
+        {
+            <tr>
+                <td>
+                    <div class="d-flex align-items-center gap-2">
+                        @if (!string.IsNullOrEmpty(f.ImageUrl))
+                        {
+                            <img src="@f.ImageUrl" width="36" height="36" class="rounded-circle" />
+                        }
+                        else
+                        {
+                            <span class="d-inline-flex align-items-center justify-content-center rounded-circle bg-secondary text-white" style="width:36px;height:36px;">🖼</span>
+                        }
+                        <span>@f.Name</span>
+                    </div>
+                </td>
+                <td><span class="badge @RarityBadgeClass(f.Rarity)">@RarityLabel(f.Rarity)</span></td>
+                <td>@f.PointsPrice.ToString("N0")</td>
+                <td>@f.RedeemedCount 次</td>
+                <td>
+                    @if (f.IsActive)
+                    {
+                        <span class="badge bg-success">上架中</span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-secondary">已下架</span>
+                    }
+                </td>
+                <td class="text-end">
+                    <a asp-action="Edit" asp-route-id="@f.FrameID" class="btn btn-sm btn-outline-secondary">編輯</a>
+                    <form method="post" asp-action="ToggleActive" asp-route-id="@f.FrameID" class="d-inline">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn btn-sm @(f.IsActive ? "btn-outline-secondary" : "btn-outline-success")">@(f.IsActive ? "下架" : "上架")</button>
+                    </form>
+                    <form method="post" asp-action="Delete" asp-route-id="@f.FrameID" class="d-inline" onsubmit="return confirm('確定要刪除「@f.Name」嗎？此動作無法復原。');">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn btn-sm btn-outline-danger">刪除</button>
+                    </form>
+                </td>
+            </tr>
+        }
+        @if (!Model.Frames.Any())
+        {
+            <tr>
+                <td colspan="6" class="text-center text-muted py-4">尚未新增任何外框商品。</td>
+            </tr>
+        }
+    </tbody>
+</table>
