@@ -35,4 +35,5 @@ public class Report
     public Image? Image { get; set; }
     public Member? HandledByMember { get; set; }
     public Member? DeletedByMember { get; set; }
+    public ICollection<Notification> Notifications { get; set; } = new List<Notification>();
 }

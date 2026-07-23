@@ -58,6 +58,8 @@ public class Member
     public ICollection<Image> UploadedImages { get; set; } = new List<Image>();
     public ICollection<FavoriteFolder> FavoriteFolders { get; set; } = new List<FavoriteFolder>();
     public ICollection<Favorite> Favorites { get; set; } = new List<Favorite>();
+    public ICollection<MemberAvatarFrame> MemberAvatarFrames { get; set; } = new List<MemberAvatarFrame>();
+    public ICollection<PointsTransaction> PointsTransactions { get; set; } = new List<PointsTransaction>();
     [ForeignKey("LevelID")]
     public virtual UserLevel UserLevel { get; set; } = null!;
 }

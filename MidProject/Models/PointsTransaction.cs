@@ -6,7 +6,6 @@ public class PointsTransaction
 {
     public int TransactionID { get; set; }
     public int MemberID { get; set; }
-
     public int Amount { get; set; }
     public int BalanceAfter { get; set; }
 
