@@ -114,6 +114,15 @@ public class ReportsController : Controller
         return RedirectToAction(nameof(Details), new { id });
     }
 
+    // GET: /Reports/SentNotifications/5
+    // 「通知紀錄」視窗用：查詢該檢舉已送出的通知（依 Notifications.SourceReportID 關聯）
+    [HttpGet]
+    public async Task<IActionResult> SentNotifications(int id)
+    {
+        var records = await _reportService.GetSentNotificationsAsync(id);
+        return Json(new { success = true, records });
+    }
+
     private int GetCurrentAdminMemberId()
     {
         // 暫時寫死，之後接上登入驗證後從 HttpContext.User 或 Session 取得

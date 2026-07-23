@@ -201,6 +201,8 @@
                         <h6 class="m-0 fw-bold text-white">通知檢舉者內容</h6>
                     </div>
                     <div class="card-body">
+                        <!-- 通知紀錄：查得到已送出紀錄時顯示提示與送出時間 -->
+                        <div class="text-muted small mb-2 d-none" id="reporterSentInfo"></div>
                         <div class="mb-3">
                             <label class="form-label">標題</label>
                             <input type="text" id="reporterTitle" class="form-control" />
@@ -220,6 +222,8 @@
                         <h6 class="m-0 fw-bold text-white">通知被檢舉會員內容</h6>
                     </div>
                     <div class="card-body">
+                        <!-- 通知紀錄：查得到已送出紀錄時顯示提示與送出時間 -->
+                        <div class="text-muted small mb-2 d-none" id="reportedMemberSentInfo"></div>
                         <div class="mb-3">
                             <label class="form-label">標題</label>
                             <input type="text" id="reportedMemberTitle" class="form-control" />
@@ -249,6 +253,7 @@
             var isPendingReport = @(Model.Status == "Pending" ? "true" : "false");
             var notifyReporterUrl = '@Url.Action("NotifyReporter", "Reports", new { id = Model.ReportID })';
             var notifyReportedMemberUrl = '@Url.Action("NotifyReportedMember", "Reports", new { id = Model.ReportID })';
+            var sentNotificationsUrl = '@Url.Action("SentNotifications", "Reports", new { id = Model.ReportID })';
             var notifyModalElement = document.getElementById('notifyModal');
             var notifyModal = bootstrap.Modal.getOrCreateInstance(notifyModalElement);
 
@@ -334,6 +339,7 @@
                 $('#reporterTitle').val(reporter.title);
                 $('#reporterContent').val(reporter.content);
                 $('#reporterSavedMsg').addClass('d-none');
+                $('#reporterSentInfo').addClass('d-none');
                 applyState(reporterCard);
 
                 if (status === 'Approved' && reportedMember) {
@@ -341,6 +347,7 @@
                     $('#reportedMemberTitle').val(reportedMember.title);
                     $('#reportedMemberContent').val(reportedMember.content);
                     $('#reportedMemberSavedMsg').addClass('d-none');
+                    $('#reportedMemberSentInfo').addClass('d-none');
                     applyState(reportedMemberCard);
                 } else {
                     $('#reportedMemberNotifyCard').addClass('d-none');
@@ -372,12 +379,56 @@
                 });
             });
 
-            // 已處理完畢的檢舉，重新開啟通知視窗（用目前的處理狀態＋預設範本重新帶入）
+            var defaultReporterNotify = { title: @Html.Raw(Json.Serialize(Model.DefaultNotificationTitle)), content: @Html.Raw(Json.Serialize(Model.DefaultNotificationContent)) };
+            var defaultReportedMemberNotify = { title: @Html.Raw(Json.Serialize(Model.DefaultReportedMemberNotificationTitle)), content: @Html.Raw(Json.Serialize(Model.DefaultReportedMemberNotificationContent)) };
+
+            var reporterMemberId = @Model.ReporterMemberID;
+            var reportedMemberId = @(Model.ReportedMemberID?.ToString() ?? "null");
+
+            function showSentInfo(selector, record) {
+                if (!record) return; // openNotifyModal 開啟時已預設隱藏
+                var sentAtText = record.sentAt ? record.sentAt.replace('T', ' ').substring(0, 16) : '';
+                $(selector).removeClass('d-none')
+                    .text('以下為已送出的通知內容' + (sentAtText ? '（送出時間：' + sentAtText + '）' : ''));
+            }
+
+            // 已處理完畢的檢舉，開啟「通知紀錄」視窗：
+            // 先查詢該檢舉已送出的通知（Notifications.SourceReportID 關聯，索引已非唯一、兩張卡片的通知都會掛標記），
+            // 依收件會員把紀錄對應到「通知檢舉者」/「通知被檢舉會員」卡片；查不到的卡片才退回預設範本
             $('#notifyReopenBtn').on('click', function () {
-                openNotifyModal('@Model.Status',
-                    { title: @Html.Raw(Json.Serialize(Model.DefaultNotificationTitle)), content: @Html.Raw(Json.Serialize(Model.DefaultNotificationContent)) },
-                    { title: @Html.Raw(Json.Serialize(Model.DefaultReportedMemberNotificationTitle)), content: @Html.Raw(Json.Serialize(Model.DefaultReportedMemberNotificationContent)) }
-                );
+                $.ajax({
+                    url: sentNotificationsUrl,
+                    method: 'GET'
+                }).done(function (res) {
+                    var records = (res.success && res.records) ? res.records : [];
+
+                    // 依收件會員挑紀錄：優先取與目前處理結果相符的，否則取最新一筆（後端已依新到舊排序）
+                    function pick(memberId) {
+                        if (memberId === null) return null;
+                        var mine = records.filter(function (r) { return r.memberID === memberId; });
+                        if (mine.length === 0) return null;
+                        return mine.find(function (r) { return r.outcome === '@Model.Status'; }) || mine[0];
+                    }
+
+                    var reporterRecord = pick(reporterMemberId);
+                    var reportedRecord = pick(reportedMemberId);
+
+                    // 自我檢舉（檢舉者＝被檢舉會員）時兩張卡片會對到同一批紀錄，改用預設標題前綴輔助區分
+                    if (reporterMemberId === reportedMemberId && records.length > 0) {
+                        reporterRecord = records.find(function (r) { return r.memberID === reporterMemberId && r.title.indexOf('【檢舉結果通知】') === 0; }) || reporterRecord;
+                        reportedRecord = records.find(function (r) { return r.memberID === reportedMemberId && r.title.indexOf('【內容審核通知】') === 0; }) || null;
+                    }
+
+                    openNotifyModal('@Model.Status',
+                        reporterRecord ? { title: reporterRecord.title, content: reporterRecord.content } : defaultReporterNotify,
+                        reportedRecord ? { title: reportedRecord.title, content: reportedRecord.content } : defaultReportedMemberNotify);
+
+                    showSentInfo('#reporterSentInfo', reporterRecord);
+                    showSentInfo('#reportedMemberSentInfo', reportedRecord);
+                }).fail(function () {
+                    // 查詢失敗時退回預設範本，不阻擋操作
+                    openNotifyModal('@Model.Status', defaultReporterNotify, defaultReportedMemberNotify);
+                });
             });
 
             $('#saveReporterNotify').on('click', function () {

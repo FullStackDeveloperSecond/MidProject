@@ -96,7 +96,11 @@ public class ReportService : IReportService
             SentAt = DateTime.Now,
             IsSent = true,
             CreatedAt = DateTime.Now,
-            CreatedBy = adminMemberId
+            CreatedBy = adminMemberId,
+            // 寫入來源檢舉標記，讓「通知紀錄」查得到已送出內容
+            //（索引已改為非唯一，同一檢舉可掛多筆通知）
+            SourceReportID = reportId,
+            SourceReportOutcome = report.Status
         };
 
         await _repository.AddNotificationAsync(notification);
@@ -128,13 +132,30 @@ public class ReportService : IReportService
             SentAt = DateTime.Now,
             IsSent = true,
             CreatedAt = DateTime.Now,
-            CreatedBy = adminMemberId
+            CreatedBy = adminMemberId,
+            // 通知被檢舉會員也掛來源檢舉標記（索引已非唯一），通知紀錄才能一併列出
+            SourceReportID = reportId,
+            SourceReportOutcome = report.Status
         };
 
         await _repository.AddNotificationAsync(notification);
         await _repository.SaveChangesAsync();
 
         return true;
+    }
+
+    public async Task<List<ReportNotificationRecordDto>> GetSentNotificationsAsync(int reportId)
+    {
+        var notifications = await _repository.GetNotificationsByReportAsync(reportId);
+        return notifications.Select(n => new ReportNotificationRecordDto
+        {
+            NotificationID = n.NotificationID,
+            MemberID = n.MemberID,
+            Title = n.Title,
+            Content = n.Content,
+            Outcome = n.SourceReportOutcome,
+            SentAt = n.SentAt
+        }).ToList();
     }
 
     public async Task<ReportDashboardDto> GetDashboardAsync()

@@ -90,6 +90,17 @@ public class ReportDto
         "美食探店平台 管理團隊";
 }
 
+// 檢舉詳情頁「通知紀錄」視窗顯示已送出通知用
+public class ReportNotificationRecordDto
+{
+    public int NotificationID { get; set; }
+    public int? MemberID { get; set; }        // 收件會員：用來區分「通知檢舉者」與「通知被檢舉會員」的紀錄
+    public string Title { get; set; } = string.Empty;
+    public string Content { get; set; } = string.Empty;
+    public string? Outcome { get; set; }      // 送出當時的處理結果（Approved / Rejected）
+    public DateTime? SentAt { get; set; }
+}
+
 // 管理員通知檢舉會員審核結果時使用
 public class NotifyReporterDto
 {

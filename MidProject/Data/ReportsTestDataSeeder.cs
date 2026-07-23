@@ -123,5 +123,38 @@ public static class ReportsTestDataSeeder
 
         context.Reports.AddRange(reports);
         await context.SaveChangesAsync();
+
+        // 為已處理（Approved/Rejected）的檢舉各補一筆「通知檢舉者」的通知紀錄，
+        // 並寫入 SourceReportID / SourceReportOutcome，讓「查詢單一檢舉的通知紀錄」有資料可用。
+        // 注意：(SourceReportID, SourceReportOutcome) 有唯一索引，每個檢舉＋結果只能掛一筆帶標記的通知；
+        // SourceReportID 為 nullable，掛不了標記的通知（如通知被檢舉會員）留 NULL 即可。
+        // 需在 SaveChangesAsync 之後執行，ReportID 才會由資料庫產生完成。
+        var notifications = new List<Notification>();
+        foreach (var report in reports.Where(r => r.Status != "Pending"))
+        {
+            var handledAt = report.HandledAt ?? now;
+            notifications.Add(new Notification
+            {
+                MemberID = report.ReporterMemberID,
+                NotificationType = "Personal",
+                Title = "【檢舉結果通知】您提交的檢舉已完成審核",
+                Content = report.Status == "Approved"
+                    ? $"您於 {report.CreatedAt:yyyy/MM/dd} 提交的檢舉案件已審核完成：檢舉成立，我們將依規定處理相關內容。"
+                    : $"您於 {report.CreatedAt:yyyy/MM/dd} 提交的檢舉案件已審核完成：不予成立，相關內容維持顯示。",
+                ScheduledAt = handledAt,
+                SentAt = handledAt,
+                IsSent = true,
+                CreatedAt = handledAt,
+                CreatedBy = report.HandledByMemberID ?? admin.MemberID,
+                SourceReportID = report.ReportID,
+                SourceReportOutcome = report.Status
+            });
+        }
+
+        if (notifications.Count > 0)
+        {
+            context.Notifications.AddRange(notifications);
+            await context.SaveChangesAsync();
+        }
     }
 }

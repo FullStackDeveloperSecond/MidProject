@@ -135,6 +135,17 @@ public class ReportRepository : IReportRepository
         await _context.Notifications.AddAsync(notification);
     }
 
+    public async Task<List<Notification>> GetNotificationsByReportAsync(int reportId)
+    {
+        // 只撈實際已送出且未刪除的通知；(SourceReportID, SourceReportOutcome) 有唯一索引，
+        // 一筆檢舉最多兩筆（Approved 與 Rejected 各一）
+        return await _context.Notifications
+            .Where(n => n.SourceReportID == reportId && n.IsSent && !n.IsDeleted)
+            .OrderByDescending(n => n.NotificationID)
+            .ToListAsync();
+    }
+
+
     public async Task SaveChangesAsync()
     {
         await _context.SaveChangesAsync();
