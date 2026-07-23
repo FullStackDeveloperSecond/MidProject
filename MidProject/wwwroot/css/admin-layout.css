@@ -27,12 +27,12 @@
 
 .admin-brand {
     display: flex;
-    min-height: 72px;
+    min-height: 52px;
     align-items: center;
     gap: 0.75rem;
-    padding: 1rem 1.25rem;
+    padding: 0.75rem 1.25rem;
     color: #fff;
-    font-size: 1.1rem;
+    font-size: 1.05rem;
     font-weight: 700;
     text-decoration: none;
     border-bottom: 1px solid rgba(255, 255, 255, 0.12);
@@ -45,16 +45,16 @@
 .admin-nav {
     display: flex;
     flex-direction: column;
-    gap: 0.35rem;
-    padding: 1rem 0.75rem;
+    gap: 0.25rem;
+    padding: 0.75rem 0.75rem;
 }
 
 .admin-nav-link {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    min-height: 44px;
-    padding: 0.7rem 0.85rem;
+    min-height: 38px;
+    padding: 0.5rem 0.85rem;
     color: rgba(255, 255, 255, 0.78);
     border-radius: 0.5rem;
     text-decoration: none;
@@ -121,6 +121,38 @@
     background: var(--admin-sidebar-hover);
 }
 
+.admin-sidebar-footer {
+    margin-top: auto;
+    padding: 0.6rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.admin-sidebar-user {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.5rem;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.82rem;
+}
+
+.admin-sidebar-logout {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 36px;
+    padding: 0.5rem 0.5rem;
+    border-radius: 0.5rem;
+    color: rgba(255, 255, 255, 0.78);
+    text-decoration: none;
+    font-size: 0.85rem;
+}
+
+.admin-sidebar-logout:hover {
+    color: #fff;
+    background: var(--admin-sidebar-hover);
+}
+
 .admin-main {
     display: flex;
     flex: 1 1 auto;
@@ -129,8 +161,14 @@
     flex-direction: column;
 }
 
+.admin-topbar-accent {
+    height: 8px;
+    flex-shrink: 0;
+    background: #30465D;
+}
+
 .admin-topbar {
-    min-height: 72px;
+    min-height: 48px;
 }
 
 .admin-content {
@@ -139,29 +177,6 @@
 
 .admin-footer {
     flex-shrink: 0;
-}
-
-.dashboard-card {
-    border-radius: 0.75rem;
-    border-color: rgba(0, 0, 0, 0.08);
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-
-.dashboard-card:hover,
-.dashboard-card:focus-visible {
-    transform: translateY(-2px);
-    box-shadow: 0 0.5rem 1rem rgba(31, 45, 61, 0.12);
-}
-
-.dashboard-card-icon {
-    width: 44px;
-    height: 44px;
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 12px;
-    font-size: 1.1rem;
 }
 
 .report-chart {

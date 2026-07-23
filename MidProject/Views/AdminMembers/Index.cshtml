@@ -4,91 +4,99 @@
 
     (string Label, string BadgeClass, string Style, string Emoji) StatusInfo(string status) => status switch
     {
-        "Normal" => ("正常", "bg-success", "", "✅"),
-        "Warning" => ("警告", "bg-warning text-dark", "", "⚠️"),
-        "Muted" => ("禁言", "text-white", "background-color:#fd7e14;", "🔇"),
-        "Suspended" => ("停權", "bg-danger", "", "⛔"),
-        "Deleted" => ("刪除", "bg-secondary", "", "🗑️"),
-        _ => (status, "bg-secondary", "", "")
+        "Normal" => ("正常", "ds-badge-success", "", "✅"),
+        "Warning" => ("警告", "ds-badge-warning", "", "⚠️"),
+        "Muted" => ("禁言", "", "background-color:#fff0e0;color:#c2600c;", "🔇"),
+        "Suspended" => ("停權", "ds-badge-danger", "", "⛔"),
+        "Deleted" => ("刪除", "ds-badge-gray", "", "🗑️"),
+        _ => (status, "ds-badge-gray", "", "")
     };
     var defaultAvatar = "/uploads/MemberAvatar/avatar24-01.jpg";
 }
 
 @section Styles {
+    <link rel="stylesheet" href="~/css/design-system.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/shared-pagination.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/members-admin.css" asp-append-version="true" />
 }
 
-<div class="row g-3 mb-3">
+<div class="ds-page-header">
+    <h1 class="ds-h2 mb-1">會員一覽</h1>
+    <p>管理會員帳號、等級、點數與狀態</p>
+</div>
+
+<div class="row g-2 mb-3">
     <div class="col-md-4">
         <a href="@Url.Action("Index")"
-           class="member-stat-card card h-100 shadow-sm text-decoration-none text-reset @(!ViewBag.ShowAbnormal && !ViewBag.TodayOnly ? "member-stat-card-active" : "")">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-start mb-2">
-                    <div class="text-uppercase small fw-bold text-primary">會員總數</div>
-                    <span class="member-stat-icon bg-primary bg-opacity-10 text-primary"><i class="fas fa-users"></i></span>
-                </div>
-                <div class="h3 fw-bold mb-0">@ViewBag.TotalMembers 名</div>
+           class="ds-stat-card ds-stat-card-sm d-block text-decoration-none text-reset @(!ViewBag.ShowAbnormal && !ViewBag.TodayOnly ? "member-stat-card-active" : "")">
+            <div class="d-flex justify-content-between align-items-start">
+                <div class="ds-stat-label ds-accent-primary">會員總數</div>
+                <span class="ds-stat-icon ds-icon-primary"><i class="fas fa-users"></i></span>
             </div>
+            <div class="ds-stat-value">@ViewBag.TotalMembers 名</div>
         </a>
     </div>
     <div class="col-md-4">
         <a href="@Url.Action("Index", new { todayOnly = !ViewBag.TodayOnly })"
-           class="member-stat-card card h-100 shadow-sm text-decoration-none text-reset @(ViewBag.TodayOnly ? "member-stat-card-active" : "")">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-start mb-2">
-                    <div class="text-uppercase small fw-bold text-info">今日新註冊</div>
-                    <span class="member-stat-icon bg-info bg-opacity-10 text-info"><i class="fas fa-user-plus"></i></span>
-                </div>
-                <div class="h3 fw-bold mb-0">@ViewBag.TodayRegistered 名</div>
+           class="ds-stat-card ds-stat-card-sm d-block text-decoration-none text-reset @(ViewBag.TodayOnly ? "member-stat-card-active" : "")">
+            <div class="d-flex justify-content-between align-items-start">
+                <div class="ds-stat-label ds-accent-warning">今日新註冊</div>
+                <span class="ds-stat-icon ds-icon-warning"><i class="fas fa-user-plus"></i></span>
             </div>
+            <div class="ds-stat-value">@ViewBag.TodayRegistered 名</div>
         </a>
     </div>
     <div class="col-md-4">
         <a href="@Url.Action("Index", new { showAbnormal = !ViewBag.ShowAbnormal })"
-           class="member-stat-card card h-100 shadow-sm text-decoration-none text-reset @(ViewBag.ShowAbnormal ? "member-stat-card-danger" : "")">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-start mb-2">
-                    <div class="text-uppercase small fw-bold text-danger">異常狀態會員</div>
-                    <span class="member-stat-icon bg-danger bg-opacity-10 text-danger"><i class="fas fa-triangle-exclamation"></i></span>
-                </div>
-                <div class="h3 fw-bold mb-0">@ViewBag.AbnormalCount 名</div>
+           class="ds-stat-card ds-stat-card-sm d-block text-decoration-none text-reset @(ViewBag.ShowAbnormal ? "member-stat-card-danger" : "")">
+            <div class="d-flex justify-content-between align-items-start">
+                <div class="ds-stat-label ds-accent-danger">異常狀態會員</div>
+                <span class="ds-stat-icon ds-icon-danger"><i class="fas fa-triangle-exclamation"></i></span>
             </div>
+            <div class="ds-stat-value">@ViewBag.AbnormalCount 名</div>
         </a>
     </div>
 </div>
 
-<form method="get" class="row g-2 mb-3 align-items-center">
-    <input type="hidden" name="showAbnormal" value="@ViewBag.ShowAbnormal.ToString().ToLower()" />
-    <input type="hidden" name="todayOnly" value="@ViewBag.TodayOnly.ToString().ToLower()" />
-    <div class="col-md-4">
-        <input type="text" name="keyword" class="form-control" value="@ViewBag.Keyword" placeholder="搜尋帳號, 名稱, Email...">
-    </div>
-    <div class="col-md-2">
-        <select name="statusFilter" class="form-select">
-            <option value="" selected="@(string.IsNullOrEmpty((string)ViewBag.StatusFilter))">所有狀態</option>
-            <option value="Normal" selected="@(ViewBag.StatusFilter == "Normal")">正常</option>
-            <option value="Warning" selected="@(ViewBag.StatusFilter == "Warning")">警告</option>
-            <option value="Muted" selected="@(ViewBag.StatusFilter == "Muted")">禁言</option>
-            <option value="Suspended" selected="@(ViewBag.StatusFilter == "Suspended")">停權</option>
-        </select>
-    </div>
-    <div class="col-md-2">
-        <select name="levelFilter" class="form-select">
-            <option value="">所有等級</option>
-            @foreach (var lv in levelsSorted)
-            {
-                <option value="@lv.LevelID" selected="@(ViewBag.LevelFilter == lv.LevelID)">@lv.LevelName</option>
-            }
-        </select>
-    </div>
-    <div class="col-md-4 d-flex gap-2">
-        <button type="submit" class="btn btn-primary flex-fill">🔍 搜尋</button>
-        <a href="@Url.Action("Index")" class="btn btn-outline-secondary flex-fill">清除</a>
-    </div>
-</form>
+<div class="ds-toolbar mb-3">
+    <h6 class="ds-block-label">篩選條件</h6>
+    <form method="get" class="row g-3 align-items-center">
+        <input type="hidden" name="showAbnormal" value="@ViewBag.ShowAbnormal.ToString().ToLower()" />
+        <input type="hidden" name="todayOnly" value="@ViewBag.TodayOnly.ToString().ToLower()" />
+        <div class="col-md-4">
+            <input type="text" name="keyword" class="form-control" value="@ViewBag.Keyword" placeholder="搜尋帳號, 名稱, Email...">
+        </div>
+        <div class="col-md-2">
+            <select name="statusFilter" class="form-select">
+                <option value="" selected="@(string.IsNullOrEmpty((string)ViewBag.StatusFilter))">所有狀態</option>
+                <option value="Normal" selected="@(ViewBag.StatusFilter == "Normal")">正常</option>
+                <option value="Warning" selected="@(ViewBag.StatusFilter == "Warning")">警告</option>
+                <option value="Muted" selected="@(ViewBag.StatusFilter == "Muted")">禁言</option>
+                <option value="Suspended" selected="@(ViewBag.StatusFilter == "Suspended")">停權</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <select name="levelFilter" class="form-select">
+                <option value="">所有等級</option>
+                @foreach (var lv in levelsSorted)
+                {
+                    <option value="@lv.LevelID" selected="@(ViewBag.LevelFilter == lv.LevelID)">@lv.LevelName</option>
+                }
+            </select>
+        </div>
+        <div class="col-md-4 d-flex gap-2">
+            <button type="submit" class="btn ds-btn-query flex-fill"><i class="fas fa-search"></i> 查詢</button>
+            <a href="@Url.Action("Index")" class="btn ds-btn-clear flex-fill">清除</a>
+        </div>
+    </form>
+</div>
 
-<table class="table table-hover align-middle">
+<div class="ds-block-title-row">
+    <h6>會員列表</h6>
+    <span class="ds-muted small">共 @ViewBag.TotalItems 筆</span>
+</div>
+<div class="ds-table-wrap">
+<table class="ds-table align-middle">
     <thead>
         <tr>
             <th>頭像</th>
@@ -138,13 +146,14 @@
                 <td>@m.Experience@(nextThreshold.HasValue ? $" / {nextThreshold}" : " (滿級)")</td>
                 <td>@m.Points</td>
                 <td>
-                    <span class="badge @status.BadgeClass" style="@status.Style">@status.Emoji @status.Label</span>
+                    <span class="ds-badge @status.BadgeClass" style="@status.Style">@status.Emoji @status.Label</span>
                 </td>
                 <td>@m.CreatedAt.ToString("yyyy-MM-dd")</td>
             </tr>
         }
     </tbody>
 </table>
+</div>
 
 @{
     int currentPage = ViewBag.CurrentPage;

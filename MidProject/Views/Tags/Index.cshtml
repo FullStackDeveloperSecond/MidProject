@@ -4,12 +4,14 @@
 }
 
 @section Styles {
+    <link rel="stylesheet" href="~/css/design-system.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/restaurant-admin.css" asp-append-version="true" />
 }
 
 <div class="ra-page">
-    <div class="ra-topbar">
-        <h1>餐廳標籤一覽</h1>
+    <div class="ds-page-header">
+        <h1 class="ds-h2 mb-1">餐廳標籤一覽</h1>
+        <p>管理餐廳分類標籤，停用後不會出現在餐廳詳情與篩選中</p>
     </div>
 
     @if (TempData["Toast"] != null)

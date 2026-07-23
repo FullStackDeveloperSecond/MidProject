@@ -1,10 +1,12 @@
 @model MidProject.Models.ViewModels.Restaurants.RestaurantDetailViewModel
+@using MidProject.Models.ViewModels.Restaurants
 @{
     ViewData["Title"] = Model.Name;
     var backAction = Model.IsDeleted ? "Deleted" : "Index";
 }
 
 @section Styles {
+    <link rel="stylesheet" href="~/css/design-system.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/restaurant-admin.css" asp-append-version="true" />
 }
 
@@ -18,7 +20,7 @@
             <h2>@Model.Name</h2>
             @if (Model.IsDeleted)
             {
-                <span class="tag closed">停用中</span>
+                <span class="ds-badge ds-badge-danger">停用中</span>
             }
         </div>
         <div class="page-actions">
@@ -101,7 +103,7 @@
                         }
                         @foreach (var tag in Model.Tags)
                         {
-                            <a class="tag" href="@Url.Action("Index", "Restaurants", new { TagId = tag.Id })">@tag.Name</a>
+                            <a class="ds-badge @TagColorPalette.GetColorClass(tag.Name)" href="@Url.Action("Index", "Restaurants", new { TagId = tag.Id })">@tag.Name</a>
                         }
                     </span>
                 </div>
@@ -166,7 +168,7 @@
                     <h3>停用資訊</h3>
                     <div class="info-row"><span class="info-key">停用時間</span><span>@(Model.DeletedAt?.ToString("yyyy-MM-dd HH:mm") ?? "-")</span></div>
                     <div class="info-row"><span class="info-key">執行者</span><span>@(Model.DeletedByName ?? "-")</span></div>
-                    <div class="info-row"><span class="info-key">停用原因</span><span class="tag violation">@Model.DeleteReason</span></div>
+                    <div class="info-row"><span class="info-key">停用原因</span><span class="ds-badge ds-badge-danger">@Model.DeleteReason</span></div>
                 </section>
             }
         </div>

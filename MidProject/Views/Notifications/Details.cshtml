@@ -1,6 +1,9 @@
 @model MidProject.Models.ViewModels.Notifications.NotificationDetailsViewModel
 @{ ViewData["Title"] = $"通知 #{Model.NotificationID}"; }
-@section Styles { <link rel="stylesheet" href="~/css/notifications-admin.css" asp-append-version="true" /> }
+@section Styles {
+    <link rel="stylesheet" href="~/css/design-system.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/notifications-admin.css" asp-append-version="true" />
+}
 
 <div class="notification-admin">
     <div class="detail-header-bar">
@@ -21,9 +24,9 @@
     <div class="card">
         <div class="card-header d-flex justify-content-between">
             <span class="fw-semibold">@Model.Title</span>
-            @if (Model.IsDeleted) { <span class="badge bg-danger">已刪除</span> }
-            else if (Model.IsSent) { <span class="badge bg-success">已發送</span> }
-            else { <span class="badge bg-warning text-dark">未發送</span> }
+            @if (Model.IsDeleted) { <span class="ds-badge ds-badge-danger">已刪除</span> }
+            else if (Model.IsSent) { <span class="ds-badge ds-badge-success">已發送</span> }
+            else { <span class="ds-badge ds-badge-warning">未發送</span> }
         </div>
         <div class="card-body">
             <dl class="row notification-details">

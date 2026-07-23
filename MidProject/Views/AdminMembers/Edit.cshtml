@@ -8,17 +8,21 @@
 
     (string Label, string BadgeClass, string Style, string Emoji) StatusInfo(string status) => status switch
     {
-        "Normal" => ("正常", "bg-success", "", "✅"),
-        "Warning" => ("警告", "bg-warning text-dark", "", "⚠️"),
-        "Muted" => ("禁言", "text-white", "background-color:#fd7e14;", "🔇"),
-        "Suspended" => ("停權", "bg-danger", "", "⛔"),
-        "Deleted" => ("刪除", "bg-secondary", "", "🗑️"),
-        _ => (status, "bg-secondary", "", "")
+        "Normal" => ("正常", "ds-badge-success", "", "✅"),
+        "Warning" => ("警告", "ds-badge-warning", "", "⚠️"),
+        "Muted" => ("禁言", "", "background-color:#fff0e0;color:#c2600c;", "🔇"),
+        "Suspended" => ("停權", "ds-badge-danger", "", "⛔"),
+        "Deleted" => ("刪除", "ds-badge-gray", "", "🗑️"),
+        _ => (status, "ds-badge-gray", "", "")
     };
     var currentStatus = StatusInfo(Model.Status);
     var avatarUrl = Model.AvatarImage?.ImageURL;
     var defaultAvatar = "/uploads/MemberAvatar/avatar24-01.jpg";
     var isSuspended = Model.Status == "Suspended";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/design-system.css" asp-append-version="true" />
 }
 
 <div class="detail-header-bar">
@@ -78,7 +82,7 @@
                 <p>
                     <strong>目前狀態：</strong>
                     <a href="#" data-bs-toggle="modal" data-bs-target="#violationModal" class="text-decoration-none">
-                        <span class="badge @currentStatus.BadgeClass" style="@currentStatus.Style">@currentStatus.Emoji @currentStatus.Label</span>
+                        <span class="ds-badge @currentStatus.BadgeClass" style="@currentStatus.Style">@currentStatus.Emoji @currentStatus.Label</span>
                     </a>
                 </p>
                 <p><strong>註冊時間：</strong> @Model.CreatedAt</p>

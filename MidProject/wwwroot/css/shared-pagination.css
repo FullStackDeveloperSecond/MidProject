@@ -4,18 +4,25 @@
 */
 .sp-pagination {
     margin-top: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
 }
 
 .sp-pagination .sp-summary {
     text-align: left;
     color: #6c757d;
     font-size: 0.875rem;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0;
+    white-space: nowrap;
 }
 
 .sp-pagination nav {
     display: flex;
     justify-content: center;
+    flex: 1 1 auto;
 }
 
 .sp-pagination .pagination {

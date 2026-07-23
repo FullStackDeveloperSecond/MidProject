@@ -47,44 +47,14 @@
 
 .ra-topbar h1 {
     margin: 0;
-    font-size: 22px;
+    font-size: 24px;
+    font-weight: 700;
 }
 
 .page-actions {
     margin-left: auto;
     display: flex;
     gap: 10px;
-}
-
-.stats-grid {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 12px;
-    margin-bottom: 14px;
-}
-
-.stat-card {
-    min-height: 90px;
-    background: var(--ra-soft);
-    border-radius: 8px;
-    padding: 16px;
-}
-
-.stat-card span {
-    color: var(--ra-muted);
-    font-size: 14px;
-}
-
-.stat-card strong {
-    display: block;
-    margin: 4px 0;
-    font-size: 28px;
-    line-height: 1;
-    font-weight: 500;
-}
-
-.stat-card small {
-    color: var(--ra-muted);
 }
 
 .toolbar {
@@ -95,19 +65,19 @@
 
 .filter-row {
     display: grid;
-    grid-template-columns: minmax(220px, 1fr) repeat(4, minmax(140px, 1fr)) auto;
-    gap: 10px;
+    grid-template-columns: minmax(220px, 1fr) repeat(4, minmax(140px, 1fr)) auto auto;
+    gap: 16px;
 }
 
 .deleted-filters {
-    grid-template-columns: minmax(220px, 1fr) repeat(2, minmax(160px, 1fr)) auto;
+    grid-template-columns: minmax(220px, 1fr) repeat(2, minmax(160px, 1fr)) auto auto;
 }
 
 .ra-page .input,
 .ra-page .select,
 .ra-page .textarea {
     width: 100%;
-    min-height: 44px;
+    min-height: 38px;
     border: 1px solid var(--ra-line);
     border-radius: 8px;
     background: var(--ra-panel);
@@ -128,7 +98,7 @@
 }
 
 .ra-page .btn {
-    min-height: 44px;
+    min-height: 38px;
     border: 1px solid var(--ra-line-strong);
     border-radius: 8px;
     background: var(--ra-panel);
@@ -176,35 +146,12 @@
     justify-content: center;
 }
 
-.table-wrap {
+.ds-table-wrap {
     overflow-x: auto;
-    border: 1px solid var(--ra-line);
-    background: var(--ra-panel);
 }
 
-.ra-page table {
-    width: 100%;
-    border-collapse: collapse;
+.ds-table {
     min-width: 720px;
-}
-
-.ra-page th,
-.ra-page td {
-    border-bottom: 1px solid var(--ra-line);
-    padding: 12px 14px;
-    text-align: left;
-    white-space: nowrap;
-    vertical-align: middle;
-}
-
-.ra-page th {
-    background: var(--ra-soft);
-    color: var(--ra-muted);
-    font-size: 14px;
-}
-
-.ra-row:hover td {
-    background: #fbfbf7;
 }
 
 .muted {
