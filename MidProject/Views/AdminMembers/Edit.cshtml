@@ -21,6 +21,11 @@
     var isSuspended = Model.Status == "Suspended";
 }
 
+<div class="detail-header-bar">
+    <a class="btn btn-outline-secondary js-back-btn" href="@Url.Action("Index")">← 返回</a>
+    <div class="detail-crumb"><a asp-action="Index">會員管理</a> / 會員詳情 - @(Model.NickName ?? Model.UserName)</div>
+</div>
+
 <h2>會員詳細 / 編輯</h2>
 
 @if (TempData["AvatarError"] != null)

@@ -3,6 +3,10 @@
 @section Styles { <link rel="stylesheet" href="~/css/notifications-admin.css" asp-append-version="true" /> }
 
 <div class="notification-admin">
+    <div class="detail-header-bar">
+        <a class="btn btn-outline-secondary js-back-btn" href="@Url.Action("Index")">← 返回</a>
+        <div class="detail-crumb"><a asp-action="Index">通知管理</a> / 通知 #@Model.NotificationID</div>
+    </div>
     <div class="d-flex justify-content-between align-items-center mb-3">
         <div><h1 class="h2">通知 #@Model.NotificationID</h1><p class="text-muted mb-0">通知完整資料</p></div>
         <div class="d-flex gap-2">
@@ -11,7 +15,6 @@
                 <a asp-action="Edit" asp-route-id="@Model.NotificationID" class="btn btn-warning">編輯</a>
                 <a asp-action="Delete" asp-route-id="@Model.NotificationID" class="btn btn-danger">刪除</a>
             }
-            <a asp-action="Index" class="btn btn-secondary">返回</a>
         </div>
     </div>
     @if (TempData["NotificationSuccess"] is string success) { <div class="alert alert-success">@success</div> }

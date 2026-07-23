@@ -25,10 +25,9 @@
     <div class="rv-toast"><span class="tk">✓</span>@TempData["Toast"]</div>
 }
 
-<div class="rv-breadcrumb">
-    <a class="link" asp-action="Index">評論管理</a>
-    <span class="sep">/</span>
-    <span>評論 #@Model.Review.ReviewID 詳情</span>
+<div class="detail-header-bar">
+    <a class="btn js-back-btn" href="@Url.Action("Index")">← 返回</a>
+    <div class="detail-crumb"><a asp-action="Index">評論管理</a> / 評論 #@Model.Review.ReviewID 詳情</div>
 </div>
 
 <div class="detail-grid">
