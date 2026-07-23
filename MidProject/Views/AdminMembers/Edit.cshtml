@@ -21,6 +21,12 @@
     var isSuspended = Model.Status == "Suspended";
 }
 
+<style>
+    .violation-record-link:hover {
+        background-color: rgba(0, 0, 0, 0.04);
+    }
+</style>
+
 <h2>會員詳細 / 編輯</h2>
 
 @if (TempData["AvatarError"] != null)
@@ -84,14 +90,12 @@
                 <div style="max-height: 300px; overflow-y: auto;">
                     @foreach (var r in reports)
                     {
-                        <div class="border-bottom py-2">
+                        <a asp-controller="Reports" asp-action="Details" asp-route-id="@r.ReportID"
+                           class="d-block border-bottom py-2 text-decoration-none text-body violation-record-link">
                             <small class="text-muted">@r.CreatedAt</small><br />
                             <strong>原因：</strong> @r.Reason <br />
-                            <small class="text-secondary">備註：@r.AdminNote</small><br />
-                            <a asp-controller="Reports" asp-action="Details" asp-route-id="@r.ReportID" class="small">
-                                查看檢舉詳情
-                            </a>
-                        </div>
+                            <small class="text-secondary">備註：@r.AdminNote</small>
+                        </a>
                     }
                 </div>
             </div>

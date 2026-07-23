@@ -192,6 +192,9 @@ public static class SeedData
             CreateReport(members[6].MemberID, restaurantId: restaurants[8].RestaurantID, reason: "餐廳資訊與實際地址不符，疑似假店家。", status: "Pending", createdAt: now.AddHours(-4)),
             CreateReport(members[7].MemberID, imageId: images.First(i => i.ImageURL.Contains("restaurant-env-01")).ImageID, reason: "圖片與餐廳實際環境不符，疑似盜用網路照片。", status: "Approved", createdAt: now.AddDays(-8), handledAt: now.AddDays(-7), handledBy: admin.MemberID, adminNote: "檢舉成立，已通知上傳者。"),
             CreateReport(members[3].MemberID, reportedMemberId: members[5].MemberID, reason: "多次發布無關內容。", status: "Approved", createdAt: now.AddDays(-6), handledAt: now.AddDays(-5), handledBy: admin.MemberID, adminNote: "檢舉成立，已列入會員狀態處理參考。"),
+            CreateReport(members[1].MemberID, reportedMemberId: members[4].MemberID, reason: "多次發布無關廣告內容。", status: "Approved", createdAt: now.AddDays(-20), handledAt: now.AddDays(-19), handledBy: admin.MemberID, adminNote: "檢舉成立，第一次廣告留言警告。"),
+            CreateReport(members[2].MemberID, reportedMemberId: members[4].MemberID, reason: "重複張貼推銷連結，疑似機器人帳號。", status: "Approved", createdAt: now.AddDays(-10), handledAt: now.AddDays(-9), handledBy: admin.MemberID, adminNote: "檢舉成立，累積次數已達禁言門檻。"),
+            CreateReport(members[7].MemberID, reportedMemberId: members[4].MemberID, reason: "留言內容與討論主題無關，疑似洗版。", status: "Approved", createdAt: now.AddDays(-3), handledAt: now.AddDays(-2), handledBy: admin.MemberID, adminNote: "檢舉成立，持續觀察後續行為。"),
             CreateReport(members[4].MemberID, reviewId: reviews[2].ReviewID, reason: "內容不實", status: "Rejected", createdAt: now.AddDays(-5), handledAt: now.AddDays(-4), handledBy: admin.MemberID, adminNote: "查無明確違規，駁回檢舉。"),
             CreateReport(members[2].MemberID, restaurantId: restaurants[1].RestaurantID, reason: "餐廳電話疑似錯誤。", status: "Rejected", createdAt: now.AddDays(-4), handledAt: now.AddDays(-3), handledBy: admin.MemberID, adminNote: "資料已人工確認，維持原資料。")
         };
