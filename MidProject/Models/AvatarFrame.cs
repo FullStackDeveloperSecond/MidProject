@@ -20,6 +20,8 @@ public class AvatarFrame
 
     public int? ImageID { get; set; }
 
+    public int SortOrder { get; set; }
+
     public bool IsActive { get; set; } = true;
 
     public DateTime CreatedAt { get; set; } = DateTime.Now;
