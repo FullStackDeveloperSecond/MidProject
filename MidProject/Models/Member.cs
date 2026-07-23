@@ -42,6 +42,7 @@ public class Member
     public int Experience { get; set; }
     public int Points { get; set; }
     public int? AvatarImageID { get; set; }
+    public int? EquippedFrameID { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.Now;
     public DateTime UpdatedAt { get; set; } = DateTime.Now;
@@ -49,6 +50,7 @@ public class Member
     public int? DeletedBy { get; set; }
 
     public Image? AvatarImage { get; set; }
+    public AvatarFrame? EquippedFrame { get; set; }
     public Member? DeletedByMember { get; set; }
 
     public ICollection<Restaurant> Restaurants { get; set; } = new List<Restaurant>();

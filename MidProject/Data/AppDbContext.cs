@@ -23,6 +23,9 @@ public class AppDbContext : DbContext
     public DbSet<Favorite> Favorites => Set<Favorite>();
     public DbSet<Report> Reports => Set<Report>();
     public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<AvatarFrame> AvatarFrames => Set<AvatarFrame>();
+    public DbSet<MemberAvatarFrame> MemberAvatarFrames => Set<MemberAvatarFrame>();
+    public DbSet<PointsTransaction> PointsTransactions => Set<PointsTransaction>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -71,6 +74,7 @@ public class AppDbContext : DbContext
             });
             entity.HasOne(e => e.UserLevel).WithMany(e => e.Members).HasForeignKey(e => e.LevelID).OnDelete(DeleteBehavior.NoAction);
             entity.HasOne(e => e.AvatarImage).WithMany().HasForeignKey(e => e.AvatarImageID).OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne(e => e.EquippedFrame).WithMany().HasForeignKey(e => e.EquippedFrameID).OnDelete(DeleteBehavior.NoAction);
             entity.HasOne(e => e.DeletedByMember).WithMany().HasForeignKey(e => e.DeletedBy).OnDelete(DeleteBehavior.NoAction);
         });
 
@@ -142,7 +146,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.SortOrder).HasDefaultValue(0);
             entity.Property(e => e.UploadedAt).HasDefaultValueSql("GETDATE()");
             entity.Property(e => e.IsDeleted).HasDefaultValue(false);
-            entity.ToTable(table => table.HasCheckConstraint("CK_Images_ImageType", "[ImageType] IN ('RestaurantCover', 'RestaurantEnvironment', 'ReviewImage', 'MemberAvatar')"));
+            entity.ToTable(table => table.HasCheckConstraint("CK_Images_ImageType", "[ImageType] IN ('RestaurantCover', 'RestaurantEnvironment', 'ReviewImage', 'MemberAvatar', 'AvatarFrame')"));
             entity.HasOne(e => e.UploadedByMember).WithMany(e => e.UploadedImages).HasForeignKey(e => e.UploadedByMemberID).OnDelete(DeleteBehavior.NoAction);
             entity.HasOne(e => e.DeletedByMember).WithMany().HasForeignKey(e => e.DeletedBy).OnDelete(DeleteBehavior.NoAction);
         });
@@ -258,6 +262,54 @@ public class AppDbContext : DbContext
             entity.HasOne(e => e.TargetLevel).WithMany(e => e.Notifications).HasForeignKey(e => e.TargetLevelID).OnDelete(DeleteBehavior.NoAction);
             entity.HasOne(e => e.CreatedByMember).WithMany().HasForeignKey(e => e.CreatedBy).OnDelete(DeleteBehavior.NoAction);
             entity.HasOne(e => e.DeletedByMember).WithMany().HasForeignKey(e => e.DeletedBy).OnDelete(DeleteBehavior.NoAction);
+        });
+
+        modelBuilder.Entity<AvatarFrame>(entity =>
+        {
+            entity.HasKey(e => e.FrameID);
+            entity.HasIndex(e => e.IsActive);
+            entity.HasIndex(e => e.IsDeleted);
+            entity.Property(e => e.Name).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.Description).HasMaxLength(500);
+            entity.Property(e => e.Rarity).HasMaxLength(10).IsRequired().HasDefaultValue("Common");
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETDATE()");
+            entity.Property(e => e.UpdatedAt).HasDefaultValueSql("GETDATE()");
+            entity.Property(e => e.IsDeleted).HasDefaultValue(false);
+            entity.ToTable(table =>
+            {
+                table.HasCheckConstraint("CK_AvatarFrames_Rarity", "[Rarity] IN ('Common', 'Rare', 'Limited')");
+                table.HasCheckConstraint("CK_AvatarFrames_PointsPrice", "[PointsPrice] >= 0");
+            });
+            entity.HasOne(e => e.Image).WithMany().HasForeignKey(e => e.ImageID).OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne(e => e.DeletedByMember).WithMany().HasForeignKey(e => e.DeletedBy).OnDelete(DeleteBehavior.NoAction);
+        });
+
+        modelBuilder.Entity<MemberAvatarFrame>(entity =>
+        {
+            entity.HasKey(e => e.MemberAvatarFrameID);
+            entity.HasIndex(e => new { e.MemberID, e.FrameID }).IsUnique();
+            entity.Property(e => e.RedeemedAt).HasDefaultValueSql("GETDATE()");
+            entity.HasOne(e => e.Member).WithMany().HasForeignKey(e => e.MemberID).OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne(e => e.Frame).WithMany(e => e.MemberAvatarFrames).HasForeignKey(e => e.FrameID).OnDelete(DeleteBehavior.NoAction);
+        });
+
+        modelBuilder.Entity<PointsTransaction>(entity =>
+        {
+            entity.HasKey(e => e.TransactionID);
+            entity.HasIndex(e => new { e.MemberID, e.CreatedAt });
+            entity.HasIndex(e => e.Type);
+            entity.Property(e => e.Type).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.Note).HasMaxLength(200);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETDATE()");
+            entity.ToTable(table =>
+            {
+                table.HasCheckConstraint("CK_PointsTransactions_Type", "[Type] IN ('Redeem', 'AdminAdjust', 'Earn')");
+                table.HasCheckConstraint("CK_PointsTransactions_RedeemHasFrame", "([Type] <> 'Redeem') OR ([RelatedFrameID] IS NOT NULL)");
+            });
+            entity.HasOne(e => e.Member).WithMany().HasForeignKey(e => e.MemberID).OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne(e => e.RelatedFrame).WithMany().HasForeignKey(e => e.RelatedFrameID).OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne(e => e.CreatedByMember).WithMany().HasForeignKey(e => e.CreatedBy).OnDelete(DeleteBehavior.NoAction);
         });
     }
 }

@@ -1,0 +1,64 @@
+@model MidProject.Models.ViewModels.PointsStore.AvatarFrameFormViewModel
+@{
+    ViewData["Title"] = "新增頭像外框商品";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>新增頭像外框商品</h2>
+    <a asp-action="Index" class="btn btn-outline-secondary">← 返回商品列表</a>
+</div>
+
+<form method="post" asp-action="Create" enctype="multipart/form-data">
+    @Html.AntiForgeryToken()
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card p-3 mb-3">
+                <label class="form-label">外框圖片</label>
+                <input type="file" name="ImageFile" accept="image/jpeg,image/png,image/webp" class="form-control" />
+                <div class="form-text">建議使用 512×512px、透明背景 PNG。</div>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <div class="mb-3">
+                <label class="form-label">商品名稱</label>
+                <input asp-for="Name" class="form-control" placeholder="例如：經典金框" />
+                <span asp-validation-for="Name" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">分類 / 稀有度</label>
+                <select asp-for="Rarity" class="form-select">
+                    <option value="Common">一般</option>
+                    <option value="Rare">稀有</option>
+                    <option value="Limited">限定</option>
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">點數售價</label>
+                <input asp-for="PointsPrice" type="number" min="0" class="form-control" />
+                <span asp-validation-for="PointsPrice" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">商品描述（選填）</label>
+                <textarea asp-for="Description" class="form-control" rows="3"></textarea>
+                <span asp-validation-for="Description" class="text-danger"></span>
+            </div>
+
+            <div class="form-check form-switch mb-3">
+                <input asp-for="IsActive" class="form-check-input" role="switch" />
+                <label class="form-check-label" asp-for="IsActive">立即上架</label>
+                <div class="form-text">關閉後商品會以草稿狀態儲存，會員端不會顯示。</div>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2">
+                <a asp-action="Index" class="btn btn-outline-secondary">取消</a>
+                <button type="submit" class="btn btn-primary">儲存商品</button>
+            </div>
+        </div>
+    </div>
+</form>

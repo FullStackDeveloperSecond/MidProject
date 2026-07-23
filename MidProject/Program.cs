@@ -51,6 +51,11 @@ builder.Services.AddScoped<IReportService, ReportService>();
 
 builder.Services.AddScoped<IReviewRepository, ReviewRepository>();
 builder.Services.AddScoped<IReviewService, ReviewService>();
+
+// 點數商城（外框商品 + 兌換紀錄）
+builder.Services.AddScoped<IAvatarFrameRepository, AvatarFrameRepository>();
+builder.Services.AddScoped<IAvatarFrameService, AvatarFrameService>();
+builder.Services.AddScoped<IPointsStoreRedemptionService, PointsStoreRedemptionService>();
 if (notificationIdentityMode.Mode == NotificationIdentityMode.DevelopmentTemporary)
 {
     builder.Services.AddSingleton<DevelopmentTemporaryTrustedMemberIdentityAccessor>();

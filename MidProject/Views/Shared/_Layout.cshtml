@@ -8,6 +8,7 @@
         && string.Equals(currentAction, action, StringComparison.OrdinalIgnoreCase);
     var dashboardActive = currentController is "Home" or "Dashboard" ? "active" : string.Empty;
     var restaurantsGroupActive = currentController is "Restaurants" or "Tags";
+    var pointsStoreGroupActive = currentController is "AvatarFrames" or "PointsStoreRedemptions";
 }
 <!DOCTYPE html>
 <html lang="zh-Hant">
@@ -47,6 +48,17 @@
                         <a class="admin-nav-sublink @(IsCurrent("Restaurants", "Index") ? "active" : "")" asp-controller="Restaurants" asp-action="Index">餐廳一覽</a>
                         <a class="admin-nav-sublink @(IsCurrent("Restaurants", "Deleted") ? "active" : "")" asp-controller="Restaurants" asp-action="Deleted">停用餐廳一覽</a>
                         <a class="admin-nav-sublink @(IsCurrent("Tags", "Index") ? "active" : "")" asp-controller="Tags" asp-action="Index">餐廳標籤一覽</a>
+                    </div>
+                </div>
+                <div class="admin-nav-group">
+                    <button class="admin-nav-link admin-nav-group-toggle @(pointsStoreGroupActive ? "active" : "")" type="button"
+                            data-bs-toggle="collapse" data-bs-target="#navPointsStoreGroup"
+                            aria-expanded="@(pointsStoreGroupActive ? "true" : "false")" aria-controls="navPointsStoreGroup">
+                        <i class="fas fa-coins"></i><span>點數商城</span><i class="fas fa-chevron-down admin-nav-chevron"></i>
+                    </button>
+                    <div class="collapse admin-nav-subgroup @(pointsStoreGroupActive ? "show" : "")" id="navPointsStoreGroup">
+                        <a class="admin-nav-sublink @(IsCurrent("AvatarFrames", "Index") ? "active" : "")" asp-controller="AvatarFrames" asp-action="Index">外框商品管理</a>
+                        <a class="admin-nav-sublink @(IsCurrent("PointsStoreRedemptions", "Index") ? "active" : "")" asp-controller="PointsStoreRedemptions" asp-action="Index">兌換紀錄</a>
                     </div>
                 </div>
                 <a class="admin-nav-link @NavActive("Reviews")" asp-controller="Reviews" asp-action="Index">
