@@ -45,4 +45,5 @@ public class Notification
     public UserLevel? TargetLevel { get; set; }
     public Member? CreatedByMember { get; set; }
     public Member? DeletedByMember { get; set; }
+    public Report? SourceReport { get; set; }
 }
