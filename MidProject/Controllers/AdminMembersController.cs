@@ -123,18 +123,34 @@ public class AdminMembersController : Controller
         var memberInDb = await _context.Members.FirstOrDefaultAsync(m => m.MemberID == id);
         if (memberInDb == null) return NotFound();
 
-        // 8. 驗證規則：狀態異動時 AdminNote 必填
-        if (memberInDb.Status != model.Status && string.IsNullOrWhiteSpace(model.AdminNote))
+        var statusChanged = memberInDb.Status != model.Status;
+
+        // 8. 驗證規則：狀態異動時「狀態變更原因」必填
+        if (statusChanged && string.IsNullOrWhiteSpace(model.StatusChangeReason))
         {
-            ModelState.AddModelError(nameof(MemberEditVM.AdminNote), "變更會員狀態時，管理員備註（原因）為必填。");
+            ModelState.AddModelError(nameof(MemberEditVM.StatusChangeReason), "變更會員狀態時，請填寫變更原因。");
         }
 
         if (ModelState.IsValid)
         {
-            // 5.3 允許編輯欄位（帳號 UserName 不可變更；名稱改由專屬的 ChangeNickName 動作處理，故不在此表單接受變更）
+            // 5.3 允許編輯欄位（帳號 UserName 不可變更；名稱改由專屬的 ChangeNickName 動作處理，故不在此表單接受變更；
+            // 點數改由專屬的 AdjustPoints 動作處理）
+            // 狀態變更時，於既有備註最上方自動疊加一筆「時間 已將狀態從X變更為Y，原因：xxx」；
+            // 其餘（未變更狀態時）僅保存管理員在文字框中手動編輯的內容
+            if (statusChanged)
+            {
+                var oldLabel = StatusLabels.GetValueOrDefault(memberInDb.Status, memberInDb.Status);
+                var newLabel = StatusLabels.GetValueOrDefault(model.Status, model.Status);
+                var note = $"{DateTime.Now:yyyy/M/d HH:mm} 已將狀態從「{oldLabel}」變更為「{newLabel}」，原因：{model.StatusChangeReason}";
+                memberInDb.AdminNote = string.IsNullOrWhiteSpace(model.AdminNote)
+                    ? note
+                    : $"{note}\n{model.AdminNote}";
+            }
+            else
+            {
+                memberInDb.AdminNote = model.AdminNote;
+            }
             memberInDb.Status = model.Status;
-            memberInDb.AdminNote = model.AdminNote;
-            memberInDb.Points = model.Points;
 
             // 5.5 處分期限現在由自動懲處機制（ApplyAutoEscalationAsync）依受理檢舉次數計算，
             // 手動編輯僅在「正常／停權」時清空期限，其餘狀態維持既有的處分期限不變
@@ -179,7 +195,6 @@ public class AdminMembersController : Controller
         {
             displayMember.Status = model.Status;
             displayMember.AdminNote = model.AdminNote;
-            displayMember.Points = model.Points;
         }
 
         ViewBag.ApprovedReports = await _context.Reports
@@ -187,6 +202,7 @@ public class AdminMembersController : Controller
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync();
         ViewBag.Levels = await _context.UserLevels.OrderBy(l => l.MinExp).ToListAsync();
+        ViewBag.StatusChangeReason = model.StatusChangeReason;
         return View(displayMember);
     }
 
@@ -204,10 +220,15 @@ public class AdminMembersController : Controller
             return RedirectToAction(nameof(Edit), new { id });
         }
 
+        var oldName = memberInDb.NickName;
         memberInDb.NickName = nickName;
-        memberInDb.AdminNote = string.IsNullOrWhiteSpace(memberInDb.AdminNote)
-            ? $"[名稱變更] {reason}"
-            : $"[名稱變更] {reason}\n{memberInDb.AdminNote}";
+        if (oldName != nickName)
+        {
+            var note = $"{DateTime.Now:yyyy/M/d HH:mm} 已將名稱從「{oldName}」變更為「{nickName}」，原因：{reason}";
+            memberInDb.AdminNote = string.IsNullOrWhiteSpace(memberInDb.AdminNote)
+                ? note
+                : $"{note}\n{memberInDb.AdminNote}";
+        }
         memberInDb.UpdatedAt = DateTime.Now;
         await _context.SaveChangesAsync();
 
@@ -229,11 +250,47 @@ public class AdminMembersController : Controller
         }
 
         memberInDb.AvatarImageID = null;
+        var note = $"{DateTime.Now:yyyy/M/d HH:mm} 因{reason}，已移除照片";
         memberInDb.AdminNote = string.IsNullOrWhiteSpace(memberInDb.AdminNote)
-            ? $"[照片移除] {reason}"
-            : $"[照片移除] {reason}\n{memberInDb.AdminNote}";
+            ? note
+            : $"{note}\n{memberInDb.AdminNote}";
         memberInDb.UpdatedAt = DateTime.Now;
         await _context.SaveChangesAsync();
+
+        return RedirectToAction(nameof(Edit), new { id });
+    }
+
+    // 5.3 會員點數調整（獨立動作，需填寫原因）
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> AdjustPoints(int id, int points, string reason)
+    {
+        var memberInDb = await _context.Members.FirstOrDefaultAsync(m => m.MemberID == id);
+        if (memberInDb == null) return NotFound();
+
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            TempData["PointsError"] = "請填寫調整點數的原因。";
+            return RedirectToAction(nameof(Edit), new { id });
+        }
+
+        if (points < 0)
+        {
+            TempData["PointsError"] = "點數不可為負數。";
+            return RedirectToAction(nameof(Edit), new { id });
+        }
+
+        var oldPoints = memberInDb.Points;
+        if (oldPoints != points)
+        {
+            memberInDb.Points = points;
+            var note = $"{DateTime.Now:yyyy/M/d HH:mm} 已將點數從 {oldPoints} 調整為 {points}，原因：{reason}";
+            memberInDb.AdminNote = string.IsNullOrWhiteSpace(memberInDb.AdminNote)
+                ? note
+                : $"{note}\n{memberInDb.AdminNote}";
+            memberInDb.UpdatedAt = DateTime.Now;
+            await _context.SaveChangesAsync();
+        }
 
         return RedirectToAction(nameof(Edit), new { id });
     }
@@ -241,6 +298,7 @@ public class AdminMembersController : Controller
     // 依累積受理（Approved）檢舉次數自動套用懲處等級：
     // 1 次=警告、2 次=禁言 1 週、3 次=禁言 1 個月、4 次以上=停權並軟刪除（會員列表仍反灰顯示，但不計入會員總數）。
     // 只會升級，不會反向降級，也不會再變更已是 Deleted 的終止狀態。
+    // 自動懲處僅調整 Status / PenaltyEndAt，不寫入 AdminNote（AdminNote 只留給手動調整動作記錄）。
     private static readonly Dictionary<string, int> StatusSeverity = new()
     {
         ["Normal"] = 0,
@@ -248,6 +306,15 @@ public class AdminMembersController : Controller
         ["Muted"] = 2,
         ["Suspended"] = 3,
         ["Deleted"] = 4
+    };
+
+    private static readonly Dictionary<string, string> StatusLabels = new()
+    {
+        ["Normal"] = "正常",
+        ["Warning"] = "警告",
+        ["Muted"] = "禁言",
+        ["Suspended"] = "停權",
+        ["Deleted"] = "刪除"
     };
 
     private async Task ApplyAutoEscalationAsync(Member member)
@@ -267,48 +334,45 @@ public class AdminMembersController : Controller
         var approvedCount = await _context.Reports
             .CountAsync(r => r.ReportedMemberID == member.MemberID && r.Status == "Approved" && !r.IsDeleted);
 
+        // 借用未使用的 WarningCount 欄位記錄「上次套用懲處時的受理檢舉次數」。
+        // 只有次數比上次套用時更高才重新計算，避免次數沒變時每次讀取頁面就重算處分期限（造成同一等級的懲處期限不斷被往後延），
+        // 也避免管理員手動調整過的狀態被同一次數的懲處邏輯每次都強制蓋回去。
+        if (approvedCount <= member.WarningCount) return;
+
         string targetStatus;
         DateTime? targetPenaltyEndAt;
-        string noteSuffix;
 
         if (approvedCount >= 4)
         {
             targetStatus = "Suspended";
             targetPenaltyEndAt = null;
-            noteSuffix = $"累積 {approvedCount} 次受理檢舉，達第 4 次門檻，停權並移出會員總數";
         }
         else if (approvedCount == 3)
         {
             targetStatus = "Muted";
             targetPenaltyEndAt = DateTime.Now.AddMonths(1);
-            noteSuffix = $"累積 {approvedCount} 次受理檢舉，禁言 1 個月";
         }
         else if (approvedCount == 2)
         {
             targetStatus = "Muted";
             targetPenaltyEndAt = DateTime.Now.AddDays(7);
-            noteSuffix = $"累積 {approvedCount} 次受理檢舉，禁言 1 週";
         }
         else if (approvedCount == 1)
         {
             targetStatus = "Warning";
             targetPenaltyEndAt = null;
-            noteSuffix = $"累積 {approvedCount} 次受理檢舉，警告";
         }
         else
         {
             return;
         }
 
-        // 不反向降級；相同等級（例如 Muted -> Muted）仍會更新，以套用新的處分期限
+        // 不反向降級
         if (StatusSeverity[targetStatus] < StatusSeverity[member.Status]) return;
-        if (targetStatus == member.Status && member.PenaltyEndAt == targetPenaltyEndAt) return;
 
         member.Status = targetStatus;
         member.PenaltyEndAt = targetPenaltyEndAt;
-        member.AdminNote = string.IsNullOrWhiteSpace(member.AdminNote)
-            ? $"[自動懲處] {noteSuffix}"
-            : $"[自動懲處] {noteSuffix}\n{member.AdminNote}";
+        member.WarningCount = approvedCount;
         member.UpdatedAt = DateTime.Now;
 
         if (targetStatus == "Suspended")

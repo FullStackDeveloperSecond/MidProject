@@ -37,6 +37,10 @@
 {
     <div class="alert alert-danger">@TempData["NicknameError"]</div>
 }
+@if (TempData["PointsError"] != null)
+{
+    <div class="alert alert-danger">@TempData["PointsError"]</div>
+}
 @if (isSuspended)
 {
     <div class="alert alert-secondary d-flex justify-content-between align-items-center">
@@ -69,12 +73,10 @@
                 <p><strong>等級：</strong> LV@(levelNumber) @Model.UserLevel?.LevelName</p>
                 <p><strong>經驗值：</strong> @Model.Experience@(nextThreshold.HasValue ? $" / {nextThreshold} EXP" : " (滿級)")</p>
                 <div class="mb-2">
-                    <strong>點數：</strong>
-                    <div class="input-group input-group-sm mt-1" style="max-width: 180px;">
-                        <button type="button" class="btn btn-outline-secondary" id="pointsMinus" disabled="@isSuspended">-</button>
-                        <input type="number" name="points" id="pointsInput" class="form-control text-center" value="@Model.Points" min="0" readonly="@isSuspended" />
-                        <button type="button" class="btn btn-outline-secondary" id="pointsPlus" disabled="@isSuspended">+</button>
-                    </div>
+                    <strong>點數：</strong> @Model.Points
+                    <button type="button" class="btn btn-sm btn-outline-primary ms-1" data-bs-toggle="modal" data-bs-target="#pointsModal" disabled="@isSuspended">
+                        ✏️ 調整點數
+                    </button>
                 </div>
                 <p>
                     <strong>目前狀態：</strong>
@@ -137,6 +139,15 @@
                         <option value="Suspended">停權</option>
                     </select>
                 </div>
+                <div class="mb-3" id="statusChangeReasonGroup">
+                    <label class="form-label">狀態變更原因</label>
+                    <input type="text" name="StatusChangeReason" id="statusChangeReasonInput" class="form-control" value="@ViewBag.StatusChangeReason" maxlength="200" readonly="@isSuspended" />
+                    <span class="form-text text-muted">變更會員狀態時必填，儲存後會自動附上時間戳記寫入下方管理員備註。</span>
+                    @if (ViewData.ModelState["StatusChangeReason"]?.Errors.Count > 0)
+                    {
+                        <span class="text-danger d-block">@ViewData.ModelState["StatusChangeReason"]!.Errors.First().ErrorMessage</span>
+                    }
+                </div>
 
                 @if (Model.Status != "Normal")
                 {
@@ -149,8 +160,9 @@
                 }
 
                 <div class="mb-3">
-                    <label class="form-label">狀態變更原因 / 管理員備註 (AdminNote)</label>
+                    <label class="form-label">管理員備註 (AdminNote)</label>
                     <textarea asp-for="AdminNote" class="form-control" rows="3" readonly="@isSuspended"></textarea>
+                    <span class="form-text text-muted">手動調整（改名稱／移除照片／調整點數／變更狀態）會自動在最上方加註時間與原因，此欄位仍可自由編輯。</span>
                     <span asp-validation-for="AdminNote" class="text-danger"></span>
                 </div>
 
@@ -212,6 +224,43 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
                     <button type="submit" class="btn btn-danger">確認移除</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- 調整點數 Modal -->
+<div class="modal fade" id="pointsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form asp-action="AdjustPoints" method="post">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">調整會員點數</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="id" value="@Model.MemberID" />
+                    <div class="mb-3">
+                        <label class="form-label">舊點數</label>
+                        <input type="text" class="form-control bg-light" value="@Model.Points" readonly tabindex="-1" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">新點數</label>
+                        <div class="input-group">
+                            <button type="button" class="btn btn-outline-secondary" id="newPointsMinus">-</button>
+                            <input type="number" name="points" id="newPointsInput" class="form-control text-center" value="@Model.Points" min="0" required />
+                            <button type="button" class="btn btn-outline-secondary" id="newPointsPlus">+</button>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">請填寫調整原因（例如：活動獎勵）</label>
+                        <textarea name="reason" class="form-control" rows="2" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">確認調整</button>
                 </div>
             </div>
         </form>
@@ -287,20 +336,23 @@
 
 @section Scripts {
 <script>
-    // 點數 +/- 按鈕（僅調整畫面數值，需按「保存變更」才會送出）
+    // 調整點數 Modal：+/- 按鈕（僅調整彈窗內的數值，需按「確認調整」才會送出）
     (function () {
-        var pointsInput = document.getElementById('pointsInput');
-        document.getElementById('pointsMinus').addEventListener('click', function () {
-            var value = parseInt(pointsInput.value, 10) || 0;
-            pointsInput.value = Math.max(0, value - 1);
+        var newPointsInput = document.getElementById('newPointsInput');
+        if (!newPointsInput) return;
+
+        document.getElementById('newPointsMinus').addEventListener('click', function () {
+            var value = parseInt(newPointsInput.value, 10) || 0;
+            newPointsInput.value = Math.max(0, value - 1);
         });
-        document.getElementById('pointsPlus').addEventListener('click', function () {
-            var value = parseInt(pointsInput.value, 10) || 0;
-            pointsInput.value = value + 1;
+        document.getElementById('newPointsPlus').addEventListener('click', function () {
+            var value = parseInt(newPointsInput.value, 10) || 0;
+            newPointsInput.value = value + 1;
         });
     })();
 
     // 解除停權：僅解鎖表單欄位並帶入選擇的狀態/原因，不會直接送出，需再按「保存變更」才會真正保存
+    // 狀態變更原因會直接帶入主表單的「狀態變更原因」欄位，送出後由後端統一組成帶時間戳記的備註
     (function () {
         var confirmBtn = document.getElementById('confirmLiftSuspension');
         if (!confirmBtn) return;
@@ -315,22 +367,19 @@
 
             // 解鎖主表單欄位
             document.getElementById('editForm').classList.remove('opacity-50');
-            ['statusSelect'].forEach(function (id) {
+            ['statusSelect', 'statusChangeReasonInput'].forEach(function (id) {
                 document.getElementById(id).disabled = false;
+                document.getElementById(id).readOnly = false;
             });
-            document.getElementById('pointsMinus').disabled = false;
-            document.getElementById('pointsPlus').disabled = false;
-            document.getElementById('pointsInput').readOnly = false;
             document.querySelector('[data-bs-target="#nicknameModal"]').disabled = false;
             document.querySelector('[data-bs-target="#avatarModal"]').disabled = false;
-            var adminNoteEl = document.querySelector('textarea[name="AdminNote"]');
-            adminNoteEl.readOnly = false;
+            document.querySelector('[data-bs-target="#pointsModal"]').disabled = false;
+            document.querySelector('textarea[name="AdminNote"]').readOnly = false;
             document.querySelector('#editForm button[type="submit"]').disabled = false;
 
             // 帶入選擇的狀態與原因
             document.getElementById('statusSelect').value = newStatus;
-            var tag = '[解除停權] ' + reason;
-            adminNoteEl.value = adminNoteEl.value ? (tag + '\n' + adminNoteEl.value) : tag;
+            document.getElementById('statusChangeReasonInput').value = reason;
 
             // 關閉視窗
             bootstrap.Modal.getInstance(document.getElementById('liftSuspensionModal')).hide();

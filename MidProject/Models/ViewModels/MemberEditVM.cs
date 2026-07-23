@@ -11,7 +11,6 @@ namespace MidProject.Models.ViewModels
 
         public string? AdminNote { get; set; }
 
-        [Range(0, int.MaxValue)]
-        public int Points { get; set; }
+        public string? StatusChangeReason { get; set; }
     }
 }
