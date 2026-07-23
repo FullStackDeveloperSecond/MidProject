@@ -27,6 +27,9 @@ Thumbs.db
 appsettings.*.local.json
 .env
 
+# Local-only test data seeders (never push to shared branches)
+MidProject/Data/PointsStoreTestDataSeeder.cs
+
 # NuGet
 *.nupkg
 packages/
