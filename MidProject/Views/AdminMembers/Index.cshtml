@@ -16,30 +16,49 @@
 
 @section Styles {
     <link rel="stylesheet" href="~/css/shared-pagination.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/members-admin.css" asp-append-version="true" />
 }
 
-<div class="row mb-3">
+<div class="row g-3 mb-3">
     <div class="col-md-4">
         <a href="@Url.Action("Index")"
-           class="card bg-light p-3 text-decoration-none text-reset @(!ViewBag.ShowAbnormal && !ViewBag.TodayOnly ? "border-primary" : "")">
-            <h5>會員總數：@ViewBag.TotalMembers 名</h5>
+           class="member-stat-card card h-100 shadow-sm text-decoration-none text-reset @(!ViewBag.ShowAbnormal && !ViewBag.TodayOnly ? "member-stat-card-active" : "")">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div class="text-uppercase small fw-bold text-primary">會員總數</div>
+                    <span class="member-stat-icon bg-primary bg-opacity-10 text-primary"><i class="fas fa-users"></i></span>
+                </div>
+                <div class="h3 fw-bold mb-0">@ViewBag.TotalMembers 名</div>
+            </div>
         </a>
     </div>
     <div class="col-md-4">
         <a href="@Url.Action("Index", new { todayOnly = !ViewBag.TodayOnly })"
-           class="card p-3 text-decoration-none @(ViewBag.TodayOnly ? "bg-primary text-white" : "bg-light text-reset")">
-            <h5>今日新註冊：@ViewBag.TodayRegistered 名</h5>
+           class="member-stat-card card h-100 shadow-sm text-decoration-none text-reset @(ViewBag.TodayOnly ? "member-stat-card-active" : "")">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div class="text-uppercase small fw-bold text-info">今日新註冊</div>
+                    <span class="member-stat-icon bg-info bg-opacity-10 text-info"><i class="fas fa-user-plus"></i></span>
+                </div>
+                <div class="h3 fw-bold mb-0">@ViewBag.TodayRegistered 名</div>
+            </div>
         </a>
     </div>
     <div class="col-md-4">
         <a href="@Url.Action("Index", new { showAbnormal = !ViewBag.ShowAbnormal })"
-           class="btn @(ViewBag.ShowAbnormal ? "btn-danger" : "btn-outline-danger") w-100 h-100 d-flex align-items-center justify-content-center">
-            ⚠️ 異常狀態會員：@ViewBag.AbnormalCount 名
+           class="member-stat-card card h-100 shadow-sm text-decoration-none text-reset @(ViewBag.ShowAbnormal ? "member-stat-card-danger" : "")">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div class="text-uppercase small fw-bold text-danger">異常狀態會員</div>
+                    <span class="member-stat-icon bg-danger bg-opacity-10 text-danger"><i class="fas fa-triangle-exclamation"></i></span>
+                </div>
+                <div class="h3 fw-bold mb-0">@ViewBag.AbnormalCount 名</div>
+            </div>
         </a>
     </div>
 </div>
 
-<form method="get" class="row g-2 mb-3">
+<form method="get" class="row g-2 mb-3 align-items-center">
     <input type="hidden" name="showAbnormal" value="@ViewBag.ShowAbnormal.ToString().ToLower()" />
     <input type="hidden" name="todayOnly" value="@ViewBag.TodayOnly.ToString().ToLower()" />
     <div class="col-md-4">
@@ -63,8 +82,9 @@
             }
         </select>
     </div>
-    <div class="col-md-2">
-        <button type="submit" class="btn btn-primary">🔍 搜尋</button>
+    <div class="col-md-4 d-flex gap-2">
+        <button type="submit" class="btn btn-primary flex-fill">🔍 搜尋</button>
+        <a href="@Url.Action("Index")" class="btn btn-outline-secondary flex-fill">清除</a>
     </div>
 </form>
 
@@ -84,7 +104,10 @@
                 狀態
                 <a href="@Url.Action("Index", new { sortBy = ViewBag.SortBy == "status_asc" ? "status_desc" : "status_asc", keyword = ViewBag.Keyword, statusFilter = ViewBag.StatusFilter, levelFilter = ViewBag.LevelFilter, showAbnormal = ViewBag.ShowAbnormal, todayOnly = ViewBag.TodayOnly })">📐</a>
             </th>
-            <th>註冊時間</th>
+            <th>
+                註冊時間
+                <a href="@Url.Action("Index", new { sortBy = ViewBag.SortBy == "created_asc" ? "created_desc" : "created_asc", keyword = ViewBag.Keyword, statusFilter = ViewBag.StatusFilter, levelFilter = ViewBag.LevelFilter, showAbnormal = ViewBag.ShowAbnormal, todayOnly = ViewBag.TodayOnly })">📐</a>
+            </th>
         </tr>
     </thead>
     <tbody>

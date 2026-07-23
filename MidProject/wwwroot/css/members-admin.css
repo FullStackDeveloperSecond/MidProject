@@ -1,0 +1,36 @@
+/*
+  會員管理頁頂部統計卡片/搜尋列的視覺樣式，只影響外觀，不影響篩選/排序邏輯。
+*/
+.member-stat-card {
+    border-radius: 0.75rem;
+    border-color: rgba(0, 0, 0, 0.08);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.member-stat-card:hover,
+.member-stat-card:focus-visible {
+    transform: translateY(-2px);
+    box-shadow: 0 0.5rem 1rem rgba(31, 45, 61, 0.12);
+}
+
+.member-stat-card-active {
+    border-color: var(--bs-primary);
+    box-shadow: 0 0 0 1px var(--bs-primary);
+}
+
+.member-stat-card-danger {
+    border-color: var(--bs-danger);
+    box-shadow: 0 0 0 1px var(--bs-danger);
+    background: rgba(220, 53, 69, 0.05);
+}
+
+.member-stat-icon {
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    font-size: 1.1rem;
+}

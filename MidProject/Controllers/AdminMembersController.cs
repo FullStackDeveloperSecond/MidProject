@@ -51,13 +51,15 @@ public class AdminMembersController : Controller
         if (!string.IsNullOrEmpty(statusFilter)) query = query.Where(m => m.Status == statusFilter);
         if (levelFilter.HasValue) query = query.Where(m => m.LevelID == levelFilter.Value);
 
-        // 4.5 排序 (支持 LV 與 Status 排序)
+        // 4.5 排序 (支持 LV、Status 與註冊時間排序)
         query = sortBy switch
         {
             "lv_asc" => query.OrderBy(m => m.UserLevel.MinExp),
             "lv_desc" => query.OrderByDescending(m => m.UserLevel.MinExp),
             "status_asc" => query.OrderBy(m => m.Status),
             "status_desc" => query.OrderByDescending(m => m.Status),
+            "created_asc" => query.OrderBy(m => m.CreatedAt),
+            "created_desc" => query.OrderByDescending(m => m.CreatedAt),
             _ => query.OrderByDescending(m => m.CreatedAt) // 預設新到舊
         };
 
