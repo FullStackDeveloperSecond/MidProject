@@ -21,6 +21,9 @@ public class ReportDto
     // 被檢舉會員：該檢舉目標（餐廳/評論/圖片）背後的建立者/上傳者
     public string? ReportedMemberUserName { get; set; }
 
+    // 被檢舉會員的 MemberID（同上，由檢舉目標的建立者/上傳者回推），供列表/詳情頁連結至會員詳細頁
+    public int? ReportedMemberID { get; set; }
+
     public string Reason { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
     public string? Category { get; set; }

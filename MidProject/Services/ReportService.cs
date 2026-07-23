@@ -189,6 +189,9 @@ public class ReportService : IReportService
         ReportedMemberUserName = r.Restaurant?.Member?.UserName
             ?? r.Review?.Member?.UserName
             ?? r.Image?.UploadedByMember?.UserName,
+        ReportedMemberID = r.Restaurant?.MemberID
+            ?? r.Review?.MemberID
+            ?? r.Image?.UploadedByMemberID,
         Reason = r.Reason,
         Status = r.Status,
         Category = r.Category,

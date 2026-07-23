@@ -200,7 +200,18 @@
                                     @report.ReporterUserName
                                 </a>
                             </td>
-                            <td>@(report.ReportedMemberUserName ?? "—")</td>
+                            <td>
+                                @if (report.ReportedMemberID.HasValue && report.ReportedMemberUserName != null)
+                                {
+                                    <a asp-controller="AdminMembers" asp-action="Edit" asp-route-id="@report.ReportedMemberID">
+                                        @report.ReportedMemberUserName
+                                    </a>
+                                }
+                                else
+                                {
+                                    @(report.ReportedMemberUserName ?? "—")
+                                }
+                            </td>
                             <td>@report.CreatedAt.ToString("yyyy-MM-dd")</td>
                             <td class="@(report.ProcessingDays < 0 ? "text-danger" : "")">@report.ProcessingDays</td>
                             <td>@(report.HandledByUserName ?? "—")</td>
