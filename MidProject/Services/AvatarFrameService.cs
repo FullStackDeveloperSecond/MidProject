@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using MidProject.Data;
 using MidProject.Models;
@@ -98,12 +97,16 @@ public class AvatarFrameService : IAvatarFrameService
             return (false, "請上傳外框圖片。");
         }
 
-        if (!IsPng(form.ImageFile))
+        Image image;
+        try
         {
-            return (false, "外框圖片僅接受 PNG 格式（外框需要透明背景，才能疊在會員頭像上）。");
+            image = await _imageUploadService.SaveAsync(form.ImageFile, "AvatarFrame", adminId);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return (false, ex.Message);
         }
 
-        var image = await _imageUploadService.SaveAsync(form.ImageFile, "AvatarFrame", adminId);
         _dbContext.Images.Add(image);
         await _dbContext.SaveChangesAsync();
 
@@ -137,12 +140,16 @@ public class AvatarFrameService : IAvatarFrameService
 
         if (form.ImageFile != null)
         {
-            if (!IsPng(form.ImageFile))
+            Image image;
+            try
             {
-                return (false, "外框圖片僅接受 PNG 格式（外框需要透明背景，才能疊在會員頭像上）。");
+                image = await _imageUploadService.SaveAsync(form.ImageFile, "AvatarFrame", adminId);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return (false, ex.Message);
             }
 
-            var image = await _imageUploadService.SaveAsync(form.ImageFile, "AvatarFrame", adminId);
             _dbContext.Images.Add(image);
             await _dbContext.SaveChangesAsync();
             frame.ImageID = image.ImageID;
@@ -151,9 +158,6 @@ public class AvatarFrameService : IAvatarFrameService
         await _frameRepository.SaveChangesAsync();
         return (true, null);
     }
-
-    private static bool IsPng(IFormFile file) =>
-        string.Equals(Path.GetExtension(file.FileName), ".png", StringComparison.OrdinalIgnoreCase);
 
     public Task ToggleActiveAsync(int id) => _frameRepository.ToggleActiveAsync(id);
 
