@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using MidProject.Data;
 using MidProject.Models;
@@ -53,6 +54,22 @@ public class AvatarFrameService : IAvatarFrameService
         };
     }
 
+    public async Task<List<AvatarFrameDeletedRowViewModel>> GetDeletedIndexAsync()
+    {
+        var frames = await _frameRepository.GetDeletedAsync();
+
+        return frames.Select(f => new AvatarFrameDeletedRowViewModel
+        {
+            FrameID = f.FrameID,
+            Name = f.Name,
+            Rarity = f.Rarity,
+            PointsPrice = f.PointsPrice,
+            ImageUrl = f.Image?.ImageURL,
+            DeletedAt = f.DeletedAt,
+            DeletedByName = f.DeletedByMember?.NickName ?? f.DeletedByMember?.UserName
+        }).ToList();
+    }
+
     public async Task<AvatarFrameFormViewModel?> GetForEditAsync(int id)
     {
         var frame = await _frameRepository.GetByIdAsync(id);
@@ -79,6 +96,11 @@ public class AvatarFrameService : IAvatarFrameService
         if (form.ImageFile == null)
         {
             return (false, "請上傳外框圖片。");
+        }
+
+        if (!IsPng(form.ImageFile))
+        {
+            return (false, "外框圖片僅接受 PNG 格式（外框需要透明背景，才能疊在會員頭像上）。");
         }
 
         var image = await _imageUploadService.SaveAsync(form.ImageFile, "AvatarFrame", adminId);
@@ -115,6 +137,11 @@ public class AvatarFrameService : IAvatarFrameService
 
         if (form.ImageFile != null)
         {
+            if (!IsPng(form.ImageFile))
+            {
+                return (false, "外框圖片僅接受 PNG 格式（外框需要透明背景，才能疊在會員頭像上）。");
+            }
+
             var image = await _imageUploadService.SaveAsync(form.ImageFile, "AvatarFrame", adminId);
             _dbContext.Images.Add(image);
             await _dbContext.SaveChangesAsync();
@@ -125,7 +152,12 @@ public class AvatarFrameService : IAvatarFrameService
         return (true, null);
     }
 
+    private static bool IsPng(IFormFile file) =>
+        string.Equals(Path.GetExtension(file.FileName), ".png", StringComparison.OrdinalIgnoreCase);
+
     public Task ToggleActiveAsync(int id) => _frameRepository.ToggleActiveAsync(id);
 
     public Task DeleteAsync(int id, int adminId) => _frameRepository.SoftDeleteAsync(id, adminId);
+
+    public Task RestoreAsync(int id) => _frameRepository.RestoreAsync(id);
 }

@@ -22,6 +22,12 @@ public class AvatarFramesController : Controller
         return View(model);
     }
 
+    public async Task<IActionResult> Deleted()
+    {
+        var model = await _avatarFrameService.GetDeletedIndexAsync();
+        return View(model);
+    }
+
     public IActionResult Create()
     {
         return View(new AvatarFrameFormViewModel());
@@ -96,8 +102,17 @@ public class AvatarFramesController : Controller
     public async Task<IActionResult> Delete(int id)
     {
         await _avatarFrameService.DeleteAsync(id, GetAdminId());
-        TempData["Toast"] = "商品已刪除。";
+        TempData["Toast"] = "商品已刪除，可到「已刪除商品」頁面復原。";
         return RedirectToAction(nameof(Index));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Restore(int id)
+    {
+        await _avatarFrameService.RestoreAsync(id);
+        TempData["Toast"] = "商品已復原，狀態為下架，請視需要重新上架。";
+        return RedirectToAction(nameof(Deleted));
     }
 
     private int GetAdminId()

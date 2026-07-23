@@ -23,6 +23,16 @@ public class AvatarFrameRepository : IAvatarFrameRepository
             .ToListAsync();
     }
 
+    public async Task<List<AvatarFrame>> GetDeletedAsync()
+    {
+        return await _db.AvatarFrames
+            .Include(f => f.Image)
+            .Include(f => f.DeletedByMember)
+            .Where(f => f.IsDeleted)
+            .OrderByDescending(f => f.DeletedAt)
+            .ToListAsync();
+    }
+
     public Task<AvatarFrame?> GetByIdAsync(int id)
     {
         return _db.AvatarFrames
@@ -69,6 +79,21 @@ public class AvatarFrameRepository : IAvatarFrameRepository
         frame.IsDeleted = true;
         frame.DeletedAt = DateTime.Now;
         frame.DeletedBy = byMemberId;
+        await _db.SaveChangesAsync();
+    }
+
+    public async Task RestoreAsync(int id)
+    {
+        var frame = await _db.AvatarFrames.FirstOrDefaultAsync(f => f.FrameID == id && f.IsDeleted);
+        if (frame == null)
+        {
+            return;
+        }
+
+        frame.IsDeleted = false;
+        frame.DeletedAt = null;
+        frame.DeletedBy = null;
+        frame.UpdatedAt = DateTime.Now;
         await _db.SaveChangesAsync();
     }
 

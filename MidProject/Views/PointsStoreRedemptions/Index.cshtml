@@ -36,12 +36,17 @@
     </div>
 </div>
 
-<form method="get" class="row g-2 mb-3">
+<form method="get" class="row g-2 mb-3 align-items-end">
     <div class="col-md-3">
-        <input type="text" name="keyword" class="form-control" value="@Model.Keyword" placeholder="搜尋會員帳號或名稱…" />
+        <label class="form-label small text-muted mb-1">會員關鍵字</label>
+        <div class="input-group">
+            <input type="text" name="keyword" class="form-control" value="@Model.Keyword" placeholder="搜尋會員帳號或名稱…" />
+            <button type="submit" class="btn btn-primary">🔍 搜尋</button>
+        </div>
     </div>
     <div class="col-md-3">
-        <select name="frameFilter" class="form-select">
+        <label class="form-label small text-muted mb-1">商品</label>
+        <select name="frameFilter" class="form-select" onchange="this.form.submit()">
             <option value="">所有商品</option>
             @foreach (var f in Model.AvailableFrames)
             {
@@ -50,14 +55,15 @@
         </select>
     </div>
     <div class="col-md-2">
-        <input type="date" name="startDate" class="form-control" value="@Model.StartDate?.ToString("yyyy-MM-dd")" />
+        <label class="form-label small text-muted mb-1">起始日期</label>
+        <input type="date" name="startDate" class="form-control" value="@Model.StartDate?.ToString("yyyy-MM-dd")" onchange="this.form.submit()" />
     </div>
     <div class="col-md-2">
-        <input type="date" name="endDate" class="form-control" value="@Model.EndDate?.ToString("yyyy-MM-dd")" />
+        <label class="form-label small text-muted mb-1">結束日期</label>
+        <input type="date" name="endDate" class="form-control" value="@Model.EndDate?.ToString("yyyy-MM-dd")" onchange="this.form.submit()" />
     </div>
-    <div class="col-md-2 d-flex gap-2">
-        <button type="submit" class="btn btn-primary flex-fill">🔍 搜尋</button>
-        <a asp-action="Index" class="btn btn-outline-secondary">重設</a>
+    <div class="col-md-2">
+        <a asp-action="Index" class="btn btn-outline-secondary w-100">重設篩選</a>
     </div>
 </form>
 
