@@ -106,6 +106,7 @@ public class AdminMembersController : Controller
             .ToListAsync();
 
         ViewBag.Levels = await _context.UserLevels.OrderBy(l => l.MinExp).ToListAsync();
+        ViewBag.OriginalStatus = member.Status;
 
         return View(member);
     }
@@ -135,21 +136,10 @@ public class AdminMembersController : Controller
         {
             // 5.3 允許編輯欄位（帳號 UserName 不可變更；名稱改由專屬的 ChangeNickName 動作處理，故不在此表單接受變更；
             // 點數改由專屬的 AdjustPoints 動作處理）
-            // 狀態變更時，於既有備註最上方自動疊加一筆「時間 已將狀態從X變更為Y，原因：xxx」；
-            // 其餘（未變更狀態時）僅保存管理員在文字框中手動編輯的內容
-            if (statusChanged)
-            {
-                var oldLabel = StatusLabels.GetValueOrDefault(memberInDb.Status, memberInDb.Status);
-                var newLabel = StatusLabels.GetValueOrDefault(model.Status, model.Status);
-                var note = $"{DateTime.Now:yyyy/M/d HH:mm} 已將狀態從「{oldLabel}」變更為「{newLabel}」，原因：{model.StatusChangeReason}";
-                memberInDb.AdminNote = string.IsNullOrWhiteSpace(model.AdminNote)
-                    ? note
-                    : $"{note}\n{model.AdminNote}";
-            }
-            else
-            {
-                memberInDb.AdminNote = model.AdminNote;
-            }
+            // 狀態變更時，前端在使用者選擇新狀態並填寫原因的當下，就已即時把「時間 已將狀態從X變更為Y，原因：xxx」
+            // 疊加寫進 AdminNote 文字框中預覽（尚未送出前不會真的保存）；這裡直接保存文字框當下的內容即可，
+            // 送出前使用者仍可自由編輯這段預覽文字
+            memberInDb.AdminNote = model.AdminNote;
             memberInDb.Status = model.Status;
 
             // 5.5 處分期限現在由自動懲處機制（ApplyAutoEscalationAsync）依受理檢舉次數計算，
@@ -203,6 +193,7 @@ public class AdminMembersController : Controller
             .ToListAsync();
         ViewBag.Levels = await _context.UserLevels.OrderBy(l => l.MinExp).ToListAsync();
         ViewBag.StatusChangeReason = model.StatusChangeReason;
+        ViewBag.OriginalStatus = memberInDb.Status;
         return View(displayMember);
     }
 
@@ -306,15 +297,6 @@ public class AdminMembersController : Controller
         ["Muted"] = 2,
         ["Suspended"] = 3,
         ["Deleted"] = 4
-    };
-
-    private static readonly Dictionary<string, string> StatusLabels = new()
-    {
-        ["Normal"] = "正常",
-        ["Warning"] = "警告",
-        ["Muted"] = "禁言",
-        ["Suspended"] = "停權",
-        ["Deleted"] = "刪除"
     };
 
     private async Task ApplyAutoEscalationAsync(Member member)

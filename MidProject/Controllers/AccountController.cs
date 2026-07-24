@@ -99,7 +99,7 @@ public class AccountController : Controller
         var claims = new List<Claim>
     {
         new Claim(ClaimTypes.NameIdentifier, admin.MemberID.ToString()),
-        new Claim(ClaimTypes.Name, admin.UserName),
+        new Claim(ClaimTypes.Name, string.IsNullOrWhiteSpace(admin.NickName) ? admin.UserName : admin.NickName),
         new Claim(ClaimTypes.Role, admin.Role)
     };
 

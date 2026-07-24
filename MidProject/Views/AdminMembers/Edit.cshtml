@@ -132,16 +132,16 @@
                 </div>
                 <div class="mb-3">
                     <label class="form-label">會員狀態</label>
-                    <select asp-for="Status" class="form-select" id="statusSelect" disabled="@isSuspended">
+                    <select asp-for="Status" class="form-select" id="statusSelect" data-original-status="@ViewBag.OriginalStatus" disabled="@isSuspended">
                         <option value="Normal">正常</option>
                         <option value="Warning">警告</option>
                         <option value="Muted">禁言</option>
                         <option value="Suspended">停權</option>
                     </select>
                 </div>
-                <div class="mb-3" id="statusChangeReasonGroup">
+                <div class="mb-3" id="statusChangeReasonGroup" style="display:none;">
                     <label class="form-label">狀態變更原因</label>
-                    <input type="text" name="StatusChangeReason" id="statusChangeReasonInput" class="form-control" value="@ViewBag.StatusChangeReason" maxlength="200" readonly="@isSuspended" />
+                    <input type="text" name="StatusChangeReason" id="statusChangeReasonInput" class="form-control" value="@ViewBag.StatusChangeReason" maxlength="200" required readonly="@isSuspended" />
                     <span class="form-text text-muted">變更會員狀態時必填，儲存後會自動附上時間戳記寫入下方管理員備註。</span>
                     @if (ViewData.ModelState["StatusChangeReason"]?.Errors.Count > 0)
                     {
@@ -160,10 +160,9 @@
                 }
 
                 <div class="mb-3">
-                    <label class="form-label">管理員備註 (AdminNote)</label>
-                    <textarea asp-for="AdminNote" class="form-control" rows="3" readonly="@isSuspended"></textarea>
-                    <span class="form-text text-muted">手動調整（改名稱／移除照片／調整點數／變更狀態）會自動在最上方加註時間與原因，此欄位仍可自由編輯。</span>
-                    <span asp-validation-for="AdminNote" class="text-danger"></span>
+                    <label class="form-label">備註欄</label>
+                    <textarea asp-for="AdminNote" class="form-control bg-light" rows="3" readonly tabindex="-1"></textarea>
+                    <span class="form-text text-muted">管理員手動調整（改名稱／移除照片／調整點數／變更狀態）會自動在備註欄加註時間與原因，此欄位僅供顯示、不可手動輸入。</span>
                 </div>
 
                 <div class="mt-3">
@@ -336,6 +335,50 @@
 
 @section Scripts {
 <script>
+    // 狀態變更原因：只有當「會員狀態」下拉選單被改成跟原本不同的值時才顯示，
+    // 且顯示時為必填（HTML5 required 在欄位隱藏時不會擋送出，顯示時才會生效），伺服器端也會再驗證一次。
+    // 選了新狀態並填寫原因後，會即時把「時間 已將狀態從X變更為Y，原因：xxx」預覽寫進下方「管理員備註」文字框最上方，
+    // 但這只是畫面上的預覽，真正寫入資料庫仍要按下「保存變更」才會送出。
+    (function () {
+        var statusSelect = document.getElementById('statusSelect');
+        var reasonGroup = document.getElementById('statusChangeReasonGroup');
+        var reasonInput = document.getElementById('statusChangeReasonInput');
+        var adminNoteEl = document.querySelector('textarea[name="AdminNote"]');
+        if (!statusSelect || !reasonGroup || !reasonInput || !adminNoteEl) return;
+
+        var originalStatus = statusSelect.getAttribute('data-original-status');
+        var baseAdminNote = adminNoteEl.value; // 頁面載入當下、尚未套用任何預覽的真實內容
+        var statusLabels = { Normal: '正常', Warning: '警告', Muted: '禁言', Suspended: '停權' };
+
+        function pad(n) { return n < 10 ? '0' + n : '' + n; }
+        function timestamp() {
+            var d = new Date();
+            return d.getFullYear() + '/' + (d.getMonth() + 1) + '/' + d.getDate() + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+        }
+
+        function updatePreview() {
+            var changed = statusSelect.value !== originalStatus;
+            var reason = reasonInput.value.trim();
+            if (changed && reason) {
+                var oldLabel = statusLabels[originalStatus] || originalStatus;
+                var newLabel = statusLabels[statusSelect.value] || statusSelect.value;
+                var line = timestamp() + ' 已將狀態從「' + oldLabel + '」變更為「' + newLabel + '」，原因：' + reason;
+                adminNoteEl.value = baseAdminNote ? (line + '\n' + baseAdminNote) : line;
+            } else {
+                adminNoteEl.value = baseAdminNote;
+            }
+        }
+
+        window.toggleStatusChangeReasonGroup = function () {
+            reasonGroup.style.display = (statusSelect.value !== originalStatus) ? '' : 'none';
+            updatePreview();
+        };
+
+        statusSelect.addEventListener('change', window.toggleStatusChangeReasonGroup);
+        reasonInput.addEventListener('input', updatePreview);
+        window.toggleStatusChangeReasonGroup(); // 初始判斷（例如驗證失敗重新顯示、且原本就有改過狀態時）
+    })();
+
     // 調整點數 Modal：+/- 按鈕（僅調整彈窗內的數值，需按「確認調整」才會送出）
     (function () {
         var newPointsInput = document.getElementById('newPointsInput');
@@ -374,12 +417,12 @@
             document.querySelector('[data-bs-target="#nicknameModal"]').disabled = false;
             document.querySelector('[data-bs-target="#avatarModal"]').disabled = false;
             document.querySelector('[data-bs-target="#pointsModal"]').disabled = false;
-            document.querySelector('textarea[name="AdminNote"]').readOnly = false;
             document.querySelector('#editForm button[type="submit"]').disabled = false;
 
             // 帶入選擇的狀態與原因
             document.getElementById('statusSelect').value = newStatus;
             document.getElementById('statusChangeReasonInput').value = reason;
+            if (window.toggleStatusChangeReasonGroup) window.toggleStatusChangeReasonGroup();
 
             // 關閉視窗
             bootstrap.Modal.getInstance(document.getElementById('liftSuspensionModal')).hide();
