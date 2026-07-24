@@ -42,6 +42,7 @@ public class Member
     public int Experience { get; set; }
     public int Points { get; set; }
     public int? AvatarImageID { get; set; }
+    public int? EquippedFrameID { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.Now;
     public DateTime UpdatedAt { get; set; } = DateTime.Now;
@@ -49,6 +50,7 @@ public class Member
     public int? DeletedBy { get; set; }
 
     public Image? AvatarImage { get; set; }
+    public AvatarFrame? EquippedFrame { get; set; }
     public Member? DeletedByMember { get; set; }
 
     public ICollection<Restaurant> Restaurants { get; set; } = new List<Restaurant>();
@@ -56,6 +58,8 @@ public class Member
     public ICollection<Image> UploadedImages { get; set; } = new List<Image>();
     public ICollection<FavoriteFolder> FavoriteFolders { get; set; } = new List<FavoriteFolder>();
     public ICollection<Favorite> Favorites { get; set; } = new List<Favorite>();
+    public ICollection<MemberAvatarFrame> MemberAvatarFrames { get; set; } = new List<MemberAvatarFrame>();
+    public ICollection<PointsTransaction> PointsTransactions { get; set; } = new List<PointsTransaction>();
     [ForeignKey("LevelID")]
     public virtual UserLevel UserLevel { get; set; } = null!;
 }

@@ -1,0 +1,81 @@
+@model List<MidProject.Models.ViewModels.PointsStore.AvatarFrameDeletedRowViewModel>
+@{
+    ViewData["Title"] = "已刪除的外框商品";
+
+    string RarityLabel(string rarity) => rarity switch
+    {
+        "Rare" => "稀有",
+        "Limited" => "限定",
+        _ => "一般"
+    };
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/design-system.css" asp-append-version="true" />
+}
+
+<div class="ds-page-header d-flex justify-content-between align-items-center">
+    <div>
+        <h2>已刪除的外框商品</h2>
+        <p class="text-muted mb-0">已刪除不代表資料被移除，可以隨時復原。復原後商品狀態為「已下架」，需要再手動上架。</p>
+    </div>
+    <a asp-action="Index" class="btn btn-outline-secondary">← 返回商品列表</a>
+</div>
+
+@if (TempData["Toast"] != null)
+{
+    <div class="alert alert-success">@TempData["Toast"]</div>
+}
+
+<div class="ds-table-wrap">
+    <div class="table-responsive">
+        <table class="ds-table mb-0">
+    <thead>
+        <tr>
+            <th>商品</th>
+            <th>分類</th>
+            <th>點數售價</th>
+            <th>刪除時間</th>
+            <th>刪除人</th>
+            <th class="text-end">操作</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var f in Model)
+        {
+            <tr>
+                <td>
+                    <div class="d-flex align-items-center gap-2">
+                        @if (!string.IsNullOrEmpty(f.ImageUrl))
+                        {
+                            <img src="@f.ImageUrl" width="36" height="36" class="rounded-circle opacity-50" />
+                        }
+                        else
+                        {
+                            <span class="d-inline-flex align-items-center justify-content-center rounded-circle bg-secondary text-white opacity-50" style="width:36px;height:36px;">🖼</span>
+                        }
+                        <span class="text-muted">@f.Name</span>
+                    </div>
+                </td>
+                <td>@RarityLabel(f.Rarity)</td>
+                <td>@f.PointsPrice.ToString("N0")</td>
+                <td>@(f.DeletedAt?.ToString("yyyy-MM-dd HH:mm") ?? "—")</td>
+                <td>@(f.DeletedByName ?? "—")</td>
+                <td class="text-end">
+                    <form method="post" asp-action="Restore" asp-route-id="@f.FrameID" class="d-inline">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn btn-sm btn-outline-success">↩ 復原</button>
+                    </form>
+                </td>
+            </tr>
+        }
+        @if (!Model.Any())
+        {
+            <tr>
+                <td colspan="6" class="text-center text-muted py-4">目前沒有已刪除的商品。</td>
+            </tr>
+        }
+    </tbody>
+        </table>
+    </div>
+</div>

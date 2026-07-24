@@ -19,8 +19,8 @@ namespace MidProject.Helpers
         public static (string Label, string CssClass) GetReportStatusLabel(string status) => status switch
         {
             "Pending" => ("待處理", "rs-pending"),
-            "Approved" => ("已通過", "rs-approved"),
-            "Rejected" => ("已駁回", "rs-rejected"),
+            "Approved" => ("檢舉成立", "rs-approved"),
+            "Rejected" => ("駁回檢舉", "rs-rejected"),
             _ => (status, "rs-pending"),
         };
 

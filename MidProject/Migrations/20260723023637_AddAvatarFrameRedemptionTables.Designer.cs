@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using MidProject.Data;
 
@@ -11,9 +12,11 @@ using MidProject.Data;
 namespace MidProject.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260723023637_AddAvatarFrameRedemptionTables")]
+    partial class AddAvatarFrameRedemptionTables
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -89,14 +92,8 @@ namespace MidProject.Migrations
 
                     b.HasIndex("ImageID");
 
-                    b.HasIndex("IsActive");
-
-                    b.HasIndex("IsDeleted");
-
                     b.ToTable("AvatarFrames", t =>
                         {
-                            t.HasCheckConstraint("CK_AvatarFrames_PointsPrice", "[PointsPrice] >= 0");
-
                             t.HasCheckConstraint("CK_AvatarFrames_Rarity", "[Rarity] IN ('Common', 'Rare', 'Limited')");
                         });
                 });
@@ -626,11 +623,9 @@ namespace MidProject.Migrations
 
                     b.HasIndex("CreatedBy");
 
+                    b.HasIndex("MemberID");
+
                     b.HasIndex("RelatedFrameID");
-
-                    b.HasIndex("Type");
-
-                    b.HasIndex("MemberID", "CreatedAt");
 
                     b.ToTable("PointsTransactions", t =>
                         {
@@ -1141,7 +1136,7 @@ namespace MidProject.Migrations
                         .OnDelete(DeleteBehavior.NoAction);
 
                     b.HasOne("MidProject.Models.AvatarFrame", "EquippedFrame")
-                        .WithMany()
+                        .WithMany("EquippedMembers")
                         .HasForeignKey("EquippedFrameID")
                         .OnDelete(DeleteBehavior.NoAction);
 
@@ -1232,7 +1227,7 @@ namespace MidProject.Migrations
                         .IsRequired();
 
                     b.HasOne("MidProject.Models.AvatarFrame", "RelatedFrame")
-                        .WithMany()
+                        .WithMany("PointsTransactions")
                         .HasForeignKey("RelatedFrameID")
                         .OnDelete(DeleteBehavior.NoAction);
 
@@ -1409,7 +1404,11 @@ namespace MidProject.Migrations
 
             modelBuilder.Entity("MidProject.Models.AvatarFrame", b =>
                 {
+                    b.Navigation("EquippedMembers");
+
                     b.Navigation("MemberAvatarFrames");
+
+                    b.Navigation("PointsTransactions");
                 });
 
             modelBuilder.Entity("MidProject.Models.FavoriteFolder", b =>
