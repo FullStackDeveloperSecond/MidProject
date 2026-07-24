@@ -112,6 +112,10 @@
                 <td>@m.Points</td>
                 <td>
                     <span class="badge @status.BadgeClass" style="@status.Style">@status.Emoji @status.Label</span>
+                    @if (m.IsLocked)
+                    {
+                        <span class="ms-1" title="帳號已鎖定">🔒</span>
+                    }
                 </td>
                 <td>@m.CreatedAt.ToString("yyyy-MM-dd")</td>
             </tr>

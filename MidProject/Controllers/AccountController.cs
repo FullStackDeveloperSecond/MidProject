@@ -50,7 +50,7 @@ public class AccountController : Controller
         // 6.1 後台 Admin 與一般 User 皆可登入，登入後依角色導向不同頁面
         using (var command = _context.Database.GetDbConnection().CreateCommand())
         {
-            command.CommandText = "SELECT MemberID, UserName, Email, PasswordHash, Role, IsDeleted FROM Members WHERE Email = @Email AND IsDeleted = 0";
+            command.CommandText = "SELECT MemberID, UserName, NickName, Email, PasswordHash, Role, IsDeleted, IsActive, IsLocked, Status, FailedLoginCount FROM Members WHERE Email = @Email AND IsDeleted = 0";
 
             var parameter = command.CreateParameter();
             parameter.ParameterName = "@Email";
@@ -70,10 +70,15 @@ public class AccountController : Controller
                     {
                         MemberID = reader.GetInt32(0),
                         UserName = reader.GetString(1),
-                        Email = reader.GetString(2),
-                        PasswordHash = reader.GetString(3),
-                        Role = reader.GetString(4),
-                        IsDeleted = reader.GetBoolean(5)
+                        NickName = reader.IsDBNull(2) ? null : reader.GetString(2),
+                        Email = reader.GetString(3),
+                        PasswordHash = reader.GetString(4),
+                        Role = reader.GetString(5),
+                        IsDeleted = reader.GetBoolean(6),
+                        IsActive = reader.GetBoolean(7),
+                        IsLocked = reader.GetBoolean(8),
+                        Status = reader.GetString(9),
+                        FailedLoginCount = reader.GetInt32(10)
                     };
                 }
             }
@@ -86,16 +91,52 @@ public class AccountController : Controller
             return View();
         }
 
+        // 8. 帳號資格檢查：鎖定／停用／停權的帳號一律拒絕登入（Suspended 目前的慣例是同時 IsDeleted=true，
+        // 已經被上面的 SQL 篩掉，這裡仍明確檢查一次，避免未來這個慣例被打破時悄悄放行）
+        if (admin.IsLocked)
+        {
+            ModelState.AddModelError("", "帳號已因密碼輸入錯誤過多次被鎖定，請聯繫管理員解除鎖定。");
+            return View();
+        }
+        if (!admin.IsActive)
+        {
+            ModelState.AddModelError("", "帳號已停用，請聯繫管理員。");
+            return View();
+        }
+        if (admin.Status == "Suspended")
+        {
+            ModelState.AddModelError("", "帳號目前為停權狀態，請聯繫管理員。");
+            return View();
+        }
+
         // 6.3 密碼驗證 (使用 PasswordHash)
         bool isPasswordValid = PasswordHashService.VerifyPassword(password, admin.PasswordHash);
 
         if (!isPasswordValid)
         {
-            ModelState.AddModelError("", "帳號或密碼錯誤。");
+            // 8. 連續密碼錯誤達 3 次鎖定帳號，須由管理員在會員編輯頁手動解鎖（AdminMembersController.Edit）
+            var failedCount = admin.FailedLoginCount + 1;
+            var willLock = failedCount >= 3;
+            await _context.Members.Where(m => m.MemberID == admin.MemberID)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(m => m.FailedLoginCount, failedCount)
+                    .SetProperty(m => m.IsLocked, willLock));
+
+            ModelState.AddModelError("", willLock
+                ? "帳號或密碼錯誤，密碼已連續錯誤 3 次，帳號已被鎖定，請聯繫管理員解除鎖定。"
+                : "帳號或密碼錯誤。");
             return View();
         }
 
+        // 登入成功：重置失敗次數
+        if (admin.FailedLoginCount != 0)
+        {
+            await _context.Members.Where(m => m.MemberID == admin.MemberID)
+                .ExecuteUpdateAsync(s => s.SetProperty(m => m.FailedLoginCount, 0));
+        }
+
         // 驗證通過！建立使用者的身份憑證 (Claims)
+        // 明確提供 MemberID、Name、Role 三個 claim；其他模組（餐廳/評論/檢舉/通知管理）依賴這個契約做登入與身分辨識
         var claims = new List<Claim>
     {
         new Claim(ClaimTypes.NameIdentifier, admin.MemberID.ToString()),

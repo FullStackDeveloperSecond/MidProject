@@ -19,6 +19,8 @@
     var avatarUrl = Model.AvatarImage?.ImageURL;
     var defaultAvatar = "/uploads/MemberAvatar/avatar24-01.jpg";
     var isSuspended = Model.Status == "Suspended";
+    var removeAvatarRequested = ViewBag.RemoveAvatarRequested is true;
+    var unlockAccountRequested = ViewBag.UnlockAccountRequested is true;
 }
 
 <style>
@@ -29,17 +31,14 @@
 
 <h2>會員詳細 / 編輯</h2>
 
-@if (TempData["AvatarError"] != null)
+@if (Model.IsLocked)
 {
-    <div class="alert alert-danger">@TempData["AvatarError"]</div>
-}
-@if (TempData["NicknameError"] != null)
-{
-    <div class="alert alert-danger">@TempData["NicknameError"]</div>
-}
-@if (TempData["PointsError"] != null)
-{
-    <div class="alert alert-danger">@TempData["PointsError"]</div>
+    <div class="alert alert-secondary d-flex justify-content-between align-items-center">
+        <span>🔒 此帳號因密碼輸入錯誤已達 3 次被鎖定（累計失敗 @Model.FailedLoginCount 次），無法登入。</span>
+        <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#unlockAccountModal">
+            🔓 解除鎖定
+        </button>
+    </div>
 }
 @if (isSuspended)
 {
@@ -55,28 +54,29 @@
     <div class="row">
         <div class="col-md-4">
             <div class="card p-3 mb-3">
+                <input type="hidden" asp-for="MemberID" />
+                <input type="hidden" name="UnlockAccountRequested" id="unlockAccountRequestedInput" value="@(unlockAccountRequested ? "true" : "false")" />
+                <input type="hidden" name="UnlockReason" id="unlockReasonInput" value="@ViewBag.UnlockReason" />
+
                 <div class="text-center mb-3">
-                    @if (!string.IsNullOrEmpty(avatarUrl))
-                    {
-                        <img src="@avatarUrl" width="100" height="100" class="rounded-circle" />
-                    }
-                    else
-                    {
-                        <img src="@defaultAvatar" width="100" height="100" class="rounded-circle" />
-                    }
+                    <img id="avatarPreviewImg" src="@(avatarUrl ?? defaultAvatar)" width="100" height="100" class="rounded-circle" />
                     <div class="mt-2">
                         <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#avatarModal" disabled="@isSuspended">
                             🗑️ 移除照片
                         </button>
                     </div>
+                    <input type="hidden" name="RemoveAvatarRequested" id="removeAvatarRequestedInput" value="@(removeAvatarRequested ? "true" : "false")" />
+                    <input type="hidden" name="AvatarRemovalReason" id="avatarRemovalReasonInput" value="@ViewBag.AvatarRemovalReason" />
                 </div>
                 <p><strong>等級：</strong> LV@(levelNumber) @Model.UserLevel?.LevelName</p>
                 <p><strong>經驗值：</strong> @Model.Experience@(nextThreshold.HasValue ? $" / {nextThreshold} EXP" : " (滿級)")</p>
                 <div class="mb-2">
-                    <strong>點數：</strong> @Model.Points
+                    <strong>點數：</strong> <span id="pointsDisplay">@Model.Points</span>
                     <button type="button" class="btn btn-sm btn-outline-primary ms-1" data-bs-toggle="modal" data-bs-target="#pointsModal" disabled="@isSuspended">
                         ✏️ 調整點數
                     </button>
+                    <input type="hidden" name="points" id="pointsMainInput" data-original-points="@ViewBag.OriginalPoints" value="@Model.Points" />
+                    <input type="hidden" name="PointsChangeReason" id="pointsChangeReasonInput" value="@ViewBag.PointsChangeReason" />
                 </div>
                 <p>
                     <strong>目前狀態：</strong>
@@ -105,8 +105,6 @@
 
         <div class="col-md-8">
             <div class="card p-3">
-                <input type="hidden" asp-for="MemberID" />
-
                 <div class="mb-3">
                     <label class="form-label">帳號</label>
                     <input asp-for="UserName" class="form-control bg-light" readonly tabindex="-1" />
@@ -115,11 +113,12 @@
                 <div class="mb-3">
                     <label class="form-label">名稱</label>
                     <div class="input-group">
-                        <input value="@Model.NickName" class="form-control bg-light" readonly tabindex="-1" />
+                        <input type="text" name="NickName" id="nicknameDisplayInput" data-original-nickname="@ViewBag.OriginalNickName" class="form-control bg-light" value="@Model.NickName" readonly tabindex="-1" />
                         <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#nicknameModal" disabled="@isSuspended">
                             ✏️ 變更名稱
                         </button>
                     </div>
+                    <input type="hidden" name="NicknameChangeReason" id="nicknameChangeReasonInput" value="@ViewBag.NicknameChangeReason" />
                 </div>
                 <div class="mb-3">
                     <label class="form-label">生日</label>
@@ -162,7 +161,7 @@
                 <div class="mb-3">
                     <label class="form-label">備註欄</label>
                     <textarea asp-for="AdminNote" class="form-control bg-light" rows="3" readonly tabindex="-1"></textarea>
-                    <span class="form-text text-muted">管理員手動調整（改名稱／移除照片／調整點數／變更狀態）會自動在備註欄加註時間與原因，此欄位僅供顯示、不可手動輸入。</span>
+                    <span class="form-text text-muted">管理員手動調整（改名稱／移除照片／調整點數／變更狀態／解除鎖定）會自動在備註欄加註時間與原因，此欄位僅供顯示、不可手動輸入。</span>
                 </div>
 
                 <div class="mt-3">
@@ -174,95 +173,109 @@
     </div>
 </form>
 
-<!-- 名稱變更 Modal -->
+<!-- 名稱變更 Modal：僅先預覽到主表單，需按主表單的「保存變更」才會真正保存 -->
 <div class="modal fade" id="nicknameModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
-        <form asp-action="ChangeNickName" method="post">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">變更會員名稱</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">變更會員名稱</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">新名稱</label>
+                    <input type="text" id="nicknameModalInput" class="form-control" value="@Model.NickName" maxlength="50" />
                 </div>
-                <div class="modal-body">
-                    <input type="hidden" name="id" value="@Model.MemberID" />
-                    <div class="mb-3">
-                        <label class="form-label">新名稱</label>
-                        <input type="text" name="nickName" class="form-control" value="@Model.NickName" required maxlength="50" />
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">請填寫變更原因（例如：名稱不雅）</label>
-                        <textarea name="reason" class="form-control" rows="2" required></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="submit" class="btn btn-primary">確認變更</button>
+                <div class="mb-3">
+                    <label class="form-label">請填寫變更原因（例如：名稱不雅）</label>
+                    <textarea id="nicknameModalReason" class="form-control" rows="2"></textarea>
                 </div>
             </div>
-        </form>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" id="confirmNicknameChange">確認變更</button>
+            </div>
+        </div>
     </div>
 </div>
 
-<!-- 照片移除 Modal -->
+<!-- 照片移除 Modal：僅先預覽到主表單，需按主表單的「保存變更」才會真正保存 -->
 <div class="modal fade" id="avatarModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
-        <form asp-action="RemoveAvatar" method="post">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">移除會員照片</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <input type="hidden" name="id" value="@Model.MemberID" />
-                    <p class="text-muted">移除後將改回預設照片。</p>
-                    <div class="mb-3">
-                        <label class="form-label">請填寫移除原因（例如：照片不雅）</label>
-                        <textarea name="reason" class="form-control" rows="2" required></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="submit" class="btn btn-danger">確認移除</button>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">移除會員照片</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted">移除後將改回預設照片。</p>
+                <div class="mb-3">
+                    <label class="form-label">請填寫移除原因（例如：照片不雅）</label>
+                    <textarea id="avatarModalReason" class="form-control" rows="2"></textarea>
                 </div>
             </div>
-        </form>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-danger" id="confirmAvatarRemoval">確認移除</button>
+            </div>
+        </div>
     </div>
 </div>
 
-<!-- 調整點數 Modal -->
+<!-- 調整點數 Modal：僅先預覽到主表單，需按主表單的「保存變更」才會真正保存 -->
 <div class="modal fade" id="pointsModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
-        <form asp-action="AdjustPoints" method="post">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">調整會員點數</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">調整會員點數</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">舊點數</label>
+                    <input type="text" class="form-control bg-light" value="@Model.Points" readonly tabindex="-1" />
                 </div>
-                <div class="modal-body">
-                    <input type="hidden" name="id" value="@Model.MemberID" />
-                    <div class="mb-3">
-                        <label class="form-label">舊點數</label>
-                        <input type="text" class="form-control bg-light" value="@Model.Points" readonly tabindex="-1" />
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">新點數</label>
-                        <div class="input-group">
-                            <button type="button" class="btn btn-outline-secondary" id="newPointsMinus">-</button>
-                            <input type="number" name="points" id="newPointsInput" class="form-control text-center" value="@Model.Points" min="0" required />
-                            <button type="button" class="btn btn-outline-secondary" id="newPointsPlus">+</button>
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">請填寫調整原因（例如：活動獎勵）</label>
-                        <textarea name="reason" class="form-control" rows="2" required></textarea>
+                <div class="mb-3">
+                    <label class="form-label">新點數</label>
+                    <div class="input-group">
+                        <button type="button" class="btn btn-outline-secondary" id="newPointsMinus">-</button>
+                        <input type="number" id="newPointsInput" class="form-control text-center" value="@Model.Points" min="0" />
+                        <button type="button" class="btn btn-outline-secondary" id="newPointsPlus">+</button>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="submit" class="btn btn-primary">確認調整</button>
+                <div class="mb-3">
+                    <label class="form-label">請填寫調整原因（例如：活動獎勵）</label>
+                    <textarea id="pointsModalReason" class="form-control" rows="2"></textarea>
                 </div>
             </div>
-        </form>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" id="confirmPointsChange">確認調整</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 解除帳號鎖定 Modal：原因選填，但仍需二次確認彈窗；僅先預覽到主表單，需按主表單的「保存變更」才會真正保存 -->
+<div class="modal fade" id="unlockAccountModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">解除帳號鎖定</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted">解除後會員即可再次嘗試登入，登入失敗次數會歸零重新計算。</p>
+                <div class="mb-3">
+                    <label class="form-label">解除鎖定的原因（選填）</label>
+                    <textarea id="unlockModalReason" class="form-control" rows="2"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-warning" id="confirmUnlockAccount">確認解除</button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -335,20 +348,15 @@
 
 @section Scripts {
 <script>
-    // 狀態變更原因：只有當「會員狀態」下拉選單被改成跟原本不同的值時才顯示，
-    // 且顯示時為必填（HTML5 required 在欄位隱藏時不會擋送出，顯示時才會生效），伺服器端也會再驗證一次。
-    // 選了新狀態並填寫原因後，會即時把「時間 已將狀態從X變更為Y，原因：xxx」預覽寫進下方「管理員備註」文字框最上方，
-    // 但這只是畫面上的預覽，真正寫入資料庫仍要按下「保存變更」才會送出。
+    // 所有手動調整動作（改名稱／移除照片／調整點數／解除鎖定／變更狀態）都採「先預覽、後保存」的流程：
+    // 彈窗確認只會把變更即時反映在主表單的欄位與下方「備註欄」預覽文字上，尚未真的寫進資料庫，
+    // 必須再按主表單的「💾 保存變更」才會一次性套用所有已預覽的變更並真正保存。
     (function () {
-        var statusSelect = document.getElementById('statusSelect');
-        var reasonGroup = document.getElementById('statusChangeReasonGroup');
-        var reasonInput = document.getElementById('statusChangeReasonInput');
         var adminNoteEl = document.querySelector('textarea[name="AdminNote"]');
-        if (!statusSelect || !reasonGroup || !reasonInput || !adminNoteEl) return;
+        if (!adminNoteEl) return;
 
-        var originalStatus = statusSelect.getAttribute('data-original-status');
         var baseAdminNote = adminNoteEl.value; // 頁面載入當下、尚未套用任何預覽的真實內容
-        var statusLabels = { Normal: '正常', Warning: '警告', Muted: '禁言', Suspended: '停權' };
+        var pendingNotes = { unlock: null, nickname: null, avatar: null, points: null, status: null };
 
         function pad(n) { return n < 10 ? '0' + n : '' + n; }
         function timestamp() {
@@ -356,77 +364,210 @@
             return d.getFullYear() + '/' + (d.getMonth() + 1) + '/' + d.getDate() + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
         }
 
-        function updatePreview() {
-            var changed = statusSelect.value !== originalStatus;
-            var reason = reasonInput.value.trim();
-            if (changed && reason) {
-                var oldLabel = statusLabels[originalStatus] || originalStatus;
-                var newLabel = statusLabels[statusSelect.value] || statusSelect.value;
-                var line = timestamp() + ' 已將狀態從「' + oldLabel + '」變更為「' + newLabel + '」，原因：' + reason;
-                adminNoteEl.value = baseAdminNote ? (line + '\n' + baseAdminNote) : line;
-            } else {
-                adminNoteEl.value = baseAdminNote;
-            }
+        function rebuildAdminNotePreview() {
+            var lines = Object.keys(pendingNotes)
+                .map(function (key) { return pendingNotes[key]; })
+                .filter(Boolean);
+            var combined = lines.join('\n');
+            adminNoteEl.value = combined ? (baseAdminNote ? combined + '\n' + baseAdminNote : combined) : baseAdminNote;
         }
 
-        window.toggleStatusChangeReasonGroup = function () {
-            reasonGroup.style.display = (statusSelect.value !== originalStatus) ? '' : 'none';
-            updatePreview();
-        };
+        // ---- 狀態變更 ----
+        var statusSelect = document.getElementById('statusSelect');
+        var reasonGroup = document.getElementById('statusChangeReasonGroup');
+        var reasonInput = document.getElementById('statusChangeReasonInput');
+        if (statusSelect && reasonGroup && reasonInput) {
+            var originalStatus = statusSelect.getAttribute('data-original-status');
+            var statusLabels = { Normal: '正常', Warning: '警告', Muted: '禁言', Suspended: '停權' };
 
-        statusSelect.addEventListener('change', window.toggleStatusChangeReasonGroup);
-        reasonInput.addEventListener('input', updatePreview);
-        window.toggleStatusChangeReasonGroup(); // 初始判斷（例如驗證失敗重新顯示、且原本就有改過狀態時）
-    })();
+            var updateStatusPreview = function () {
+                var changed = statusSelect.value !== originalStatus;
+                var reason = reasonInput.value.trim();
+                if (changed && reason) {
+                    var oldLabel = statusLabels[originalStatus] || originalStatus;
+                    var newLabel = statusLabels[statusSelect.value] || statusSelect.value;
+                    pendingNotes.status = timestamp() + ' 已將狀態從「' + oldLabel + '」變更為「' + newLabel + '」，原因：' + reason;
+                } else {
+                    pendingNotes.status = null;
+                }
+                rebuildAdminNotePreview();
+            };
 
-    // 調整點數 Modal：+/- 按鈕（僅調整彈窗內的數值，需按「確認調整」才會送出）
-    (function () {
-        var newPointsInput = document.getElementById('newPointsInput');
-        if (!newPointsInput) return;
+            window.toggleStatusChangeReasonGroup = function () {
+                var changed = statusSelect.value !== originalStatus;
+                reasonGroup.style.display = changed ? '' : 'none';
+                // 瀏覽器的 HTML5 required 驗證只看欄位本身是否有 display:none，不會往上檢查父層，
+                // 單靠外層 div 的 display:none 藏不住這個必填欄位，仍會擋住表單送出且不會顯示任何提示。
+                // 因此改成跟著顯示狀態動態切換 required，欄位隱藏時就不參與驗證。
+                reasonInput.required = changed;
+                updateStatusPreview();
+            };
 
-        document.getElementById('newPointsMinus').addEventListener('click', function () {
-            var value = parseInt(newPointsInput.value, 10) || 0;
-            newPointsInput.value = Math.max(0, value - 1);
-        });
-        document.getElementById('newPointsPlus').addEventListener('click', function () {
-            var value = parseInt(newPointsInput.value, 10) || 0;
-            newPointsInput.value = value + 1;
-        });
-    })();
+            statusSelect.addEventListener('change', window.toggleStatusChangeReasonGroup);
+            reasonInput.addEventListener('input', updateStatusPreview);
+            window.toggleStatusChangeReasonGroup(); // 初始判斷（例如驗證失敗重新顯示時）
+        }
 
-    // 解除停權：僅解鎖表單欄位並帶入選擇的狀態/原因，不會直接送出，需再按「保存變更」才會真正保存
-    // 狀態變更原因會直接帶入主表單的「狀態變更原因」欄位，送出後由後端統一組成帶時間戳記的備註
-    (function () {
-        var confirmBtn = document.getElementById('confirmLiftSuspension');
-        if (!confirmBtn) return;
+        // ---- 改名稱 ----
+        var nicknameDisplayInput = document.getElementById('nicknameDisplayInput');
+        var nicknameChangeReasonInput = document.getElementById('nicknameChangeReasonInput');
+        var confirmNicknameChange = document.getElementById('confirmNicknameChange');
+        if (nicknameDisplayInput && nicknameChangeReasonInput && confirmNicknameChange) {
+            var originalNickName = nicknameDisplayInput.getAttribute('data-original-nickname') || '';
 
-        confirmBtn.addEventListener('click', function () {
-            var newStatus = document.getElementById('liftNewStatus').value;
-            var reason = document.getElementById('liftReason').value.trim();
-            if (!reason) {
-                alert('請輸入解除停權原因');
-                return;
-            }
+            var recomputeNicknamePreview = function () {
+                var current = nicknameDisplayInput.value.trim();
+                var reason = nicknameChangeReasonInput.value.trim();
+                pendingNotes.nickname = (current && current !== originalNickName && reason)
+                    ? (timestamp() + ' 已將名稱從「' + originalNickName + '」變更為「' + current + '」，原因：' + reason)
+                    : null;
+                rebuildAdminNotePreview();
+            };
 
-            // 解鎖主表單欄位
-            document.getElementById('editForm').classList.remove('opacity-50');
-            ['statusSelect', 'statusChangeReasonInput'].forEach(function (id) {
-                document.getElementById(id).disabled = false;
-                document.getElementById(id).readOnly = false;
+            confirmNicknameChange.addEventListener('click', function () {
+                var newName = document.getElementById('nicknameModalInput').value.trim();
+                var reason = document.getElementById('nicknameModalReason').value.trim();
+                if (!newName || !reason) {
+                    alert('請填寫新名稱與變更原因');
+                    return;
+                }
+                nicknameDisplayInput.value = newName;
+                nicknameChangeReasonInput.value = reason;
+                recomputeNicknamePreview();
+                bootstrap.Modal.getInstance(document.getElementById('nicknameModal')).hide();
             });
-            document.querySelector('[data-bs-target="#nicknameModal"]').disabled = false;
-            document.querySelector('[data-bs-target="#avatarModal"]').disabled = false;
-            document.querySelector('[data-bs-target="#pointsModal"]').disabled = false;
-            document.querySelector('#editForm button[type="submit"]').disabled = false;
 
-            // 帶入選擇的狀態與原因
-            document.getElementById('statusSelect').value = newStatus;
-            document.getElementById('statusChangeReasonInput').value = reason;
-            if (window.toggleStatusChangeReasonGroup) window.toggleStatusChangeReasonGroup();
+            recomputeNicknamePreview(); // 初始判斷（例如驗證失敗重新顯示時）
+        }
 
-            // 關閉視窗
-            bootstrap.Modal.getInstance(document.getElementById('liftSuspensionModal')).hide();
-        });
+        // ---- 移除照片 ----
+        var removeAvatarRequestedInput = document.getElementById('removeAvatarRequestedInput');
+        var avatarRemovalReasonInput = document.getElementById('avatarRemovalReasonInput');
+        var confirmAvatarRemoval = document.getElementById('confirmAvatarRemoval');
+        if (removeAvatarRequestedInput && avatarRemovalReasonInput && confirmAvatarRemoval) {
+            var recomputeAvatarPreview = function () {
+                var requested = removeAvatarRequestedInput.value === 'true';
+                var reason = avatarRemovalReasonInput.value.trim();
+                pendingNotes.avatar = (requested && reason)
+                    ? (timestamp() + ' 因' + reason + '，已移除照片')
+                    : null;
+                rebuildAdminNotePreview();
+            };
+
+            confirmAvatarRemoval.addEventListener('click', function () {
+                var reason = document.getElementById('avatarModalReason').value.trim();
+                if (!reason) {
+                    alert('請填寫移除照片的原因');
+                    return;
+                }
+                removeAvatarRequestedInput.value = 'true';
+                avatarRemovalReasonInput.value = reason;
+                recomputeAvatarPreview();
+                var previewImg = document.getElementById('avatarPreviewImg');
+                if (previewImg) previewImg.src = '@defaultAvatar';
+                bootstrap.Modal.getInstance(document.getElementById('avatarModal')).hide();
+            });
+
+            recomputeAvatarPreview(); // 初始判斷（例如驗證失敗重新顯示時）
+        }
+
+        // ---- 調整點數 ----
+        var pointsMainInput = document.getElementById('pointsMainInput');
+        var pointsChangeReasonInput = document.getElementById('pointsChangeReasonInput');
+        var pointsDisplay = document.getElementById('pointsDisplay');
+        var newPointsInput = document.getElementById('newPointsInput');
+        var confirmPointsChange = document.getElementById('confirmPointsChange');
+        if (pointsMainInput && pointsChangeReasonInput && confirmPointsChange) {
+            var originalPoints = parseInt(pointsMainInput.getAttribute('data-original-points'), 10) || 0;
+
+            document.getElementById('newPointsMinus').addEventListener('click', function () {
+                var value = parseInt(newPointsInput.value, 10) || 0;
+                newPointsInput.value = Math.max(0, value - 1);
+            });
+            document.getElementById('newPointsPlus').addEventListener('click', function () {
+                var value = parseInt(newPointsInput.value, 10) || 0;
+                newPointsInput.value = value + 1;
+            });
+
+            var recomputePointsPreview = function () {
+                var current = parseInt(pointsMainInput.value, 10);
+                var reason = pointsChangeReasonInput.value.trim();
+                pendingNotes.points = (!isNaN(current) && current !== originalPoints && reason)
+                    ? (timestamp() + ' 已將點數從 ' + originalPoints + ' 調整為 ' + current + '，原因：' + reason)
+                    : null;
+                rebuildAdminNotePreview();
+            };
+
+            confirmPointsChange.addEventListener('click', function () {
+                var newPoints = parseInt(newPointsInput.value, 10);
+                var reason = document.getElementById('pointsModalReason').value.trim();
+                if (isNaN(newPoints) || newPoints < 0 || !reason) {
+                    alert('請填寫有效的點數與調整原因');
+                    return;
+                }
+                pointsMainInput.value = newPoints;
+                pointsChangeReasonInput.value = reason;
+                pointsDisplay.textContent = newPoints;
+                recomputePointsPreview();
+                bootstrap.Modal.getInstance(document.getElementById('pointsModal')).hide();
+            });
+
+            recomputePointsPreview(); // 初始判斷（例如驗證失敗重新顯示時）
+        }
+
+        // ---- 解除帳號鎖定（原因選填）----
+        var unlockAccountRequestedInput = document.getElementById('unlockAccountRequestedInput');
+        var unlockReasonInput = document.getElementById('unlockReasonInput');
+        var confirmUnlockAccount = document.getElementById('confirmUnlockAccount');
+        if (unlockAccountRequestedInput && unlockReasonInput && confirmUnlockAccount) {
+            var recomputeUnlockPreview = function () {
+                var requested = unlockAccountRequestedInput.value === 'true';
+                var reason = unlockReasonInput.value.trim();
+                pendingNotes.unlock = requested
+                    ? (reason ? (timestamp() + ' 已解除帳號鎖定，原因：' + reason) : (timestamp() + ' 已解除帳號鎖定'))
+                    : null;
+                rebuildAdminNotePreview();
+            };
+
+            confirmUnlockAccount.addEventListener('click', function () {
+                var reason = document.getElementById('unlockModalReason').value.trim();
+                unlockAccountRequestedInput.value = 'true';
+                unlockReasonInput.value = reason;
+                recomputeUnlockPreview();
+                bootstrap.Modal.getInstance(document.getElementById('unlockAccountModal')).hide();
+            });
+
+            recomputeUnlockPreview(); // 初始判斷（例如驗證失敗重新顯示時）
+        }
+
+        // ---- 解除停權：解鎖表單欄位並帶入狀態/原因，仍需按「保存變更」才會真正保存 ----
+        var confirmLiftSuspension = document.getElementById('confirmLiftSuspension');
+        if (confirmLiftSuspension) {
+            confirmLiftSuspension.addEventListener('click', function () {
+                var newStatus = document.getElementById('liftNewStatus').value;
+                var reason = document.getElementById('liftReason').value.trim();
+                if (!reason) {
+                    alert('請輸入解除停權原因');
+                    return;
+                }
+
+                document.getElementById('editForm').classList.remove('opacity-50');
+                ['statusSelect', 'statusChangeReasonInput'].forEach(function (id) {
+                    document.getElementById(id).disabled = false;
+                    document.getElementById(id).readOnly = false;
+                });
+                document.querySelector('[data-bs-target="#nicknameModal"]').disabled = false;
+                document.querySelector('[data-bs-target="#avatarModal"]').disabled = false;
+                document.querySelector('[data-bs-target="#pointsModal"]').disabled = false;
+                document.querySelector('#editForm button[type="submit"]').disabled = false;
+
+                document.getElementById('statusSelect').value = newStatus;
+                document.getElementById('statusChangeReasonInput').value = reason;
+                if (window.toggleStatusChangeReasonGroup) window.toggleStatusChangeReasonGroup();
+
+                bootstrap.Modal.getInstance(document.getElementById('liftSuspensionModal')).hide();
+            });
+        }
     })();
 </script>
 }

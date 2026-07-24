@@ -107,6 +107,8 @@ public class AdminMembersController : Controller
 
         ViewBag.Levels = await _context.UserLevels.OrderBy(l => l.MinExp).ToListAsync();
         ViewBag.OriginalStatus = member.Status;
+        ViewBag.OriginalNickName = member.NickName;
+        ViewBag.OriginalPoints = member.Points;
 
         return View(member);
     }
@@ -124,23 +126,58 @@ public class AdminMembersController : Controller
         var memberInDb = await _context.Members.FirstOrDefaultAsync(m => m.MemberID == id);
         if (memberInDb == null) return NotFound();
 
+        // 每個「手動調整」子動作（改名稱／移除照片／調整點數／解除鎖定／變更狀態）都先在前端彈窗確認、
+        // 即時把變更疊加預覽進 AdminNote 文字框並帶入對應的隱藏欄位，尚未真的送出到資料庫；
+        // 要按下這個表單的「保存變更」才會一次性套用所有已預覽的變更並真正保存（跟「解除停權」原本的流程一致）
         var statusChanged = memberInDb.Status != model.Status;
+        var nicknameChanged = model.NickName != null && memberInDb.NickName != model.NickName;
+        var avatarRemoval = model.RemoveAvatarRequested && memberInDb.AvatarImageID != null;
+        var pointsChanged = memberInDb.Points != model.Points;
+        var unlockRequested = model.UnlockAccountRequested && memberInDb.IsLocked;
 
-        // 8. 驗證規則：狀態異動時「狀態變更原因」必填
         if (statusChanged && string.IsNullOrWhiteSpace(model.StatusChangeReason))
         {
             ModelState.AddModelError(nameof(MemberEditVM.StatusChangeReason), "變更會員狀態時，請填寫變更原因。");
         }
+        if (nicknameChanged && string.IsNullOrWhiteSpace(model.NicknameChangeReason))
+        {
+            ModelState.AddModelError(nameof(MemberEditVM.NicknameChangeReason), "變更名稱時，請填寫變更原因。");
+        }
+        if (avatarRemoval && string.IsNullOrWhiteSpace(model.AvatarRemovalReason))
+        {
+            ModelState.AddModelError(nameof(MemberEditVM.AvatarRemovalReason), "移除照片時，請填寫原因。");
+        }
+        if (pointsChanged && string.IsNullOrWhiteSpace(model.PointsChangeReason))
+        {
+            ModelState.AddModelError(nameof(MemberEditVM.PointsChangeReason), "調整點數時，請填寫原因。");
+        }
+        // 解除鎖定原因為選填，不需驗證
 
         if (ModelState.IsValid)
         {
-            // 5.3 允許編輯欄位（帳號 UserName 不可變更；名稱改由專屬的 ChangeNickName 動作處理，故不在此表單接受變更；
-            // 點數改由專屬的 AdjustPoints 動作處理）
-            // 狀態變更時，前端在使用者選擇新狀態並填寫原因的當下，就已即時把「時間 已將狀態從X變更為Y，原因：xxx」
-            // 疊加寫進 AdminNote 文字框中預覽（尚未送出前不會真的保存）；這裡直接保存文字框當下的內容即可，
-            // 送出前使用者仍可自由編輯這段預覽文字
+            // 5.3 允許編輯欄位（帳號 UserName 不可變更）
+            // 各子動作變更時，前端已經把「時間 已將X從A變更為B，原因：xxx」疊加寫進 AdminNote 文字框中預覽；
+            // 這裡直接保存文字框當下的內容即可，送出前使用者仍可自由編輯這段預覽文字
             memberInDb.AdminNote = model.AdminNote;
             memberInDb.Status = model.Status;
+
+            if (nicknameChanged)
+            {
+                memberInDb.NickName = model.NickName;
+            }
+            if (avatarRemoval)
+            {
+                memberInDb.AvatarImageID = null;
+            }
+            if (pointsChanged)
+            {
+                memberInDb.Points = model.Points;
+            }
+            if (unlockRequested)
+            {
+                memberInDb.IsLocked = false;
+                memberInDb.FailedLoginCount = 0;
+            }
 
             // 5.5 處分期限現在由自動懲處機制（ApplyAutoEscalationAsync）依受理檢舉次數計算，
             // 手動編輯僅在「正常／停權」時清空期限，其餘狀態維持既有的處分期限不變
@@ -185,6 +222,16 @@ public class AdminMembersController : Controller
         {
             displayMember.Status = model.Status;
             displayMember.AdminNote = model.AdminNote;
+            if (model.NickName != null)
+            {
+                displayMember.NickName = model.NickName;
+            }
+            if (model.RemoveAvatarRequested)
+            {
+                displayMember.AvatarImageID = null;
+                displayMember.AvatarImage = null;
+            }
+            displayMember.Points = model.Points;
         }
 
         ViewBag.ApprovedReports = await _context.Reports
@@ -194,96 +241,15 @@ public class AdminMembersController : Controller
         ViewBag.Levels = await _context.UserLevels.OrderBy(l => l.MinExp).ToListAsync();
         ViewBag.StatusChangeReason = model.StatusChangeReason;
         ViewBag.OriginalStatus = memberInDb.Status;
+        ViewBag.OriginalNickName = memberInDb.NickName;
+        ViewBag.OriginalPoints = memberInDb.Points;
+        ViewBag.NicknameChangeReason = model.NicknameChangeReason;
+        ViewBag.RemoveAvatarRequested = model.RemoveAvatarRequested;
+        ViewBag.AvatarRemovalReason = model.AvatarRemovalReason;
+        ViewBag.PointsChangeReason = model.PointsChangeReason;
+        ViewBag.UnlockAccountRequested = model.UnlockAccountRequested;
+        ViewBag.UnlockReason = model.UnlockReason;
         return View(displayMember);
-    }
-
-    // 5.3 會員名稱變更（獨立動作，需填寫原因）
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> ChangeNickName(int id, string nickName, string reason)
-    {
-        var memberInDb = await _context.Members.FirstOrDefaultAsync(m => m.MemberID == id);
-        if (memberInDb == null) return NotFound();
-
-        if (string.IsNullOrWhiteSpace(nickName) || string.IsNullOrWhiteSpace(reason))
-        {
-            TempData["NicknameError"] = "請填寫新名稱與變更原因。";
-            return RedirectToAction(nameof(Edit), new { id });
-        }
-
-        var oldName = memberInDb.NickName;
-        memberInDb.NickName = nickName;
-        if (oldName != nickName)
-        {
-            var note = $"{DateTime.Now:yyyy/M/d HH:mm} 已將名稱從「{oldName}」變更為「{nickName}」，原因：{reason}";
-            memberInDb.AdminNote = string.IsNullOrWhiteSpace(memberInDb.AdminNote)
-                ? note
-                : $"{note}\n{memberInDb.AdminNote}";
-        }
-        memberInDb.UpdatedAt = DateTime.Now;
-        await _context.SaveChangesAsync();
-
-        return RedirectToAction(nameof(Edit), new { id });
-    }
-
-    // 5.3 會員照片移除（僅能移除，改回預設照片；需填寫原因）
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> RemoveAvatar(int id, string reason)
-    {
-        var memberInDb = await _context.Members.FirstOrDefaultAsync(m => m.MemberID == id);
-        if (memberInDb == null) return NotFound();
-
-        if (string.IsNullOrWhiteSpace(reason))
-        {
-            TempData["AvatarError"] = "請填寫移除照片的原因。";
-            return RedirectToAction(nameof(Edit), new { id });
-        }
-
-        memberInDb.AvatarImageID = null;
-        var note = $"{DateTime.Now:yyyy/M/d HH:mm} 因{reason}，已移除照片";
-        memberInDb.AdminNote = string.IsNullOrWhiteSpace(memberInDb.AdminNote)
-            ? note
-            : $"{note}\n{memberInDb.AdminNote}";
-        memberInDb.UpdatedAt = DateTime.Now;
-        await _context.SaveChangesAsync();
-
-        return RedirectToAction(nameof(Edit), new { id });
-    }
-
-    // 5.3 會員點數調整（獨立動作，需填寫原因）
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> AdjustPoints(int id, int points, string reason)
-    {
-        var memberInDb = await _context.Members.FirstOrDefaultAsync(m => m.MemberID == id);
-        if (memberInDb == null) return NotFound();
-
-        if (string.IsNullOrWhiteSpace(reason))
-        {
-            TempData["PointsError"] = "請填寫調整點數的原因。";
-            return RedirectToAction(nameof(Edit), new { id });
-        }
-
-        if (points < 0)
-        {
-            TempData["PointsError"] = "點數不可為負數。";
-            return RedirectToAction(nameof(Edit), new { id });
-        }
-
-        var oldPoints = memberInDb.Points;
-        if (oldPoints != points)
-        {
-            memberInDb.Points = points;
-            var note = $"{DateTime.Now:yyyy/M/d HH:mm} 已將點數從 {oldPoints} 調整為 {points}，原因：{reason}";
-            memberInDb.AdminNote = string.IsNullOrWhiteSpace(memberInDb.AdminNote)
-                ? note
-                : $"{note}\n{memberInDb.AdminNote}";
-            memberInDb.UpdatedAt = DateTime.Now;
-            await _context.SaveChangesAsync();
-        }
-
-        return RedirectToAction(nameof(Edit), new { id });
     }
 
     // 依累積受理（Approved）檢舉次數自動套用懲處等級：

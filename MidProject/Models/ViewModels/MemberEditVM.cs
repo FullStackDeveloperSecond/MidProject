@@ -12,5 +12,18 @@ namespace MidProject.Models.ViewModels
         public string? AdminNote { get; set; }
 
         public string? StatusChangeReason { get; set; }
+
+        public string? NickName { get; set; }
+        public string? NicknameChangeReason { get; set; }
+
+        public bool RemoveAvatarRequested { get; set; }
+        public string? AvatarRemovalReason { get; set; }
+
+        [Range(0, int.MaxValue)]
+        public int Points { get; set; }
+        public string? PointsChangeReason { get; set; }
+
+        public bool UnlockAccountRequested { get; set; }
+        public string? UnlockReason { get; set; }
     }
 }

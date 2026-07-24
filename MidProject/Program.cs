@@ -14,6 +14,7 @@ builder.Configuration.AddJsonFile("appsettings.Development.local.json", optional
 builder.Configuration.AddUserSecrets<Program>(optional: true);
 
 builder.Services.AddControllersWithViews();
+builder.Services.AddHttpContextAccessor();
 
 var notificationIdentityMode = NotificationIdentityModeSelection.Parse(
     Environment.GetEnvironmentVariable("Notifications__IdentityMode"));
@@ -58,8 +59,11 @@ if (notificationIdentityMode.Mode == NotificationIdentityMode.DevelopmentTempora
         services.GetRequiredService<DevelopmentTemporaryTrustedMemberIdentityAccessor>());
     builder.Services.AddScoped<NotificationIdentityStartupValidator>();
 }
-// AccountLogin deliberately does not register an implementation here. The externally
-// owned Account/Login integration must supply ITrustedMemberIdentityAccessor.
+else
+{
+    // AccountLogin：Account/Login 整合正式接上，讀取 AccountController.Login 簽發的 Cookie Claims
+    builder.Services.AddScoped<ITrustedMemberIdentityAccessor, CookieClaimsTrustedMemberIdentityAccessor>();
+}
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<ITaipeiClock, TaipeiClock>();
 builder.Services.AddSingleton<IMemberAudienceCatalog, MemberAudienceCatalog>();
