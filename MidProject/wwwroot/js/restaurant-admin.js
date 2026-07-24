@@ -463,6 +463,10 @@ const RestaurantAdmin = (() => {
                         // exactly where the user was, filters and all.
                         window.location.reload();
                     } else {
+                        // The list page is kept in the browser back-forward cache.
+                        // Remove the modal before leaving so returning to the filtered
+                        // list cannot revive the already-completed create form.
+                        closeModal();
                         window.location.href = json.redirectUrl;
                     }
                     return;

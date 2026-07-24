@@ -166,6 +166,10 @@
     color: #ef9f27;
 }
 
+.stars-empty {
+    color: #cbd5e1;
+}
+
 .ra-page .tag {
     display: inline-flex;
     align-items: center;

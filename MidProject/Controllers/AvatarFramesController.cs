@@ -16,15 +16,15 @@ public class AvatarFramesController : Controller
         _avatarFrameService = avatarFrameService;
     }
 
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(string? keyword, string? rarity, bool? isActive, string? sortBy, int page = 1)
     {
-        var model = await _avatarFrameService.GetIndexAsync();
+        var model = await _avatarFrameService.GetIndexAsync(keyword, rarity, isActive, sortBy, page);
         return View(model);
     }
 
-    public async Task<IActionResult> Deleted()
+    public async Task<IActionResult> Deleted(string? keyword, string? rarity, string? sortBy, int page = 1)
     {
-        var model = await _avatarFrameService.GetDeletedIndexAsync();
+        var model = await _avatarFrameService.GetDeletedIndexAsync(keyword, rarity, sortBy, page);
         return View(model);
     }
 

@@ -133,6 +133,30 @@ public class RestaurantRepository : IRestaurantRepository
         return await DetailQuery().FirstOrDefaultAsync(r => r.RestaurantID == id);
     }
 
+    public async Task<IReadOnlyDictionary<int, RestaurantReviewStats>> GetReviewStatsAsync(IEnumerable<int> restaurantIds)
+    {
+        var ids = restaurantIds.Distinct().ToList();
+        if (ids.Count == 0)
+        {
+            return new Dictionary<int, RestaurantReviewStats>();
+        }
+
+        var stats = await _db.Reviews
+            .Where(r => ids.Contains(r.RestaurantID) && !r.IsDeleted && r.Status == "Active")
+            .GroupBy(r => r.RestaurantID)
+            .Select(g => new
+            {
+                RestaurantID = g.Key,
+                AverageRating = Math.Round(g.Average(r => (decimal)r.Rating), 2),
+                ReviewCount = g.Count()
+            })
+            .ToListAsync();
+
+        return stats.ToDictionary(
+            x => x.RestaurantID,
+            x => new RestaurantReviewStats { AverageRating = x.AverageRating, ReviewCount = x.ReviewCount });
+    }
+
     public async Task AddAsync(Restaurant restaurant)
     {
         _db.Restaurants.Add(restaurant);
@@ -259,11 +283,22 @@ public class RestaurantRepository : IRestaurantRepository
         var active = ApplyCommonFilters(_db.Restaurants.Where(r => !r.IsDeleted), filter.Search, filter.City, filter.District, filter.TagId);
         var disabled = ApplyCommonFilters(_db.Restaurants.Where(r => r.IsDeleted), filter.Search, filter.City, filter.District, filter.TagId);
 
+        var activeRestaurantIds = active.Select(r => r.RestaurantID);
+        var reviewAggregate = await _db.Reviews
+            .Where(r => activeRestaurantIds.Contains(r.RestaurantID) && !r.IsDeleted && r.Status == "Active")
+            .GroupBy(_ => 1)
+            .Select(g => new
+            {
+                ReviewCount = g.Count(),
+                AverageRating = g.Average(r => (decimal)r.Rating)
+            })
+            .FirstOrDefaultAsync();
+
         return new RestaurantStats
         {
             Total = await active.CountAsync(),
-            AvgRating = await active.AnyAsync() ? Math.Round(await active.AverageAsync(r => r.AverageRating), 1) : 0m,
-            ReviewCount = await active.SumAsync(r => r.ReviewCount),
+            AvgRating = reviewAggregate == null ? 0m : Math.Round(reviewAggregate.AverageRating, 1),
+            ReviewCount = reviewAggregate?.ReviewCount ?? 0,
             DisabledCount = await disabled.CountAsync()
         };
     }

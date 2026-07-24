@@ -18,6 +18,7 @@ namespace MidProject.Models.ViewModels
         public string SortDir { get; set; } = "desc";  // desc=大到小/新到舊, asc=反過來
 
         // 分頁資訊
+        public int? RestaurantID { get; set; }
         public int Page { get; set; }
         public int PageSize { get; set; }
         public int TotalPages { get; set; }

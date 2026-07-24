@@ -1,81 +1,42 @@
-@model List<MidProject.Models.ViewModels.PointsStore.AvatarFrameDeletedRowViewModel>
+@model MidProject.Models.ViewModels.PointsStore.AvatarFramesDeletedIndexViewModel
 @{
     ViewData["Title"] = "已刪除的外框商品";
-
-    string RarityLabel(string rarity) => rarity switch
-    {
-        "Rare" => "稀有",
-        "Limited" => "限定",
-        _ => "一般"
-    };
+    string RarityLabel(string rarity) => rarity switch { "Rare" => "稀有", "Limited" => "限定", _ => "一般" };
 }
 
 @section Styles {
     <link rel="stylesheet" href="~/css/design-system.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/shared-pagination.css" asp-append-version="true" />
 }
 
-<div class="ds-page-header d-flex justify-content-between align-items-center">
-    <div>
-        <h2>已刪除的外框商品</h2>
-        <p class="text-muted mb-0">已刪除不代表資料被移除，可以隨時復原。復原後商品狀態為「已下架」，需要再手動上架。</p>
-    </div>
-    <a asp-action="Index" class="btn btn-outline-secondary">← 返回商品列表</a>
-</div>
+<div class="ds-page-header"><h1 class="ds-h2 mb-1">已刪除的外框商品</h1><p>已刪除不代表資料被移除，可以隨時復原；復原後商品狀態為「已下架」，需要再手動上架。</p></div>
 
-@if (TempData["Toast"] != null)
+@if (TempData["Toast"] != null) { <div class="alert alert-success">@TempData["Toast"]</div> }
+
+<div class="row g-3 mb-4"><div class="col-md-6"><div class="ds-stat-card ds-stat-card-sm h-100"><div class="d-flex justify-content-between"><span class="ds-stat-label ds-accent-danger">已刪除商品</span><span class="ds-stat-icon ds-icon-danger"><i class="fas fa-trash"></i></span></div><div class="ds-stat-value">@Model.TotalDeletedCount</div><div class="ds-stat-caption">可隨時復原的商品</div></div></div><div class="col-md-6"><div class="ds-stat-card ds-stat-card-sm h-100"><div class="d-flex justify-content-between"><span class="ds-stat-label ds-accent-gray">最近刪除</span><span class="ds-stat-icon ds-icon-gray"><i class="fas fa-clock"></i></span></div><div class="ds-stat-value" style="font-size:24px;">@(Model.MostRecentDeletedAt?.ToString("yyyy/MM/dd") ?? "—")</div><div class="ds-stat-caption">最後一筆刪除時間</div></div></div></div>
+
+<form method="get" class="ds-toolbar"><h6 class="ds-block-label">篩選條件</h6><div class="ds-filter-row"><div class="ds-filter-search-group"><div class="ds-filter-field"><label for="keyword">關鍵字</label><input id="keyword" name="keyword" class="form-control ds-search-input-fill" value="@Model.Keyword" placeholder="搜尋商品名稱" /></div><div class="ds-filter-actions"><button type="submit" class="btn ds-btn-query"><i class="fas fa-search"></i>查詢</button><a asp-action="Deleted" class="btn ds-btn-clear">清除</a></div></div><div class="ds-filter-field"><label for="rarity">分類</label><select id="rarity" name="rarity" class="form-select"><option value="">所有分類</option><option value="Common" selected="@(Model.Rarity == "Common")">一般</option><option value="Rare" selected="@(Model.Rarity == "Rare")">稀有</option><option value="Limited" selected="@(Model.Rarity == "Limited")">限定</option></select></div><div class="ds-filter-field"><label for="sortBy">排序</label><select id="sortBy" name="sortBy" class="form-select"><option value="deletedAt" selected="@(Model.SortBy == "deletedAt")">最近刪除</option><option value="name" selected="@(Model.SortBy == "name")">商品名稱</option><option value="price" selected="@(Model.SortBy == "price")">售價：高至低</option></select></div></div></form>
+
+<div class="ds-block-title-row"><h6>已刪除商品列表</h6><span class="ds-muted small">共 @Model.TotalItems 筆</span></div><div class="ds-table-wrap"><div class="table-responsive"><table class="ds-table mb-0"><thead><tr><th>商品</th><th>分類</th><th>點數售價</th><th>刪除時間</th><th>刪除人</th><th class="text-end">操作</th></tr></thead><tbody>@if (!Model.Frames.Any()) { <tr><td colspan="6" class="text-center ds-muted py-4">目前沒有已刪除的商品。</td></tr> } else { foreach (var frame in Model.Frames) { <tr><td><div class="d-flex align-items-center gap-2">@if (!string.IsNullOrEmpty(frame.ImageUrl)) { <img src="@frame.ImageUrl" width="36" height="36" class="rounded-circle opacity-50" alt="" /> } else { <span class="ds-stat-icon ds-icon-gray" style="width:36px;height:36px;"><i class="fas fa-image"></i></span> }<span class="ds-muted">@frame.Name</span></div></td><td>@RarityLabel(frame.Rarity)</td><td>@frame.PointsPrice.ToString("N0")</td><td>@(frame.DeletedAt?.ToString("yyyy-MM-dd HH:mm") ?? "—")</td><td>@(frame.DeletedByName ?? "—")</td><td class="text-end"><form method="post" asp-action="Restore" asp-route-id="@frame.FrameID" class="d-inline">@Html.AntiForgeryToken()<button type="submit" class="btn btn-sm btn-outline-success">復原</button></form></td></tr> } }</tbody></table></div></div>
+@if (Model.TotalPages > 1)
 {
-    <div class="alert alert-success">@TempData["Toast"]</div>
-}
-
-<div class="ds-table-wrap">
-    <div class="table-responsive">
-        <table class="ds-table mb-0">
-    <thead>
-        <tr>
-            <th>商品</th>
-            <th>分類</th>
-            <th>點數售價</th>
-            <th>刪除時間</th>
-            <th>刪除人</th>
-            <th class="text-end">操作</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var f in Model)
-        {
-            <tr>
-                <td>
-                    <div class="d-flex align-items-center gap-2">
-                        @if (!string.IsNullOrEmpty(f.ImageUrl))
-                        {
-                            <img src="@f.ImageUrl" width="36" height="36" class="rounded-circle opacity-50" />
-                        }
-                        else
-                        {
-                            <span class="d-inline-flex align-items-center justify-content-center rounded-circle bg-secondary text-white opacity-50" style="width:36px;height:36px;">🖼</span>
-                        }
-                        <span class="text-muted">@f.Name</span>
-                    </div>
-                </td>
-                <td>@RarityLabel(f.Rarity)</td>
-                <td>@f.PointsPrice.ToString("N0")</td>
-                <td>@(f.DeletedAt?.ToString("yyyy-MM-dd HH:mm") ?? "—")</td>
-                <td>@(f.DeletedByName ?? "—")</td>
-                <td class="text-end">
-                    <form method="post" asp-action="Restore" asp-route-id="@f.FrameID" class="d-inline">
-                        @Html.AntiForgeryToken()
-                        <button type="submit" class="btn btn-sm btn-outline-success">↩ 復原</button>
-                    </form>
-                </td>
-            </tr>
-        }
-        @if (!Model.Any())
-        {
-            <tr>
-                <td colspan="6" class="text-center text-muted py-4">目前沒有已刪除的商品。</td>
-            </tr>
-        }
-    </tbody>
-        </table>
+    var showStart = (Model.CurrentPage - 1) * Model.PageSize + 1;
+    var showEnd = Math.Min(Model.CurrentPage * Model.PageSize, Model.TotalItems);
+    <div class="sp-pagination">
+        <div class="sp-summary">目前顯示 @showStart–@showEnd 筆，共 @Model.TotalItems 筆</div>
+        <nav aria-label="已刪除商品分頁">
+            <ul class="pagination">
+                <li class="page-item @(Model.CurrentPage <= 1 ? "disabled" : "")">
+                    <a class="page-link" href="@Url.Action("Deleted", new { keyword = Model.Keyword, rarity = Model.Rarity, sortBy = Model.SortBy, page = Math.Max(1, Model.CurrentPage - 1) })">上一頁</a>
+                </li>
+                @for (var p = 1; p <= Model.TotalPages; p++)
+                {
+                    <li class="page-item @(p == Model.CurrentPage ? "active" : "")"><a class="page-link" href="@Url.Action("Deleted", new { keyword = Model.Keyword, rarity = Model.Rarity, sortBy = Model.SortBy, page = p })">@p</a></li>
+                }
+                <li class="page-item @(Model.CurrentPage >= Model.TotalPages ? "disabled" : "")">
+                    <a class="page-link" href="@Url.Action("Deleted", new { keyword = Model.Keyword, rarity = Model.Rarity, sortBy = Model.SortBy, page = Math.Min(Model.TotalPages, Model.CurrentPage + 1) })">下一頁</a>
+                </li>
+            </ul>
+        </nav>
     </div>
-</div>
+}

@@ -14,9 +14,9 @@ namespace MidProject.Services
             _repo = repo;
         }
 
-        public async Task<ReviewListViewModel> GetReviewListAsync(string tab, string? search, int? rating, string time, string sortBy, string sortDir, int page)
+        public async Task<ReviewListViewModel> GetReviewListAsync(string tab, string? search, int? rating, string time, string sortBy, string sortDir, int? restaurantId, int page)
         {
-            var (items, total, actualPage) = await _repo.GetFilteredReviewsAsync(tab, search, rating, time, sortBy, sortDir, page, PageSize);
+            var (items, total, actualPage) = await _repo.GetFilteredReviewsAsync(tab, search, rating, time, sortBy, sortDir, restaurantId, page, PageSize);
             var totalPages = Math.Max(1, (int)Math.Ceiling(total / (double)PageSize));
 
             return new ReviewListViewModel
@@ -28,6 +28,7 @@ namespace MidProject.Services
                 Time = time,
                 SortBy = sortBy == "rating" || sortBy == "report" ? sortBy : "time",
                 SortDir = sortDir == "asc" ? "asc" : "desc",
+                RestaurantID = restaurantId,
                 Page = actualPage,
                 PageSize = PageSize,
                 TotalPages = totalPages,

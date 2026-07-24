@@ -15,9 +15,14 @@ namespace MidProject.Repositories
         }
 
         public async Task<(List<Review> Items, int TotalCount, int Page)> GetFilteredReviewsAsync(
-            string tab, string? search, int? rating, string time, string sortBy, string sortDir, int page, int pageSize)
+            string tab, string? search, int? rating, string time, string sortBy, string sortDir, int? restaurantId, int page, int pageSize)
         {
             var query = BuildFilteredQuery(tab, search, rating, time);
+
+            if (restaurantId.HasValue)
+            {
+                query = query.Where(r => r.RestaurantID == restaurantId.Value);
+            }
 
             var total = await query.CountAsync();
             var totalPages = Math.Max(1, (int)Math.Ceiling(total / (double)pageSize));

@@ -36,7 +36,7 @@ public class TagService : ITagService
         };
     }
 
-    public async Task<(bool Success, string? Error)> CreateAsync(string name)
+    public async Task<(bool Success, string? Error)> CreateAsync(string name, int adminId)
     {
         var trimmed = (name ?? string.Empty).Trim();
         if (string.IsNullOrEmpty(trimmed))
@@ -49,7 +49,6 @@ public class TagService : ITagService
         {
             if (existing.IsDeleted)
             {
-                var adminId = await _restaurantRepository.GetDefaultAdminMemberIdAsync();
                 await _tagRepository.ToggleAsync(existing.TagID, adminId);
             }
 
@@ -60,9 +59,11 @@ public class TagService : ITagService
         return (true, null);
     }
 
-    public async Task ToggleAsync(int id)
+    public async Task<bool> ToggleAsync(int id, int adminId)
     {
-        var adminId = await _restaurantRepository.GetDefaultAdminMemberIdAsync();
+        var tag = await _tagRepository.GetByIdAsync(id);
+        if (tag == null) return false;
         await _tagRepository.ToggleAsync(id, adminId);
+        return true;
     }
 }

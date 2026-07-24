@@ -34,9 +34,10 @@ namespace MidProject.Controllers
             string time = "all",
             string sortBy = "time",
             string sortDir = "desc",
+            int? restaurantId = null,
             int page = 1)
         {
-            var vm = await _reviewService.GetReviewListAsync(tab, search, rating, time, sortBy, sortDir, page);
+            var vm = await _reviewService.GetReviewListAsync(tab, search, rating, time, sortBy, sortDir, restaurantId, page);
             return View(vm);
         }
 

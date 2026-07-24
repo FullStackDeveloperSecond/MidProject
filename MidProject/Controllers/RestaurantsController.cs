@@ -1,9 +1,12 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MidProject.Models.ViewModels.Restaurants;
 using MidProject.Services.IServices;
+using System.Security.Claims;
 
 namespace MidProject.Controllers;
 
+[Authorize(Roles = "Admin")]
 public class RestaurantsController : Controller
 {
     private readonly IRestaurantService _restaurantService;
@@ -84,7 +87,7 @@ public class RestaurantsController : Controller
             return PartialView("_FormPartial", form);
         }
 
-        var (success, newId) = await _restaurantService.CreateAsync(form);
+        var (success, newId) = await _restaurantService.CreateAsync(form, GetAdminId());
         if (!success)
         {
             form = await _restaurantService.RehydrateFormAsync(form);
@@ -113,7 +116,7 @@ public class RestaurantsController : Controller
             return PartialView("_FormPartial", form);
         }
 
-        var success = await _restaurantService.EditAsync(id, form);
+        var success = await _restaurantService.EditAsync(id, form, GetAdminId());
         if (!success)
         {
             form = await _restaurantService.RehydrateFormAsync(form);
@@ -128,7 +131,8 @@ public class RestaurantsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Disable(int id, string reason)
     {
-        await _restaurantService.DisableAsync(id, reason);
+        var success = await _restaurantService.DisableAsync(id, reason, GetAdminId());
+        if (!success) return NotFound();
         TempData["Toast"] = "餐廳已移至停用餐廳一覽。";
         return RedirectToAction(nameof(Deleted));
     }
@@ -138,8 +142,11 @@ public class RestaurantsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Restore(int id)
     {
-        await _restaurantService.RestoreAsync(id);
+        var success = await _restaurantService.RestoreAsync(id);
+        if (!success) return NotFound();
         TempData["Toast"] = "已解除停用。";
         return RedirectToAction(nameof(Index));
     }
+
+    private int GetAdminId() => int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : 0;
 }

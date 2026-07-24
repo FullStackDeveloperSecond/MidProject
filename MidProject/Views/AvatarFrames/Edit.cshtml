@@ -12,25 +12,13 @@
     <a asp-action="Index" class="btn btn-outline-secondary">← 返回商品列表</a>
 </div>
 
-<form method="post" asp-action="Edit" asp-route-id="@Model.FrameID" enctype="multipart/form-data">
+<form method="post" asp-action="Edit" asp-route-id="@Model.FrameID">
     @Html.AntiForgeryToken()
     <input type="hidden" asp-for="FrameID" />
     <div asp-validation-summary="ModelOnly" class="text-danger"></div>
 
     <div class="row">
-        <div class="col-md-4">
-            <div class="ds-card p-3 mb-3">
-                <label class="form-label">外框圖片</label>
-                @if (!string.IsNullOrEmpty(Model.ExistingImageUrl))
-                {
-                    <img src="@Model.ExistingImageUrl" width="100" height="100" class="rounded-circle mb-2" />
-                }
-                <input type="file" name="ImageFile" accept="image/jpeg,image/png,image/webp" class="form-control" />
-                <div class="form-text">要更換圖片才需要重新上傳，僅接受 JPG / PNG / WebP 格式，檔案大小不可超過 5MB。</div>
-            </div>
-        </div>
-
-        <div class="col-md-8 ds-card p-4">
+        <div class="col-12 ds-card p-4">
             <div class="mb-3">
                 <label class="form-label">商品名稱</label>
                 <input asp-for="Name" class="form-control" />

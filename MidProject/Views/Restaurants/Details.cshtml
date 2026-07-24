@@ -3,6 +3,10 @@
 @{
     ViewData["Title"] = Model.Name;
     var backAction = Model.IsDeleted ? "Deleted" : "Index";
+    var displayRating = Math.Clamp(Model.AverageRating, 0m, 5m);
+    var fullStars = (int)Math.Floor(displayRating);
+    var hasHalfStar = displayRating - fullStars >= 0.5m && fullStars < 5;
+    var emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
 }
 
 @section Styles {
@@ -145,9 +149,11 @@
             <section class="card">
                 <h3>評分摘要</h3>
                 <strong style="font-size:42px">@Model.AverageRating.ToString("0.0")</strong>
-                <p><span class="stars">★★★★★</span></p>
+                <p aria-label="@Model.AverageRating.ToString("0.0") 顆星">
+                    <span class="stars">@(new string('★', fullStars))@(hasHalfStar ? "½" : "")<span class="stars-empty">@(new string('☆', emptyStars))</span></span>
+                </p>
                 <p class="muted">共 @Model.ReviewCount 則評論</p>
-                <a class="btn" href="@Url.Action("Index", "Reviews", new { search = Model.Name })">查看評論</a>
+                <a class="btn" href="@Url.Action("Index", "Reviews", new { RestaurantID = Model.Id })">查看評論</a>
             </section>
 
             <section class="card">
@@ -159,7 +165,7 @@
             <section class="card">
                 <h3>檢舉 / 回報摘要</h3>
                 <p class="muted">查看此餐廳相關的檢舉紀錄。</p>
-                <a class="btn" href="@Url.Action("Index", "Reports", new { Keyword = Model.Name })">查看檢舉</a>
+                <a class="btn" href="@Url.Action("Index", "Reports", new { RestaurantID = Model.Id })">查看檢舉</a>
             </section>
 
             @if (Model.IsDeleted)

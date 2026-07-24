@@ -12,20 +12,12 @@
     <a asp-action="Index" class="btn btn-outline-secondary">← 返回商品列表</a>
 </div>
 
-<form method="post" asp-action="Create" enctype="multipart/form-data">
+<form method="post" asp-action="Create">
     @Html.AntiForgeryToken()
     <div asp-validation-summary="ModelOnly" class="text-danger"></div>
 
     <div class="row">
-        <div class="col-md-4">
-            <div class="ds-card p-3 mb-3">
-                <label class="form-label">外框圖片</label>
-                <input type="file" name="ImageFile" accept="image/jpeg,image/png,image/webp" class="form-control" />
-                <div class="form-text">僅接受 JPG / PNG / WebP 格式，檔案大小不可超過 5MB；建議 512×512px、透明背景 PNG。</div>
-            </div>
-        </div>
-
-        <div class="col-md-8 ds-card p-4">
+        <div class="col-12 ds-card p-4">
             <div class="mb-3">
                 <label class="form-label">商品名稱</label>
                 <input asp-for="Name" class="form-control" placeholder="例如：經典金框" />

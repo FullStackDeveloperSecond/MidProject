@@ -9,49 +9,48 @@
 }
 
 <div class="ds-page-header">
-    <h2>點數商城兌換紀錄</h2>
-    <p class="text-muted">會員以點數兌換頭像外框的完整流水紀錄，可依會員、商品與時間區間查詢。</p>
+    <h1 class="ds-h2 mb-1">點數商城兌換紀錄</h1>
+    <p>會員以點數兌換頭像外框的完整流水紀錄，可依會員、商品與時間區間查詢。</p>
 </div>
 
 <div class="row mb-3 g-3">
     <div class="col-md-3">
         <div class="ds-stat-card ds-stat-card-sm h-100">
-            <h6 class="text-muted mb-1">本月兌換次數</h6>
-            <h4 class="mb-0">@Model.MonthlyRedemptionCount</h4>
+            <div class="ds-stat-label ds-accent-warning">本月兌換次數</div>
+            <div class="ds-stat-value">@Model.MonthlyRedemptionCount</div>
         </div>
     </div>
     <div class="col-md-3">
         <div class="ds-stat-card ds-stat-card-sm h-100">
-            <h6 class="text-muted mb-1">本月消耗點數</h6>
-            <h4 class="mb-0">@Model.MonthlyPointsSpent.ToString("N0")</h4>
+            <div class="ds-stat-label ds-accent-danger">本月消耗點數</div>
+            <div class="ds-stat-value">@Model.MonthlyPointsSpent.ToString("N0")</div>
         </div>
     </div>
     <div class="col-md-3">
         <div class="ds-stat-card ds-stat-card-sm h-100">
-            <h6 class="text-muted mb-1">最熱銷商品</h6>
-            <h4 class="mb-0">@(Model.TopFrameName ?? "—")</h4>
-            <small class="text-muted">本月 @Model.TopFrameCount 次兌換</small>
+            <div class="ds-stat-label ds-accent-purple">最熱銷商品</div>
+            <div class="ds-stat-value" style="font-size:24px;">@(Model.TopFrameName ?? "—")</div>
+            <div class="ds-stat-caption">本月 @Model.TopFrameCount 次兌換</div>
         </div>
     </div>
     <div class="col-md-3">
         <div class="ds-stat-card ds-stat-card-sm h-100">
-            <h6 class="text-muted mb-1">兌換會員數</h6>
-            <h4 class="mb-0">@Model.DistinctMemberCount</h4>
+            <div class="ds-stat-label ds-accent-primary">兌換會員數</div>
+            <div class="ds-stat-value">@Model.DistinctMemberCount</div>
         </div>
     </div>
 </div>
 
-<form method="get" class="ds-toolbar row g-2 align-items-end">
-    <div class="col-md-3">
-        <label class="form-label small text-muted mb-1">會員關鍵字</label>
-        <div class="input-group">
-            <input type="text" name="keyword" class="form-control" value="@Model.Keyword" placeholder="搜尋會員帳號或名稱…" />
-            <button type="submit" class="btn btn-primary">🔍 搜尋</button>
+<form method="get" class="ds-toolbar">
+    <h6 class="ds-block-label">篩選條件</h6>
+    <div class="ds-filter-row">
+        <div class="ds-filter-search-group">
+            <div class="ds-filter-field"><label for="keyword">會員關鍵字</label><input id="keyword" type="text" name="keyword" class="form-control ds-search-input-fill" value="@Model.Keyword" placeholder="搜尋會員帳號或名稱" /></div>
+            <div class="ds-filter-actions"><button type="submit" class="btn ds-btn-query"><i class="fas fa-search"></i>查詢</button><a asp-action="Index" class="btn ds-btn-clear">清除</a></div>
         </div>
-    </div>
-    <div class="col-md-3">
-        <label class="form-label small text-muted mb-1">商品</label>
-        <select name="frameFilter" class="form-select" onchange="this.form.submit()">
+    <div class="ds-filter-field">
+        <label for="frameFilter">商品</label>
+        <select id="frameFilter" name="frameFilter" class="form-select">
             <option value="">所有商品</option>
             @foreach (var f in Model.AvailableFrames)
             {
@@ -59,19 +58,18 @@
             }
         </select>
     </div>
-    <div class="col-md-2">
-        <label class="form-label small text-muted mb-1">起始日期</label>
-        <input type="date" name="startDate" class="form-control" value="@Model.StartDate?.ToString("yyyy-MM-dd")" onchange="this.form.submit()" />
+    <div class="ds-filter-field">
+        <label for="startDate">起始日期</label>
+        <input id="startDate" type="date" name="startDate" class="form-control" value="@Model.StartDate?.ToString("yyyy-MM-dd")" />
     </div>
-    <div class="col-md-2">
-        <label class="form-label small text-muted mb-1">結束日期</label>
-        <input type="date" name="endDate" class="form-control" value="@Model.EndDate?.ToString("yyyy-MM-dd")" onchange="this.form.submit()" />
+    <div class="ds-filter-field">
+        <label for="endDate">結束日期</label>
+        <input id="endDate" type="date" name="endDate" class="form-control" value="@Model.EndDate?.ToString("yyyy-MM-dd")" />
     </div>
-    <div class="col-md-2">
-        <a asp-action="Index" class="btn btn-outline-secondary w-100">重設篩選</a>
     </div>
 </form>
 
+<div class="ds-block-title-row"><h6>兌換紀錄列表</h6><span class="ds-muted small">共 @Model.TotalItems 筆</span></div>
 <div class="ds-table-wrap">
     <div class="table-responsive">
         <table class="ds-table mb-0">
@@ -124,14 +122,23 @@
 
 @if (Model.TotalPages > 1)
 {
-    <nav>
-        <ul class="pagination">
-            @for (int i = 1; i <= Model.TotalPages; i++)
-            {
-                <li class="page-item @(i == Model.CurrentPage ? "active" : "")">
-                    <a class="page-link" href="@Url.Action("Index", new { page = i, keyword = Model.Keyword, frameFilter = Model.FrameFilter, startDate = Model.StartDate, endDate = Model.EndDate })">@i</a>
+    var showStart = (Model.CurrentPage - 1) * 20 + 1;
+    var showEnd = Math.Min(Model.CurrentPage * 20, Model.TotalItems);
+    <div class="sp-pagination">
+        <div class="sp-summary">目前顯示 @showStart–@showEnd 筆，共 @Model.TotalItems 筆</div>
+        <nav aria-label="兌換紀錄分頁">
+            <ul class="pagination">
+                <li class="page-item @(Model.CurrentPage <= 1 ? "disabled" : "")">
+                    <a class="page-link" href="@Url.Action("Index", new { page = Math.Max(1, Model.CurrentPage - 1), keyword = Model.Keyword, frameFilter = Model.FrameFilter, startDate = Model.StartDate, endDate = Model.EndDate })">上一頁</a>
                 </li>
-            }
-        </ul>
-    </nav>
+                @for (int i = 1; i <= Model.TotalPages; i++)
+                {
+                    <li class="page-item @(i == Model.CurrentPage ? "active" : "")"><a class="page-link" href="@Url.Action("Index", new { page = i, keyword = Model.Keyword, frameFilter = Model.FrameFilter, startDate = Model.StartDate, endDate = Model.EndDate })">@i</a></li>
+                }
+                <li class="page-item @(Model.CurrentPage >= Model.TotalPages ? "disabled" : "")">
+                    <a class="page-link" href="@Url.Action("Index", new { page = Math.Min(Model.TotalPages, Model.CurrentPage + 1), keyword = Model.Keyword, frameFilter = Model.FrameFilter, startDate = Model.StartDate, endDate = Model.EndDate })">下一頁</a>
+                </li>
+            </ul>
+        </nav>
+    </div>
 }

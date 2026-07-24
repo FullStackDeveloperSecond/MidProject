@@ -8,7 +8,7 @@
     string SortHref(string col)
     {
         var nextDir = (Model.SortBy == col && Model.SortDir == "desc") ? "asc" : "desc";
-        return Url.Action("Index", new { tab = Model.Tab, search = Model.Search, rating = Model.Rating, time = Model.Time, sortBy = col, sortDir = nextDir, page = 1 })!;
+        return Url.Action("Index", new { tab = Model.Tab, search = Model.Search, rating = Model.Rating, time = Model.Time, sortBy = col, sortDir = nextDir, RestaurantID = Model.RestaurantID, page = 1 })!;
     }
     string SortArrow(string col) => Model.SortBy != col ? "" : (Model.SortDir == "asc" ? "▲" : "▼");
 
@@ -65,7 +65,7 @@
     @foreach (var t in tabs)
     {
         <a class="tab-btn @(Model.Tab == t.Key ? "active" : "")"
-           href="@Url.Action("Index", new { tab = t.Key, search = Model.Search, rating = Model.Rating, time = Model.Time, sortBy = Model.SortBy, sortDir = Model.SortDir })">
+           href="@Url.Action("Index", new { tab = t.Key, search = Model.Search, rating = Model.Rating, time = Model.Time, sortBy = Model.SortBy, sortDir = Model.SortDir, RestaurantID = Model.RestaurantID })">
             @t.Label <span class="tab-count">@t.Count</span>
         </a>
     }
@@ -78,6 +78,10 @@
         <input type="hidden" name="tab" value="@Model.Tab" />
         <input type="hidden" name="sortBy" value="@Model.SortBy" />
         <input type="hidden" name="sortDir" value="@Model.SortDir" />
+        @if (Model.RestaurantID.HasValue)
+        {
+            <input type="hidden" name="RestaurantID" value="@Model.RestaurantID" />
+        }
         <div class="ds-filter-row">
             <div class="ds-filter-search-group">
                 <div class="ds-filter-field">
@@ -181,16 +185,16 @@
         <nav aria-label="分頁導覽">
             <ul class="pagination">
                 <li class="page-item @(Model.Page <= 1 ? "disabled" : "")">
-                    <a class="page-link" href="@Url.Action("Index", new { tab = Model.Tab, search = Model.Search, rating = Model.Rating, time = Model.Time, sortBy = Model.SortBy, sortDir = Model.SortDir, page = Math.Max(1, Model.Page - 1) })">上一頁</a>
+                    <a class="page-link" href="@Url.Action("Index", new { tab = Model.Tab, search = Model.Search, rating = Model.Rating, time = Model.Time, sortBy = Model.SortBy, sortDir = Model.SortDir, RestaurantID = Model.RestaurantID, page = Math.Max(1, Model.Page - 1) })">上一頁</a>
                 </li>
                 @for (int p = 1; p <= Model.TotalPages; p++)
                 {
                     <li class="page-item @(p == Model.Page ? "active" : "")">
-                        <a class="page-link" href="@Url.Action("Index", new { tab = Model.Tab, search = Model.Search, rating = Model.Rating, time = Model.Time, sortBy = Model.SortBy, sortDir = Model.SortDir, page = p })">@p</a>
+                        <a class="page-link" href="@Url.Action("Index", new { tab = Model.Tab, search = Model.Search, rating = Model.Rating, time = Model.Time, sortBy = Model.SortBy, sortDir = Model.SortDir, RestaurantID = Model.RestaurantID, page = p })">@p</a>
                     </li>
                 }
                 <li class="page-item @(Model.Page >= Model.TotalPages ? "disabled" : "")">
-                    <a class="page-link" href="@Url.Action("Index", new { tab = Model.Tab, search = Model.Search, rating = Model.Rating, time = Model.Time, sortBy = Model.SortBy, sortDir = Model.SortDir, page = Math.Min(Model.TotalPages, Model.Page + 1) })">下一頁</a>
+                    <a class="page-link" href="@Url.Action("Index", new { tab = Model.Tab, search = Model.Search, rating = Model.Rating, time = Model.Time, sortBy = Model.SortBy, sortDir = Model.SortDir, RestaurantID = Model.RestaurantID, page = Math.Min(Model.TotalPages, Model.Page + 1) })">下一頁</a>
                 </li>
             </ul>
         </nav>

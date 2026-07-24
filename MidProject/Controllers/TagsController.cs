@@ -1,8 +1,11 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MidProject.Services.IServices;
+using System.Security.Claims;
 
 namespace MidProject.Controllers;
 
+[Authorize(Roles = "Admin")]
 public class TagsController : Controller
 {
     private readonly ITagService _tagService;
@@ -24,7 +27,7 @@ public class TagsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(string name)
     {
-        var (success, error) = await _tagService.CreateAsync(name);
+        var (success, error) = await _tagService.CreateAsync(name, GetAdminId());
         TempData["Toast"] = success ? "標籤已新增。" : error;
         return RedirectToAction(nameof(Index));
     }
@@ -34,7 +37,10 @@ public class TagsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Toggle(int id)
     {
-        await _tagService.ToggleAsync(id);
+        var success = await _tagService.ToggleAsync(id, GetAdminId());
+        if (!success) return NotFound();
         return RedirectToAction(nameof(Index));
     }
+
+    private int GetAdminId() => int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : 0;
 }

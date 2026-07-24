@@ -32,7 +32,15 @@ public class ReportRepository : IReportRepository
             q = q.Where(r => r.Category == query.Category);
 
         if (query.RestaurantID.HasValue)
-            q = q.Where(r => r.RestaurantID == query.RestaurantID.Value);
+        {
+            var restaurantId = query.RestaurantID.Value;
+            q = q.Where(r =>
+                r.RestaurantID == restaurantId ||
+                (r.Review != null && r.Review.RestaurantID == restaurantId) ||
+                (r.Image != null &&
+                    (r.Image.RestaurantImages.Any(ri => ri.RestaurantID == restaurantId) ||
+                     r.Image.ReviewImages.Any(ri => ri.Review != null && ri.Review.RestaurantID == restaurantId))));
+        }
 
         if (query.ReviewID.HasValue)
             q = q.Where(r => r.ReviewID == query.ReviewID.Value);

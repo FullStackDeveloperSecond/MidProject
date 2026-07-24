@@ -8,7 +8,7 @@ namespace MidProject.Services.IServices
     /// </summary>
     public interface IReviewService
     {
-        Task<ReviewListViewModel> GetReviewListAsync(string tab, string? search, int? rating, string time, string sortBy, string sortDir, int page);
+        Task<ReviewListViewModel> GetReviewListAsync(string tab, string? search, int? rating, string time, string sortBy, string sortDir, int? restaurantId, int page);
 
         /// <summary>找不到該評論時回傳 null，Controller 負責轉成 404。</summary>
         Task<ReviewDetailViewModel?> GetReviewDetailAsync(int id);

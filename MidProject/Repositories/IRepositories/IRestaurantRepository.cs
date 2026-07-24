@@ -20,6 +20,7 @@ public interface IRestaurantRepository
     Task RestoreAsync(int id);
     Task<int> GetDefaultAdminMemberIdAsync();
     Task<RestaurantStats> GetStatsAsync(RestaurantFilterQuery filter);
+    Task<IReadOnlyDictionary<int, RestaurantReviewStats>> GetReviewStatsAsync(IEnumerable<int> restaurantIds);
     Task<List<string>> GetDistinctCitiesAsync();
     Task<List<string>> GetDistinctDistrictsAsync();
     Task<List<string>> GetDistinctDeleteReasonsAsync();

@@ -1,5 +1,4 @@
 using System.ComponentModel.DataAnnotations;
-using Microsoft.AspNetCore.Http;
 
 namespace MidProject.Models.ViewModels.PointsStore;
 
@@ -20,10 +19,6 @@ public class AvatarFrameFormViewModel
     public int PointsPrice { get; set; }
 
     public bool IsActive { get; set; } = true;
-
-    public int? ExistingImageId { get; set; }
-    public string? ExistingImageUrl { get; set; }
-    public IFormFile? ImageFile { get; set; }
 
     public bool IsEdit => FrameID.HasValue;
 }
