@@ -154,7 +154,7 @@ public class ReportQueryParams
     public DateTime? DateTo { get; set; }         // 檢舉日期（至）
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 10;
-    public string SortBy { get; set; } = "CreatedAt";      // ReportID / Status / CreatedAt
+    public string SortBy { get; set; } = "CreatedAt";      // ReportID / Status / CreatedAt / ProcessingDays
     public string SortDirection { get; set; } = "desc";    // asc / desc
 }
 
