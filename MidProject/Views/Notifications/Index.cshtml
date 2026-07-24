@@ -46,56 +46,60 @@
     <div class="ds-toolbar mb-4">
         <h6 class="ds-block-label">篩選條件</h6>
         <div>
-            <form asp-action="Index" method="get" class="row g-3 align-items-end">
-                <div class="col-lg-3">
-                    <label class="form-label" for="Keyword">關鍵字</label>
-                    <input class="form-control" id="Keyword" name="Keyword" value="@query.Keyword" placeholder="搜尋標題或內容" />
-                </div>
-                <div class="col-lg-2">
-                    <label class="form-label" for="NotificationType">類型</label>
-                    <select class="form-select" id="NotificationType" name="NotificationType">
-                        <option value="">全部</option>
-                        <option value="Personal" selected="@(query.NotificationType == "Personal")">Personal</option>
-                        <option value="Condition" selected="@(query.NotificationType == "Condition")">Condition</option>
-                    </select>
-                </div>
-                <div class="col-lg-2">
-                    <label class="form-label" for="IsSent">發送狀態</label>
-                    <select class="form-select" id="IsSent" name="IsSent">
-                        <option value="">全部</option>
-                        <option value="false" selected="@(query.IsSent == false)">未發送</option>
-                        <option value="true" selected="@(query.IsSent == true)">已發送</option>
-                    </select>
-                </div>
-                <div class="col-lg-3">
-                    <label class="form-label" for="ScheduledAtMinute">排程分鐘</label>
-                    <input class="form-control" type="datetime-local" id="ScheduledAtMinute" name="ScheduledAtMinute" value="@query.ScheduledAtMinute?.ToString("yyyy-MM-ddTHH:mm")" />
-                </div>
-                <div class="col-lg-2">
-                    <label class="form-label" for="DeletionScope">刪除狀態</label>
-                    <select class="form-select" id="DeletionScope" name="DeletionScope">
-                        <option value="Active" selected="@(query.DeletionScope == NotificationDeletionScope.Active)">未刪除</option>
-                        <option value="Deleted" selected="@(query.DeletionScope == NotificationDeletionScope.Deleted)">已刪除</option>
-                        <option value="All" selected="@(query.DeletionScope == NotificationDeletionScope.All)">全部</option>
-                    </select>
-                </div>
-                <div class="col-lg-3">
-                    <label class="form-label" for="SortField">排序欄位</label>
-                    <select class="form-select" id="SortField" name="SortField">
-                        <option value="ScheduledAt" selected="@(query.SortField == NotificationSortField.ScheduledAt)">ScheduledAt</option>
-                        <option value="CreatedAt" selected="@(query.SortField == NotificationSortField.CreatedAt)">CreatedAt</option>
-                    </select>
-                </div>
-                <div class="col-lg-3">
-                    <label class="form-label" for="SortDirection">排序方向</label>
-                    <select class="form-select" id="SortDirection" name="SortDirection">
-                        <option value="Ascending" selected="@(query.SortDirection == NotificationSortDirection.Ascending)">升冪</option>
-                        <option value="Descending" selected="@(query.SortDirection == NotificationSortDirection.Descending)">降冪</option>
-                    </select>
-                </div>
-                <div class="col-lg-3 d-flex gap-2">
-                    <button type="submit" class="btn ds-btn-query"><i class="fas fa-search"></i> 查詢</button>
-                    <a asp-action="Index" class="btn ds-btn-clear">清除</a>
+            <form asp-action="Index" method="get">
+                <div class="ds-filter-row">
+                    <div class="ds-filter-search-group">
+                        <div class="ds-filter-field">
+                            <label for="Keyword">關鍵字</label>
+                            <input class="form-control ds-search-input-fill" id="Keyword" name="Keyword" value="@query.Keyword" placeholder="搜尋標題或內容" />
+                        </div>
+                        <div class="ds-filter-actions">
+                            <button type="submit" class="btn ds-btn-query"><i class="fas fa-search"></i> 查詢</button>
+                            <a asp-action="Index" class="btn ds-btn-clear">清除</a>
+                        </div>
+                    </div>
+                    <div class="ds-filter-field">
+                        <label for="NotificationType">類型</label>
+                        <select class="form-select" id="NotificationType" name="NotificationType">
+                            <option value="">全部</option>
+                            <option value="Personal" selected="@(query.NotificationType == "Personal")">Personal</option>
+                            <option value="Condition" selected="@(query.NotificationType == "Condition")">Condition</option>
+                        </select>
+                    </div>
+                    <div class="ds-filter-field">
+                        <label for="IsSent">發送狀態</label>
+                        <select class="form-select" id="IsSent" name="IsSent">
+                            <option value="">全部</option>
+                            <option value="false" selected="@(query.IsSent == false)">未發送</option>
+                            <option value="true" selected="@(query.IsSent == true)">已發送</option>
+                        </select>
+                    </div>
+                    <div class="ds-filter-field">
+                        <label for="ScheduledAtMinute">排程分鐘</label>
+                        <input class="form-control" type="datetime-local" id="ScheduledAtMinute" name="ScheduledAtMinute" value="@query.ScheduledAtMinute?.ToString("yyyy-MM-ddTHH:mm")" />
+                    </div>
+                    <div class="ds-filter-field">
+                        <label for="DeletionScope">刪除狀態</label>
+                        <select class="form-select" id="DeletionScope" name="DeletionScope">
+                            <option value="Active" selected="@(query.DeletionScope == NotificationDeletionScope.Active)">未刪除</option>
+                            <option value="Deleted" selected="@(query.DeletionScope == NotificationDeletionScope.Deleted)">已刪除</option>
+                            <option value="All" selected="@(query.DeletionScope == NotificationDeletionScope.All)">全部</option>
+                        </select>
+                    </div>
+                    <div class="ds-filter-field">
+                        <label for="SortField">排序欄位</label>
+                        <select class="form-select" id="SortField" name="SortField">
+                            <option value="ScheduledAt" selected="@(query.SortField == NotificationSortField.ScheduledAt)">ScheduledAt</option>
+                            <option value="CreatedAt" selected="@(query.SortField == NotificationSortField.CreatedAt)">CreatedAt</option>
+                        </select>
+                    </div>
+                    <div class="ds-filter-field">
+                        <label for="SortDirection">排序方向</label>
+                        <select class="form-select" id="SortDirection" name="SortDirection">
+                            <option value="Ascending" selected="@(query.SortDirection == NotificationSortDirection.Ascending)">升冪</option>
+                            <option value="Descending" selected="@(query.SortDirection == NotificationSortDirection.Descending)">降冪</option>
+                        </select>
+                    </div>
                 </div>
             </form>
         </div>

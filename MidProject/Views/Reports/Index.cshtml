@@ -93,45 +93,44 @@
             {
                 <input type="hidden" name="ReviewID" value="@Context.Request.Query["ReviewID"]" />
             }
-            <div class="row g-3 align-items-end mb-4">
-                <div class="col-md-6">
-                    <label class="form-label small mb-1">關鍵字</label>
-                    <input type="text" name="Keyword" value="@Context.Request.Query["Keyword"]" class="form-control" placeholder="原因/檢舉者/被檢舉會員/處理狀態/檢舉目標/檢舉分類" />
+            <div class="ds-filter-row">
+                <div class="ds-filter-search-group">
+                    <div class="ds-filter-field">
+                        <label>關鍵字</label>
+                        <input type="text" name="Keyword" value="@Context.Request.Query["Keyword"]" class="form-control ds-search-input-fill" placeholder="原因/檢舉者/被檢舉會員/處理狀態/檢舉目標/檢舉分類" />
+                    </div>
+                    <div class="ds-filter-actions">
+                        <button type="submit" class="btn ds-btn-query">
+                            <i class="fas fa-search"></i> 查詢
+                        </button>
+                        <a asp-action="Index" class="btn ds-btn-clear">清除</a>
+                    </div>
                 </div>
-                <div class="col-md-3">
-                    <label class="form-label small mb-1">檢舉日期（從）</label>
-                    <input type="date" name="DateFrom" value="@Context.Request.Query["DateFrom"]" class="form-control" />
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label small mb-1">檢舉日期（至）</label>
-                    <input type="date" name="DateTo" value="@Context.Request.Query["DateTo"]" class="form-control" />
-                </div>
-            </div>
-
-            <div class="row g-3 align-items-end">
-                <div class="col-md-3">
-                    <label class="form-label small mb-1">處理狀態</label>
+                <div class="ds-filter-field">
+                    <label>處理狀態</label>
                     <select name="Status" class="form-select" asp-items="statusOptions">
                         <option value="">全部</option>
                     </select>
                 </div>
-                <div class="col-md-3">
-                    <label class="form-label small mb-1">檢舉目標</label>
+                <div class="ds-filter-field">
+                    <label>檢舉目標</label>
                     <select name="TargetType" class="form-select" asp-items="targetTypeOptions">
                         <option value="">全部</option>
                     </select>
                 </div>
-                <div class="col-md-3">
-                    <label class="form-label small mb-1">檢舉分類</label>
+                <div class="ds-filter-field">
+                    <label>檢舉分類</label>
                     <select name="Category" class="form-select" asp-items="categoryOptions">
                         <option value="">全部</option>
                     </select>
                 </div>
-                <div class="col-md-3 d-flex">
-                    <button type="submit" class="btn ds-btn-query flex-fill me-2">
-                        <i class="fas fa-search"></i> 查詢
-                    </button>
-                    <a asp-action="Index" class="btn ds-btn-clear flex-fill">清除</a>
+                <div class="ds-filter-field">
+                    <label>檢舉日期（從）</label>
+                    <input type="date" name="DateFrom" value="@Context.Request.Query["DateFrom"]" class="form-control" />
+                </div>
+                <div class="ds-filter-field">
+                    <label>檢舉日期（至）</label>
+                    <input type="date" name="DateTo" value="@Context.Request.Query["DateTo"]" class="form-control" />
                 </div>
             </div>
         </form>
@@ -214,29 +213,29 @@
                 </tbody>
             </table>
         </div>
-
-        @if (Model.TotalCount > 0)
-        {
-            var showStart = (Model.Page - 1) * Model.PageSize + 1;
-            var showEnd = Math.Min(Model.Page * Model.PageSize, Model.TotalCount);
-            <div class="sp-pagination">
-                <div class="sp-summary">目前顯示 @showStart–@showEnd 筆，共 @Model.TotalCount 筆</div>
-                <nav aria-label="分頁導覽">
-                    <ul class="pagination">
-                        <li class="page-item @(Model.Page <= 1 ? "disabled" : "")">
-                            <a class="page-link" href="@PageUrl(Model.Page - 1)">上一頁</a>
-                        </li>
-                        @for (var p = 1; p <= Model.TotalPages; p++)
-                        {
-                            <li class="page-item @(p == Model.Page ? "active" : "")">
-                                <a class="page-link" href="@PageUrl(p)">@p</a>
-                            </li>
-                        }
-                        <li class="page-item @(Model.Page >= Model.TotalPages ? "disabled" : "")">
-                            <a class="page-link" href="@PageUrl(Model.Page + 1)">下一頁</a>
-                        </li>
-                    </ul>
-                </nav>
-            </div>
-        }
 </div>
+
+@if (Model.TotalCount > 0)
+{
+    var showStart = (Model.Page - 1) * Model.PageSize + 1;
+    var showEnd = Math.Min(Model.Page * Model.PageSize, Model.TotalCount);
+    <div class="sp-pagination">
+        <div class="sp-summary">目前顯示 @showStart–@showEnd 筆，共 @Model.TotalCount 筆</div>
+        <nav aria-label="分頁導覽">
+            <ul class="pagination">
+                <li class="page-item @(Model.Page <= 1 ? "disabled" : "")">
+                    <a class="page-link" href="@PageUrl(Model.Page - 1)">上一頁</a>
+                </li>
+                @for (var p = 1; p <= Model.TotalPages; p++)
+                {
+                    <li class="page-item @(p == Model.Page ? "active" : "")">
+                        <a class="page-link" href="@PageUrl(p)">@p</a>
+                    </li>
+                }
+                <li class="page-item @(Model.Page >= Model.TotalPages ? "disabled" : "")">
+                    <a class="page-link" href="@PageUrl(Model.Page + 1)">下一頁</a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+}

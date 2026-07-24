@@ -294,6 +294,72 @@
     color: var(--ds-text-muted) !important;
 }
 
+/* 篩選條件區塊統一版型：「篩選條件」標題獨立一行放在最上面，下面另起一行——
+   關鍵字/搜尋欄位固定排最左側且優先取得空間（絕不是最窄的欄位），下拉/日期選單
+   依序排在右側；空間不夠時優先縮小下拉選單（flex-shrink），搜尋欄位維持原寬度
+   不縮水，盡量維持單行顯示，太窄時才整行換行。 */
+.ds-filter-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: var(--ds-space-3);
+}
+
+.ds-filter-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1 1 90px;
+    min-width: 90px;
+    max-width: 200px;
+}
+
+.ds-filter-field label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ds-text-muted);
+    white-space: nowrap;
+}
+
+.ds-filter-field select,
+.ds-filter-field input[type="date"],
+.ds-filter-field input[type="datetime-local"] {
+    width: 100%;
+    max-width: 320px;
+}
+
+/* 關鍵字/搜尋欄位＋查詢/清除按鈕這一組：grow 權重比下拉選單高（優先取得多餘空間），
+   shrink 設為 0（空間不夠時絕不縮小，下拉選單先讓步）。 */
+.ds-filter-search-group {
+    display: flex;
+    align-items: flex-end;
+    gap: var(--ds-space-3);
+    flex: 2 0 240px;
+}
+
+.ds-filter-search-group .ds-filter-field {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: none;
+}
+
+/* 關鍵字/搜尋欄位：撐滿所在欄位可用寬度，最大不超過畫面一半；空間不夠完整顯示
+   提示文字時，用刪節號優雅裁切，不強行撐大導致區塊溢出。 */
+.ds-search-input-fill {
+    width: 100%;
+    min-width: 0;
+    max-width: 50vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ds-filter-actions {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 8px;
+}
+
 /* ⑤ Table：取消每列邊框，只有 Hover 變色；表頭柔和淺灰底 */
 .ds-table-wrap {
     background: var(--ds-card-bg);

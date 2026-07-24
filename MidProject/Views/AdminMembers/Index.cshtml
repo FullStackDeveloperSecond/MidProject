@@ -60,33 +60,40 @@
 
 <div class="ds-toolbar mb-3">
     <h6 class="ds-block-label">篩選條件</h6>
-    <form method="get" class="row g-3 align-items-center">
+    <form method="get">
         <input type="hidden" name="showAbnormal" value="@ViewBag.ShowAbnormal.ToString().ToLower()" />
         <input type="hidden" name="todayOnly" value="@ViewBag.TodayOnly.ToString().ToLower()" />
-        <div class="col-md-4">
-            <input type="text" name="keyword" class="form-control" value="@ViewBag.Keyword" placeholder="搜尋帳號, 名稱, Email...">
-        </div>
-        <div class="col-md-2">
-            <select name="statusFilter" class="form-select">
-                <option value="" selected="@(string.IsNullOrEmpty((string)ViewBag.StatusFilter))">所有狀態</option>
-                <option value="Normal" selected="@(ViewBag.StatusFilter == "Normal")">正常</option>
-                <option value="Warning" selected="@(ViewBag.StatusFilter == "Warning")">警告</option>
-                <option value="Muted" selected="@(ViewBag.StatusFilter == "Muted")">禁言</option>
-                <option value="Suspended" selected="@(ViewBag.StatusFilter == "Suspended")">停權</option>
-            </select>
-        </div>
-        <div class="col-md-2">
-            <select name="levelFilter" class="form-select">
-                <option value="">所有等級</option>
-                @foreach (var lv in levelsSorted)
-                {
-                    <option value="@lv.LevelID" selected="@(ViewBag.LevelFilter == lv.LevelID)">@lv.LevelName</option>
-                }
-            </select>
-        </div>
-        <div class="col-md-4 d-flex gap-2">
-            <button type="submit" class="btn ds-btn-query flex-fill"><i class="fas fa-search"></i> 查詢</button>
-            <a href="@Url.Action("Index")" class="btn ds-btn-clear flex-fill">清除</a>
+        <div class="ds-filter-row">
+            <div class="ds-filter-search-group">
+                <div class="ds-filter-field">
+                    <label>關鍵字</label>
+                    <input type="text" name="keyword" class="form-control ds-search-input-fill" value="@ViewBag.Keyword" placeholder="搜尋帳號, 名稱, Email...">
+                </div>
+                <div class="ds-filter-actions">
+                    <button type="submit" class="btn ds-btn-query"><i class="fas fa-search"></i> 查詢</button>
+                    <a href="@Url.Action("Index")" class="btn ds-btn-clear">清除</a>
+                </div>
+            </div>
+            <div class="ds-filter-field">
+                <label>狀態</label>
+                <select name="statusFilter" class="form-select">
+                    <option value="" selected="@(string.IsNullOrEmpty((string)ViewBag.StatusFilter))">所有狀態</option>
+                    <option value="Normal" selected="@(ViewBag.StatusFilter == "Normal")">正常</option>
+                    <option value="Warning" selected="@(ViewBag.StatusFilter == "Warning")">警告</option>
+                    <option value="Muted" selected="@(ViewBag.StatusFilter == "Muted")">禁言</option>
+                    <option value="Suspended" selected="@(ViewBag.StatusFilter == "Suspended")">停權</option>
+                </select>
+            </div>
+            <div class="ds-filter-field">
+                <label>等級</label>
+                <select name="levelFilter" class="form-select">
+                    <option value="">所有等級</option>
+                    @foreach (var lv in levelsSorted)
+                    {
+                        <option value="@lv.LevelID" selected="@(ViewBag.LevelFilter == lv.LevelID)">@lv.LevelName</option>
+                    }
+                </select>
+            </div>
         </div>
     </form>
 </div>

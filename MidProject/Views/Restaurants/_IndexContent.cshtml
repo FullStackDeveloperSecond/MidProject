@@ -72,41 +72,60 @@
 }
 <form method="get" asp-action="Index" class="toolbar ds-toolbar" id="filterForm">
     <h6 class="ds-block-label">篩選條件</h6>
-    <div class="filter-row">
-        <input class="input @searchChanged" type="search" name="Search" value="@Model.Filter.Search" placeholder="搜尋餐廳名稱...">
-        <select class="select @cityChanged" name="City" id="filterCitySelect">
-            <option value="">全部縣市</option>
-            @foreach (var city in Model.AvailableCities)
-            {
-                <option value="@city" selected="@(city == Model.Filter.City)">@city</option>
-            }
-        </select>
-        <select class="select @districtChanged" name="District" id="filterDistrictSelect" data-selected="@Model.Filter.District" onchange="this.form.requestSubmit()">
-            <option value="">全部行政區</option>
-            @foreach (var city in RestaurantOptions.CityDistricts.Keys)
-            {
-                <optgroup label="@city">
-                    @foreach (var district in RestaurantOptions.CityDistricts[city])
-                    {
-                        <option value="@district" selected="@(district == Model.Filter.District)">@district</option>
-                    }
-                </optgroup>
-            }
-        </select>
-        <select class="select @tagChanged" name="TagId" onchange="this.form.requestSubmit()">
-            <option value="">全部標籤</option>
-            @foreach (var tag in Model.AvailableTags)
-            {
-                <option value="@tag.Id" selected="@(Model.Filter.TagId == tag.Id)">@tag.Name</option>
-            }
-        </select>
-        <select class="select @sortChanged" name="Sort" onchange="this.form.requestSubmit()">
-            <option value="newest" selected="@(Model.Filter.Sort == "newest")">最新新增</option>
-            <option value="rating" selected="@(Model.Filter.Sort == "rating")">星級最高</option>
-            <option value="review" selected="@(Model.Filter.Sort == "review")">評論最多</option>
-        </select>
-        <button type="submit" class="btn ds-btn-query"><i class="fas fa-search"></i> 查詢</button>
-        <a class="btn ds-btn-clear" href="@Url.Action("Index")">清除</a>
+    <div class="ds-filter-row">
+        <div class="ds-filter-search-group">
+            <div class="ds-filter-field">
+                <label>關鍵字</label>
+                <input class="input @searchChanged ds-search-input-fill" type="search" name="Search" value="@Model.Filter.Search" placeholder="搜尋餐廳名稱、上傳會員...">
+            </div>
+            <div class="ds-filter-actions">
+                <button type="submit" class="btn ds-btn-query"><i class="fas fa-search"></i> 查詢</button>
+                <a class="btn ds-btn-clear" href="@Url.Action("Index")">清除</a>
+            </div>
+        </div>
+        <div class="ds-filter-field">
+            <label for="filterCitySelect">縣市</label>
+            <select class="select @cityChanged" name="City" id="filterCitySelect">
+                <option value="">全部縣市</option>
+                @foreach (var city in Model.AvailableCities)
+                {
+                    <option value="@city" selected="@(city == Model.Filter.City)">@city</option>
+                }
+            </select>
+        </div>
+        <div class="ds-filter-field">
+            <label for="filterDistrictSelect">行政區</label>
+            <select class="select @districtChanged" name="District" id="filterDistrictSelect" data-selected="@Model.Filter.District" onchange="this.form.requestSubmit()">
+                <option value="">全部行政區</option>
+                @foreach (var city in RestaurantOptions.CityDistricts.Keys)
+                {
+                    <optgroup label="@city">
+                        @foreach (var district in RestaurantOptions.CityDistricts[city])
+                        {
+                            <option value="@district" selected="@(district == Model.Filter.District)">@district</option>
+                        }
+                    </optgroup>
+                }
+            </select>
+        </div>
+        <div class="ds-filter-field">
+            <label>標籤</label>
+            <select class="select @tagChanged" name="TagId" onchange="this.form.requestSubmit()">
+                <option value="">全部標籤</option>
+                @foreach (var tag in Model.AvailableTags)
+                {
+                    <option value="@tag.Id" selected="@(Model.Filter.TagId == tag.Id)">@tag.Name</option>
+                }
+            </select>
+        </div>
+        <div class="ds-filter-field">
+            <label>排序</label>
+            <select class="select @sortChanged" name="Sort" onchange="this.form.requestSubmit()">
+                <option value="newest" selected="@(Model.Filter.Sort == "newest")">最新新增</option>
+                <option value="rating" selected="@(Model.Filter.Sort == "rating")">星級最高</option>
+                <option value="review" selected="@(Model.Filter.Sort == "review")">評論最多</option>
+            </select>
+        </div>
     </div>
 </form>
 <script type="application/json" id="filterCityDistrictsJson">@Html.Raw(System.Text.Json.JsonSerializer.Serialize(RestaurantOptions.CityDistricts))</script>
@@ -125,13 +144,14 @@
                 <th>電話</th>
                 <th>星級</th>
                 <th>評論數</th>
+                <th>上傳會員</th>
                 <th>操作</th>
             </tr>
         </thead>
         <tbody>
             @if (!Model.Items.Any())
             {
-                <tr><td colspan="7" class="muted">目前沒有符合條件的餐廳。</td></tr>
+                <tr><td colspan="8" class="muted">目前沒有符合條件的餐廳。</td></tr>
             }
             else
             {
@@ -149,6 +169,7 @@
                         <td class="muted">@item.Phone</td>
                         <td><span class="stars">★</span>@item.Rating.ToString("0.0")</td>
                         <td>@item.ReviewCount</td>
+                        <td class="muted">@(item.UploaderName ?? "-")</td>
                         <td>
                             <a class="ds-icon-btn ds-icon-btn-view" title="查看" aria-label="查看" href="@Url.Action("Details", new { id = item.Id })">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z" /><circle cx="12" cy="12" r="3" /></svg>

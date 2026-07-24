@@ -28,6 +28,7 @@ public class RestaurantRepository : IRestaurantRepository
     private IQueryable<Restaurant> ListQuery()
     {
         return _db.Restaurants
+            .Include(r => r.Member)
             .Include(r => r.DeletedByMember)
             .Include(r => r.RestaurantTags).ThenInclude(rt => rt.Tag);
     }
@@ -55,7 +56,8 @@ public class RestaurantRepository : IRestaurantRepository
             query = query.Where(r =>
                 r.Name.Contains(keyword) ||
                 r.DetailedAddress.Contains(keyword) ||
-                (r.Note != null && r.Note.Contains(keyword)));
+                (r.Note != null && r.Note.Contains(keyword)) ||
+                (r.Member != null && (r.Member.UserName.Contains(keyword) || (r.Member.NickName != null && r.Member.NickName.Contains(keyword)))));
         }
 
         if (!string.IsNullOrWhiteSpace(city))

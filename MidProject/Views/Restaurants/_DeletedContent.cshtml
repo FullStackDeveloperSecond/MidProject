@@ -46,24 +46,37 @@
 
 <form method="get" asp-action="Deleted" class="toolbar ds-toolbar" id="filterForm">
     <h6 class="ds-block-label">篩選條件</h6>
-    <div class="filter-row deleted-filters">
-        <input class="input" type="search" name="Search" value="@Model.Filter.Search" placeholder="搜尋停用餐廳...">
-        <select class="select" name="City" onchange="this.form.requestSubmit()">
-            <option value="">全部縣市</option>
-            @foreach (var city in Model.AvailableCities)
-            {
-                <option value="@city" selected="@(city == Model.Filter.City)">@city</option>
-            }
-        </select>
-        <select class="select" name="Reason" onchange="this.form.requestSubmit()">
-            <option value="">全部停用原因</option>
-            @foreach (var reason in Model.AvailableReasons)
-            {
-                <option value="@reason" selected="@(reason == Model.Filter.Reason)">@reason</option>
-            }
-        </select>
-        <button type="submit" class="btn ds-btn-query"><i class="fas fa-search"></i> 查詢</button>
-        <a class="btn ds-btn-clear" href="@Url.Action("Deleted")">清除</a>
+    <div class="ds-filter-row">
+        <div class="ds-filter-search-group">
+            <div class="ds-filter-field">
+                <label>關鍵字</label>
+                <input class="input ds-search-input-fill" type="search" name="Search" value="@Model.Filter.Search" placeholder="搜尋停用餐廳...">
+            </div>
+            <div class="ds-filter-actions">
+                <button type="submit" class="btn ds-btn-query"><i class="fas fa-search"></i> 查詢</button>
+                <a class="btn ds-btn-clear" href="@Url.Action("Deleted")">清除</a>
+            </div>
+        </div>
+        <div class="ds-filter-field">
+            <label>縣市</label>
+            <select class="select" name="City" onchange="this.form.requestSubmit()">
+                <option value="">全部縣市</option>
+                @foreach (var city in Model.AvailableCities)
+                {
+                    <option value="@city" selected="@(city == Model.Filter.City)">@city</option>
+                }
+            </select>
+        </div>
+        <div class="ds-filter-field">
+            <label>停用原因</label>
+            <select class="select" name="Reason" onchange="this.form.requestSubmit()">
+                <option value="">全部停用原因</option>
+                @foreach (var reason in Model.AvailableReasons)
+                {
+                    <option value="@reason" selected="@(reason == Model.Filter.Reason)">@reason</option>
+                }
+            </select>
+        </div>
     </div>
 </form>
 

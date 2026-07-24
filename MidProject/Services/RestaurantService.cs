@@ -280,7 +280,8 @@ public class RestaurantService : IRestaurantService
             Phone = r.Phone,
             Tags = r.RestaurantTags.Where(rt => rt.Tag != null && !rt.Tag.IsDeleted).Select(rt => rt.Tag!.TagName).ToList(),
             Rating = r.AverageRating,
-            ReviewCount = r.ReviewCount
+            ReviewCount = r.ReviewCount,
+            UploaderName = r.Member?.NickName ?? r.Member?.UserName
         };
     }
 

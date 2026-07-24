@@ -21,9 +21,9 @@
    這裡只放 <main> 裡面要顯示的內容。第一次先自己測試的話，可以把下面這行取消註解： *@
 @* Layout = null; *@
 
-<link rel="stylesheet" href="~/css/design-system.css" />
-<link rel="stylesheet" href="~/css/reviews-admin.css" />
-<link rel="stylesheet" href="~/css/shared-pagination.css" />
+<link rel="stylesheet" href="~/css/design-system.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/reviews-admin.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/shared-pagination.css" asp-append-version="true" />
 
 <a class="btn btn-outline-secondary js-back-btn-conditional d-none mb-2" data-referrer-pattern="/Restaurants/Details" href="#">← 返回</a>
 
@@ -73,26 +73,41 @@
 
 <div class="ds-toolbar">
     <h6 class="ds-block-label">篩選條件</h6>
-    <form method="get" asp-action="Index" class="filter-row">
+    <form method="get" asp-action="Index">
         @* 保留目前的 tab / 排序，換頁篩選條件時不要跳回「全部」或重排 *@
         <input type="hidden" name="tab" value="@Model.Tab" />
         <input type="hidden" name="sortBy" value="@Model.SortBy" />
         <input type="hidden" name="sortDir" value="@Model.SortDir" />
-        <input class="search-box" type="text" name="search" placeholder="搜尋評論內容、會員、餐廳..." value="@Model.Search" />
-        <select class="f-select" name="rating" onchange="this.form.submit()">
-            <option value="">所有星等</option>
-            @for (int i = 5; i >= 1; i--)
-            {
-                <option value="@i" selected="@(Model.Rating == i)">@i 星</option>
-            }
-        </select>
-        <select class="f-select" name="time" onchange="this.form.submit()">
-            <option value="all" selected="@(Model.Time == "all")">所有時間</option>
-            <option value="7" selected="@(Model.Time == "7")">近 7 天</option>
-            <option value="30" selected="@(Model.Time == "30")">近 30 天</option>
-        </select>
-        <button type="submit" class="btn ds-btn-query"><i class="fas fa-search"></i> 查詢</button>
-        <a class="btn ds-btn-clear" href="@Url.Action("Index")">清除</a>
+        <div class="ds-filter-row">
+            <div class="ds-filter-search-group">
+                <div class="ds-filter-field">
+                    <label>關鍵字</label>
+                    <input class="search-box ds-search-input-fill" type="text" name="search" placeholder="搜尋評論內容、會員、餐廳..." value="@Model.Search" />
+                </div>
+                <div class="ds-filter-actions">
+                    <button type="submit" class="btn ds-btn-query"><i class="fas fa-search"></i> 查詢</button>
+                    <a class="btn ds-btn-clear" href="@Url.Action("Index")">清除</a>
+                </div>
+            </div>
+            <div class="ds-filter-field">
+                <label>星等</label>
+                <select class="f-select" name="rating" onchange="this.form.submit()">
+                    <option value="">所有星等</option>
+                    @for (int i = 5; i >= 1; i--)
+                    {
+                        <option value="@i" selected="@(Model.Rating == i)">@i 星</option>
+                    }
+                </select>
+            </div>
+            <div class="ds-filter-field">
+                <label>時間範圍</label>
+                <select class="f-select" name="time" onchange="this.form.submit()">
+                    <option value="all" selected="@(Model.Time == "all")">所有時間</option>
+                    <option value="7" selected="@(Model.Time == "7")">近 7 天</option>
+                    <option value="30" selected="@(Model.Time == "30")">近 30 天</option>
+                </select>
+            </div>
+        </div>
     </form>
 </div>
 
