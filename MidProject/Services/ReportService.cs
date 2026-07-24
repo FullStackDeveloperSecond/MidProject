@@ -1,16 +1,19 @@
 using MidProject.Models.DTOs;
 using MidProject.Models;
 using MidProject.Repositories;
+using MidProject.Services.IServices;
 
 namespace MidProject.Services;
 
 public class ReportService : IReportService
 {
     private readonly IReportRepository _repository;
+    private readonly IReportNotificationWindow _notificationWindow;
 
-    public ReportService(IReportRepository repository)
+    public ReportService(IReportRepository repository, IReportNotificationWindow notificationWindow)
     {
         _repository = repository;
+        _notificationWindow = notificationWindow;
     }
 
     public async Task<PagedResult<ReportDto>> GetReportsAsync(ReportQueryParams query)
@@ -41,9 +44,13 @@ public class ReportService : IReportService
         if (targetCount != 1)
             throw new ArgumentException("檢舉目標必須恰好指定一個（餐廳、評論或圖片擇一）");
 
+        // 建立時即填入被檢舉會員＝檢舉目標（餐廳／評論／圖片）的擁有者
+        var reportedMemberId = await _repository.GetTargetOwnerMemberIdAsync(dto.RestaurantID, dto.ReviewID, dto.ImageID);
+
         var report = new Report
         {
             ReporterMemberID = reporterMemberId,
+            ReportedMemberID = reportedMemberId,
             RestaurantID = dto.RestaurantID,
             ReviewID = dto.ReviewID,
             ImageID = dto.ImageID,
@@ -89,71 +96,66 @@ public class ReportService : IReportService
         return true;
     }
 
-    public async Task<bool> NotifyReporterAsync(int reportId, NotifyReporterDto dto, int adminMemberId)
+    // 通知檢舉者：管理員在通知視窗編輯內容後按「儲存」時呼叫，交由 Alex 的通知模組建立未發送通知。
+    // 每個檢舉＋收件人只能通知一次（模組已存在該筆時回報 AlreadyNotified）。
+    public async Task<ReportNotifyResult> NotifyReporterAsync(int reportId, NotifyReporterDto dto, int adminMemberId)
     {
         var report = await _repository.GetByIdAsync(reportId);
-        if (report == null) return false;
+        if (report == null) return ReportNotifyResult.Fail();
 
-        // 規則：只有已經審核完畢（核准或駁回）的檢舉才能通知結果，Pending 的還沒有結果可以通知
-        if (report.Status == "Pending") return false;
+        // 待處理：按「儲存」的當下才把檢舉定案（用管理員的處理決定），再建立通知——
+        // 未按儲存前檢舉維持待處理、不算處理完成
+        report = await EnsureHandledAsync(report, dto, adminMemberId);
+        if (report == null || report.Status == "Pending") return ReportNotifyResult.Fail();
 
-        var notification = new Notification
-        {
-            MemberID = report.ReporterMemberID,
-            NotificationType = "Personal",
-            Title = dto.Title,
-            Content = dto.Content,
-            ScheduledAt = DateTime.Now,
-            SentAt = DateTime.Now,
-            IsSent = true,
-            CreatedAt = DateTime.Now,
-            CreatedBy = adminMemberId,
-            // 寫入來源檢舉標記，讓「通知紀錄」查得到已送出內容
-            //（索引已改為非唯一，同一檢舉可掛多筆通知）
-            SourceReportID = reportId,
-            SourceReportOutcome = report.Status
-        };
+        var handledAt = report.HandledAt ?? DateTime.Now;
+        var result = await _notificationWindow.CreateOutcomeNotificationAsync(
+            new ReportNotificationRequest(reportId, report.ReporterMemberID, report.Status, adminMemberId, handledAt, dto.Title, dto.Content));
 
-        await _repository.AddNotificationAsync(notification);
-        await _repository.SaveChangesAsync();
-
-        return true;
+        return ToNotifyResult(result);
     }
 
-    public async Task<bool> NotifyReportedMemberAsync(int reportId, NotifyReporterDto dto, int adminMemberId)
+    // 通知被檢舉會員：僅檢舉成立時可用
+    public async Task<ReportNotifyResult> NotifyReportedMemberAsync(int reportId, NotifyReporterDto dto, int adminMemberId)
     {
         var report = await _repository.GetByIdAsync(reportId);
-        if (report == null) return false;
+        if (report == null) return ReportNotifyResult.Fail();
 
-        // 規則：只有「檢舉成立」才需要通知內容擁有者，駁回代表內容沒有違規，不需要通知
-        if (report.Status != "Approved") return false;
+        // 待處理：先定案再通知
+        report = await EnsureHandledAsync(report, dto, adminMemberId);
+        if (report == null || report.Status != "Approved") return ReportNotifyResult.Fail();
+        if (!report.ReportedMemberID.HasValue) return ReportNotifyResult.Fail();
 
-        var reportedMemberId = report.Restaurant?.MemberID
-            ?? report.Review?.MemberID
-            ?? report.Image?.UploadedByMemberID;
-        if (reportedMemberId == null) return false;
+        var handledAt = report.HandledAt ?? DateTime.Now;
+        var result = await _notificationWindow.CreateReportedMemberNotificationAsync(
+            new ReportedMemberNotificationRequest(reportId, report.ReportedMemberID.Value, report.Status, adminMemberId, handledAt, dto.Title, dto.Content));
 
-        var notification = new Notification
-        {
-            MemberID = reportedMemberId,
-            NotificationType = "Personal",
-            Title = dto.Title,
-            Content = dto.Content,
-            ScheduledAt = DateTime.Now,
-            SentAt = DateTime.Now,
-            IsSent = true,
-            CreatedAt = DateTime.Now,
-            CreatedBy = adminMemberId,
-            // 通知被檢舉會員也掛來源檢舉標記（索引已非唯一），通知紀錄才能一併列出
-            SourceReportID = reportId,
-            SourceReportOutcome = report.Status
-        };
-
-        await _repository.AddNotificationAsync(notification);
-        await _repository.SaveChangesAsync();
-
-        return true;
+        return ToNotifyResult(result);
     }
+
+    // 若檢舉仍為待處理且帶有處理決定，於此時才定案（設定狀態／被檢舉會員／處理人）；
+    // 已處理者不動，重新讀取後回傳最新的 Report。
+    private async Task<Report?> EnsureHandledAsync(Report report, NotifyReporterDto dto, int adminMemberId)
+    {
+        if (report.Status != "Pending") return report;
+        if (string.IsNullOrWhiteSpace(dto.HandleStatus)) return report; // 沒有處理決定，維持待處理
+
+        await HandleReportAsync(report.ReportID, new ReportHandleDto
+        {
+            Status = dto.HandleStatus,
+            Category = dto.HandleCategory,
+            AdminNote = dto.HandleAdminNote
+        }, adminMemberId);
+
+        return await _repository.GetByIdAsync(report.ReportID);
+    }
+
+    private static ReportNotifyResult ToNotifyResult(ReportNotificationResult result) => result.Classification switch
+    {
+        ReportNotificationClassification.Created => ReportNotifyResult.Ok(),
+        ReportNotificationClassification.AlreadyExists => ReportNotifyResult.Already(),
+        _ => ReportNotifyResult.Fail()
+    };
 
     public async Task<List<ReportNotificationRecordDto>> GetSentNotificationsAsync(int reportId)
     {
@@ -165,6 +167,9 @@ public class ReportService : IReportService
             Title = n.Title,
             Content = n.Content,
             Outcome = n.SourceReportOutcome,
+            IsSent = n.IsSent,
+            CreatedAt = n.CreatedAt,
+            ScheduledAt = n.ScheduledAt,
             SentAt = n.SentAt
         }).ToList();
     }
@@ -217,13 +222,13 @@ public class ReportService : IReportService
             ?? r.Image?.ReviewImages.Select(rvi => rvi.Review?.Restaurant?.Name).FirstOrDefault(n => n != null),
         ReviewID = r.ReviewID,
         ImageID = r.ImageID,
-        // 被檢舉會員：該檢舉目標（餐廳/評論/圖片）背後的建立者/上傳者
+        // 被檢舉會員：該檢舉目標（餐廳/評論/圖片）背後的建立者/上傳者。
+        // 名稱維持顯示原擁有者；ID 則排除 Admin（管理員不列為被檢舉會員、不連結、不通知、不計懲處），
+        // 與 HandleReportAsync／NotifyReportedMemberAsync 的規則一致
         ReportedMemberUserName = r.Restaurant?.Member?.UserName
             ?? r.Review?.Member?.UserName
             ?? r.Image?.UploadedByMember?.UserName,
-        ReportedMemberID = r.Restaurant?.MemberID
-            ?? r.Review?.MemberID
-            ?? r.Image?.UploadedByMemberID,
+        ReportedMemberID = EffectiveReportedMemberId(r),
         Reason = r.Reason,
         Status = r.Status,
         Category = r.Category,
@@ -232,4 +237,11 @@ public class ReportService : IReportService
         HandledByUserName = r.HandledByMember?.UserName,
         AdminNote = r.AdminNote
     };
+
+    // 被檢舉會員的有效 ID：目標內容擁有者，但擁有者為 Admin 時回傳 null（排除管理員）
+    private static int? EffectiveReportedMemberId(Report r)
+    {
+        var owner = r.Restaurant?.Member ?? r.Review?.Member ?? r.Image?.UploadedByMember;
+        return (owner != null && owner.Role != "Admin") ? owner.MemberID : null;
+    }
 }

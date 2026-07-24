@@ -9,8 +9,8 @@ public interface IReportService
     Task<ReportDto?> GetByIdAsync(int reportId);
     Task<Report> CreateReportAsync(ReportCreateDto dto, int reporterMemberId);
     Task<bool> HandleReportAsync(int reportId, ReportHandleDto dto, int adminMemberId);
-    Task<bool> NotifyReporterAsync(int reportId, NotifyReporterDto dto, int adminMemberId);
-    Task<bool> NotifyReportedMemberAsync(int reportId, NotifyReporterDto dto, int adminMemberId);
+    Task<ReportNotifyResult> NotifyReporterAsync(int reportId, NotifyReporterDto dto, int adminMemberId);
+    Task<ReportNotifyResult> NotifyReportedMemberAsync(int reportId, NotifyReporterDto dto, int adminMemberId);
     Task<List<ReportNotificationRecordDto>> GetSentNotificationsAsync(int reportId);
     Task<ReportDashboardDto> GetDashboardAsync();
 }

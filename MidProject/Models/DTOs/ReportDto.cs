@@ -90,15 +90,29 @@ public class ReportDto
         "美食探店平台 管理團隊";
 }
 
-// 檢舉詳情頁「通知紀錄」視窗顯示已送出通知用
+// 檢舉詳情頁「通知紀錄」視窗顯示通知用
 public class ReportNotificationRecordDto
 {
     public int NotificationID { get; set; }
     public int? MemberID { get; set; }        // 收件會員：用來區分「通知檢舉者」與「通知被檢舉會員」的紀錄
     public string Title { get; set; } = string.Empty;
     public string Content { get; set; } = string.Empty;
-    public string? Outcome { get; set; }      // 送出當時的處理結果（Approved / Rejected）
-    public DateTime? SentAt { get; set; }
+    public string? Outcome { get; set; }      // 處理結果（Approved / Rejected）
+    public bool IsSent { get; set; }          // 是否已由通知模組發送
+    public DateTime CreatedAt { get; set; }   // 交付通知模組的時間（發送通知模組時間）
+    public DateTime ScheduledAt { get; set; } // 排程發送時間
+    public DateTime? SentAt { get; set; }     // 實際發送時間（未發送為 null）
+}
+
+// 通知檢舉者／被檢舉會員的結果：成功、已通知過（只能一次）、失敗
+public sealed class ReportNotifyResult
+{
+    public bool Success { get; init; }
+    public bool AlreadyNotified { get; init; }
+
+    public static ReportNotifyResult Ok() => new() { Success = true };
+    public static ReportNotifyResult Already() => new() { AlreadyNotified = true };
+    public static ReportNotifyResult Fail() => new();
 }
 
 // 管理員通知檢舉會員審核結果時使用
@@ -110,6 +124,12 @@ public class NotifyReporterDto
 
     [Required(ErrorMessage = "請輸入通知內容")]
     public string Content { get; set; } = string.Empty;
+
+    // 待處理案件按「儲存」時一併帶入處理決定：先把檢舉定案（已處理）再建立通知。
+    // 已處理案件（通知紀錄重開）則不帶這些，維持原處理狀態不變。
+    public string? HandleStatus { get; set; }
+    public string? HandleCategory { get; set; }
+    public string? HandleAdminNote { get; set; }
 }
 
 // 會員送出檢舉時使用：三個目標欄位只能填一個（使用者只能針對餐廳/評論/圖片檢舉，不能檢舉會員）

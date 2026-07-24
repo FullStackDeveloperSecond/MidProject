@@ -1,9 +1,13 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MidProject.Models.DTOs;
 using MidProject.Services;
+using System.Security.Claims;
 
 namespace MidProject.Controllers;
 
+// 後台檢舉管理僅限管理員：匿名與一般 User 一律擋下（重導登入 / 拒絕存取）
+[Authorize(Roles = "Admin")]
 public class ReportsController : Controller
 {
     private readonly IReportService _reportService;
@@ -54,7 +58,6 @@ public class ReportsController : Controller
             return View("Details", report);
         }
 
-        // TODO: 等 Members 模組的登入/驗證機制完成後，改成從登入狀態取得目前管理員 ID
         var adminMemberId = GetCurrentAdminMemberId();
 
         var success = await _reportService.HandleReportAsync(id, dto, adminMemberId);
@@ -62,15 +65,15 @@ public class ReportsController : Controller
 
         if (IsAjaxRequest())
         {
-            // 處理完成後前端要立刻跳出通知視窗：檢舉成立給「通知檢舉者」+「通知被檢舉會員」兩張卡片，
-            // 駁回檢舉只給「通知檢舉者」一張卡片，預設標題／內容直接沿用 ReportDto 既有的範本
+            // 處理後開啟通知視窗：帶回檢舉者（＋被檢舉會員，若成立）的預設通知內容供管理員編輯後儲存。
+            // 通知內容由管理員按「儲存」時才交由通知模組建立，並非在此自動建立。
             var updated = await _reportService.GetByIdAsync(id);
             return Json(new
             {
                 success = true,
                 status = updated!.Status,
                 reporter = new { title = updated.DefaultNotificationTitle, content = updated.DefaultNotificationContent },
-                reportedMember = updated.Status == "Approved"
+                reportedMember = (updated.Status == "Approved" && updated.ReportedMemberID.HasValue)
                     ? new { title = updated.DefaultReportedMemberNotificationTitle, content = updated.DefaultReportedMemberNotificationContent }
                     : null
             });
@@ -80,42 +83,34 @@ public class ReportsController : Controller
         return RedirectToAction(nameof(Details), new { id });
     }
 
-    // POST: /Reports/NotifyReporter/5
+    // POST: /Reports/NotifyReporter/5 — 管理員按「儲存」交由通知模組通知檢舉者（建立未發送通知）
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> NotifyReporter(int id, NotifyReporterDto dto)
     {
-        var adminMemberId = GetCurrentAdminMemberId();
-
-        var success = await _reportService.NotifyReporterAsync(id, dto, adminMemberId);
-        if (!success) return NotFound();
-
+        var result = await _reportService.NotifyReporterAsync(id, dto, GetCurrentAdminMemberId());
         if (IsAjaxRequest())
-            return Json(new { success = true });
+            return Json(new { success = result.Success, alreadyNotified = result.AlreadyNotified });
 
-        TempData["Message"] = "已通知檢舉會員審核結果";
+        TempData["Message"] = result.Success ? "已交由通知模組通知檢舉者" : "通知失敗或已通知過";
         return RedirectToAction(nameof(Details), new { id });
     }
 
-    // POST: /Reports/NotifyReportedMember/5
+    // POST: /Reports/NotifyReportedMember/5 — 通知被檢舉會員（僅檢舉成立）
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> NotifyReportedMember(int id, NotifyReporterDto dto)
     {
-        var adminMemberId = GetCurrentAdminMemberId();
-
-        var success = await _reportService.NotifyReportedMemberAsync(id, dto, adminMemberId);
-        if (!success) return NotFound();
-
+        var result = await _reportService.NotifyReportedMemberAsync(id, dto, GetCurrentAdminMemberId());
         if (IsAjaxRequest())
-            return Json(new { success = true });
+            return Json(new { success = result.Success, alreadyNotified = result.AlreadyNotified });
 
-        TempData["Message"] = "已通知被檢舉會員";
+        TempData["Message"] = result.Success ? "已交由通知模組通知被檢舉會員" : "通知失敗或已通知過";
         return RedirectToAction(nameof(Details), new { id });
     }
 
     // GET: /Reports/SentNotifications/5
-    // 「通知紀錄」視窗用：查詢該檢舉已送出的通知（依 Notifications.SourceReportID 關聯）
+    // 「通知紀錄」視窗用：查詢該檢舉的通知（依 Notifications.SourceReportID 關聯，含未發送）
     [HttpGet]
     public async Task<IActionResult> SentNotifications(int id)
     {
@@ -123,10 +118,11 @@ public class ReportsController : Controller
         return Json(new { success = true, records });
     }
 
+    // 從登入憑證取得目前管理員的 MemberID（登入時寫入 ClaimTypes.NameIdentifier）
     private int GetCurrentAdminMemberId()
     {
-        // 暫時寫死，之後接上登入驗證後從 HttpContext.User 或 Session 取得
-        return 1;
+        var idValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return int.TryParse(idValue, out var memberId) ? memberId : 0;
     }
 
     private bool IsAjaxRequest() => Request.Headers["X-Requested-With"] == "XMLHttpRequest";

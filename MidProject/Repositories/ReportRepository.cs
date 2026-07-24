@@ -145,12 +145,29 @@ public class ReportRepository : IReportRepository
         await _context.Notifications.AddAsync(notification);
     }
 
+    public async Task<int?> GetTargetOwnerMemberIdAsync(int? restaurantId, int? reviewId, int? imageId)
+    {
+        int? ownerId = null;
+        if (restaurantId.HasValue)
+            ownerId = await _context.Restaurants.Where(r => r.RestaurantID == restaurantId).Select(r => (int?)r.MemberID).FirstOrDefaultAsync();
+        else if (reviewId.HasValue)
+            ownerId = await _context.Reviews.Where(r => r.ReviewID == reviewId).Select(r => (int?)r.MemberID).FirstOrDefaultAsync();
+        else if (imageId.HasValue)
+            ownerId = await _context.Images.Where(i => i.ImageID == imageId).Select(i => i.UploadedByMemberID).FirstOrDefaultAsync();
+
+        if (ownerId == null) return null;
+
+        // 排除 Admin：管理員不列為被檢舉會員（與 HandleReportAsync 一致）
+        var isAdmin = await _context.Members.AnyAsync(m => m.MemberID == ownerId && m.Role == "Admin");
+        return isAdmin ? null : ownerId;
+    }
+
     public async Task<List<Notification>> GetNotificationsByReportAsync(int reportId)
     {
-        // 只撈實際已送出且未刪除的通知；(SourceReportID, SourceReportOutcome) 有唯一索引，
-        // 一筆檢舉最多兩筆（Approved 與 Rejected 各一）
+        // 撈該檢舉的通知紀錄（含尚未發送的），供詳情頁「通知紀錄」顯示；
+        // 通知改由通知模組發送，建立當下為未發送，故不再以 IsSent 過濾
         return await _context.Notifications
-            .Where(n => n.SourceReportID == reportId && n.IsSent && !n.IsDeleted)
+            .Where(n => n.SourceReportID == reportId && !n.IsDeleted)
             .OrderByDescending(n => n.NotificationID)
             .ToListAsync();
     }
