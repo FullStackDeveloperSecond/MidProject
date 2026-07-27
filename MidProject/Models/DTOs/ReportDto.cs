@@ -104,15 +104,29 @@ public class ReportNotificationRecordDto
     public DateTime? SentAt { get; set; }     // 實際發送時間（未發送為 null）
 }
 
-// 通知檢舉者／被檢舉會員的結果：成功、已通知過（只能一次）、失敗
+// 後台處理檢舉的結果（供並行控制／驗證回報）
+public enum ReportHandleOutcome
+{
+    Handled,          // 本次成功定案
+    NotFound,
+    AlreadyHandled,   // 已被（其他管理員）處理，並行控制擋下
+    InvalidStatus,    // 只接受 Approved / Rejected
+    AdminNoteRequired,// 管理員備註必填
+    AdminNoteTooLong  // 管理員備註超過長度
+}
+
+// 通知檢舉者／被檢舉會員的結果：每種失敗都帶明確訊息給管理員
 public sealed class ReportNotifyResult
 {
     public bool Success { get; init; }
     public bool AlreadyNotified { get; init; }
+    public bool RecipientUnavailable { get; init; }
+    public string? Message { get; init; }
 
     public static ReportNotifyResult Ok() => new() { Success = true };
-    public static ReportNotifyResult Already() => new() { AlreadyNotified = true };
-    public static ReportNotifyResult Fail() => new();
+    public static ReportNotifyResult Already() => new() { AlreadyNotified = true, Message = "此對象已通知過（每個對象只能通知一次）。" };
+    public static ReportNotifyResult Recipient(string message) => new() { RecipientUnavailable = true, Message = message };
+    public static ReportNotifyResult Fail(string message) => new() { Message = message };
 }
 
 // 管理員通知檢舉會員審核結果時使用
@@ -151,13 +165,18 @@ public class ReportCreateDto
 // 管理員處理檢舉時使用：分類預設由檢舉人送出時選定，管理員審核時可以修改
 public class ReportHandleDto
 {
+    // 後台處理只接受「檢舉成立(Approved)」或「駁回檢舉(Rejected)」，不接受 Pending
     [Required]
-    [RegularExpression("Pending|Approved|Rejected", ErrorMessage = "狀態值不正確")]
+    [RegularExpression("Approved|Rejected", ErrorMessage = "處理結果僅能為檢舉成立或駁回檢舉")]
     public string Status { get; set; } = string.Empty;
 
-    [RegularExpression("不實資訊|廣告洗版|人身攻擊|仇恨言論|色情內容|垃圾訊息", ErrorMessage = "分類值不正確")]
+    // 違規分類：管理員可覆寫為 6 種違規分類之一；「未分類」為與實體預設一致的合法保留值（不主動提供於下拉選單）
+    [RegularExpression("不實資訊|廣告洗版|人身攻擊|仇恨言論|色情內容|垃圾訊息|未分類", ErrorMessage = "分類值不正確")]
     public string? Category { get; set; }
 
+    // 處理檢舉時管理員備註為必填，空白視為未填，最多 30 字
+    [Required(ErrorMessage = "處理檢舉時「管理員備註」為必填")]
+    [StringLength(30, ErrorMessage = "「管理員備註」最多 30 字")]
     public string? AdminNote { get; set; }
 }
 

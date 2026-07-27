@@ -172,8 +172,8 @@
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">管理員備註</label>
-                        <textarea name="AdminNote" class="form-control" rows="3" readonly="@isHandled">@(isHandled ? Model.AdminNote : null)</textarea>
+                        <label class="form-label">管理員備註（必填，最多 30 字）</label>
+                        <textarea name="AdminNote" class="form-control" rows="3" maxlength="30" readonly="@isHandled">@(isHandled ? Model.AdminNote : null)</textarea>
                     </div>
                     @if (isHandled)
                     {
@@ -350,16 +350,24 @@
                         },
                         headers: { 'X-Requested-With': 'XMLHttpRequest' }
                     }).done(function (res) {
-                        reloadOnClose = true;
+                        reloadOnClose = true; // 此時檢舉可能已定案（待處理案件按儲存即定案）
                         if (res.success || res.alreadyNotified) {
                             // 交付通知模組後重新讀取紀錄，取得發送通知模組時間並鎖定卡片
                             refreshFromRecords();
+                        } else if (res.recipientUnavailable) {
+                            // 收件會員已刪除/不存在：通知無法發送（非暫時性錯誤），但檢舉已完成處理
+                            alert(res.message || '收件會員已停權或刪除，無法發送通知；此檢舉已完成處理。');
+                            $badge.removeClass('d-none').text('會員已停權/刪除，未發送通知');
+                            $editBtn.prop('disabled', true);
+                            $saveBtn.prop('disabled', true);
+                            notified = true;
                         } else {
-                            alert('通知失敗，請稍後再試');
+                            // 其他失敗（並行衝突、備註驗證、管理員無效、保存失敗…）各有明確訊息
+                            alert(res.message || '通知失敗，請稍後再試。');
                             $saveBtn.prop('disabled', false);
                         }
                     }).fail(function () {
-                        alert('通知失敗，請稍後再試');
+                        alert('通知失敗，請稍後再試。');
                         $saveBtn.prop('disabled', false);
                     });
                 });
@@ -428,12 +436,14 @@
             // 若直接關閉視窗（未按儲存），檢舉維持待處理、不算處理完成。
             $('#handleForm').on('submit', function (e) {
                 e.preventDefault();
-                pendingDecision = {
-                    status: $('#handleForm select[name="Status"]').val(),
-                    category: $('#handleForm select[name="Category"]').val(),
-                    adminNote: $('#handleForm textarea[name="AdminNote"]').val()
-                };
-                reportStatus = pendingDecision.status; // 依此時選擇的結果決定要顯示哪些通知卡片
+                var status = $('#handleForm select[name="Status"]').val();
+                var category = $('#handleForm select[name="Category"]').val();
+                var adminNote = ($('#handleForm textarea[name="AdminNote"]').val() || '').trim();
+                // 管理員備註必填、空白視為未填、最多 30 字（後端也會再驗證）
+                if (adminNote.length === 0) { alert('處理檢舉時「管理員備註」為必填。'); return; }
+                if (adminNote.length > 30) { alert('「管理員備註」最多 30 字。'); return; }
+                pendingDecision = { status: status, category: category, adminNote: adminNote };
+                reportStatus = status; // 依此時選擇的結果決定要顯示哪些通知卡片
                 openNotifyModal();
             });
 

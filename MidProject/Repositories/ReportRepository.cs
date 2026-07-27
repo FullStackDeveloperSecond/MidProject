@@ -122,7 +122,10 @@ public class ReportRepository : IReportRepository
 
     public async Task<Report?> GetByIdAsync(int reportId)
     {
+        // AsNoTracking：處理檢舉改用 ExecuteUpdate 原子更新後，需重新從資料庫讀取最新狀態，
+        // 不能拿到 EF 身分對應快取中的舊實體（否則會誤判仍為待處理）
         return await _context.Reports
+            .AsNoTracking()
             .Include(r => r.ReporterMember)
             .Include(r => r.Restaurant).ThenInclude(rest => rest!.Member)
             .Include(r => r.Review).ThenInclude(rev => rev!.Member)
@@ -160,6 +163,20 @@ public class ReportRepository : IReportRepository
         // 排除 Admin：管理員不列為被檢舉會員（與 HandleReportAsync 一致）
         var isAdmin = await _context.Members.AnyAsync(m => m.MemberID == ownerId && m.Role == "Admin");
         return isAdmin ? null : ownerId;
+    }
+
+    public async Task<int> TryHandleAsync(int reportId, string status, string category, string adminNote, int? reportedMemberId, int adminMemberId, DateTime handledAt)
+    {
+        // 條件式原子更新：WHERE Status='Pending'，資料庫層保證只有一人能把待處理改為已處理
+        return await _context.Reports
+            .Where(r => r.ReportID == reportId && r.Status == "Pending" && !r.IsDeleted)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(r => r.Status, status)
+                .SetProperty(r => r.Category, category)
+                .SetProperty(r => r.AdminNote, adminNote)
+                .SetProperty(r => r.ReportedMemberID, reportedMemberId)
+                .SetProperty(r => r.HandledByMemberID, adminMemberId)
+                .SetProperty(r => r.HandledAt, handledAt));
     }
 
     public async Task<List<Notification>> GetNotificationsByReportAsync(int reportId)

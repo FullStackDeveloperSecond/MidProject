@@ -60,26 +60,22 @@ public class ReportsController : Controller
 
         var adminMemberId = GetCurrentAdminMemberId();
 
-        var success = await _reportService.HandleReportAsync(id, dto, adminMemberId);
-        if (!success) return NotFound();
+        // 直接處理（非 AJAX 後備路徑）：實際流程改由通知視窗按「儲存」時定案，此處僅作後備。
+        var outcome = await _reportService.HandleReportAsync(id, dto, adminMemberId);
+        var message = outcome switch
+        {
+            ReportHandleOutcome.Handled => "檢舉已處理。",
+            ReportHandleOutcome.AlreadyHandled => "此檢舉已由其他管理員處理，請重新整理後確認。",
+            ReportHandleOutcome.InvalidStatus => "處理結果不正確（僅能為檢舉成立或駁回檢舉）。",
+            ReportHandleOutcome.AdminNoteRequired => "處理檢舉時「管理員備註」為必填。",
+            ReportHandleOutcome.AdminNoteTooLong => "「管理員備註」最多 30 字。",
+            _ => "找不到指定的檢舉。"
+        };
 
         if (IsAjaxRequest())
-        {
-            // 處理後開啟通知視窗：帶回檢舉者（＋被檢舉會員，若成立）的預設通知內容供管理員編輯後儲存。
-            // 通知內容由管理員按「儲存」時才交由通知模組建立，並非在此自動建立。
-            var updated = await _reportService.GetByIdAsync(id);
-            return Json(new
-            {
-                success = true,
-                status = updated!.Status,
-                reporter = new { title = updated.DefaultNotificationTitle, content = updated.DefaultNotificationContent },
-                reportedMember = (updated.Status == "Approved" && updated.ReportedMemberID.HasValue)
-                    ? new { title = updated.DefaultReportedMemberNotificationTitle, content = updated.DefaultReportedMemberNotificationContent }
-                    : null
-            });
-        }
+            return Json(new { success = outcome == ReportHandleOutcome.Handled, message });
 
-        TempData["Message"] = "檢舉已處理";
+        TempData["Message"] = message;
         return RedirectToAction(nameof(Details), new { id });
     }
 
@@ -90,9 +86,9 @@ public class ReportsController : Controller
     {
         var result = await _reportService.NotifyReporterAsync(id, dto, GetCurrentAdminMemberId());
         if (IsAjaxRequest())
-            return Json(new { success = result.Success, alreadyNotified = result.AlreadyNotified });
+            return Json(new { success = result.Success, alreadyNotified = result.AlreadyNotified, recipientUnavailable = result.RecipientUnavailable, message = result.Message });
 
-        TempData["Message"] = result.Success ? "已交由通知模組通知檢舉者" : "通知失敗或已通知過";
+        TempData["Message"] = result.Success ? "已交由通知模組通知檢舉者。" : (result.Message ?? "通知失敗。");
         return RedirectToAction(nameof(Details), new { id });
     }
 
@@ -103,9 +99,9 @@ public class ReportsController : Controller
     {
         var result = await _reportService.NotifyReportedMemberAsync(id, dto, GetCurrentAdminMemberId());
         if (IsAjaxRequest())
-            return Json(new { success = result.Success, alreadyNotified = result.AlreadyNotified });
+            return Json(new { success = result.Success, alreadyNotified = result.AlreadyNotified, recipientUnavailable = result.RecipientUnavailable, message = result.Message });
 
-        TempData["Message"] = result.Success ? "已交由通知模組通知被檢舉會員" : "通知失敗或已通知過";
+        TempData["Message"] = result.Success ? "已交由通知模組通知被檢舉會員。" : (result.Message ?? "通知失敗。");
         return RedirectToAction(nameof(Details), new { id });
     }
 

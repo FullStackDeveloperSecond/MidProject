@@ -9,11 +9,13 @@ public class ReportService : IReportService
 {
     private readonly IReportRepository _repository;
     private readonly IReportNotificationWindow _notificationWindow;
+    private readonly ITaipeiClock _clock;
 
-    public ReportService(IReportRepository repository, IReportNotificationWindow notificationWindow)
+    public ReportService(IReportRepository repository, IReportNotificationWindow notificationWindow, ITaipeiClock clock)
     {
         _repository = repository;
         _notificationWindow = notificationWindow;
+        _clock = clock;
     }
 
     public async Task<PagedResult<ReportDto>> GetReportsAsync(ReportQueryParams query)
@@ -57,7 +59,7 @@ public class ReportService : IReportService
             Reason = dto.Reason,
             Category = dto.Category,
             Status = "Pending",
-            CreatedAt = DateTime.Now
+            CreatedAt = _clock.GetNow()
         };
 
         await _repository.AddAsync(report);
@@ -66,51 +68,55 @@ public class ReportService : IReportService
         return report;
     }
 
-    public async Task<bool> HandleReportAsync(int reportId, ReportHandleDto dto, int adminMemberId)
+    public async Task<ReportHandleOutcome> HandleReportAsync(int reportId, ReportHandleDto dto, int adminMemberId)
     {
+        // 只接受 Approved / Rejected（不接受 Pending）
+        if (dto.Status != "Approved" && dto.Status != "Rejected")
+            return ReportHandleOutcome.InvalidStatus;
+
+        // 管理員備註必填、空白視為未填、最多 30 字
+        var note = dto.AdminNote?.Trim();
+        if (string.IsNullOrEmpty(note)) return ReportHandleOutcome.AdminNoteRequired;
+        if (note.Length > 30) return ReportHandleOutcome.AdminNoteTooLong;
+
         var report = await _repository.GetByIdAsync(reportId);
-        if (report == null) return false;
+        if (report == null) return ReportHandleOutcome.NotFound;
+        if (report.Status != "Pending") return ReportHandleOutcome.AlreadyHandled;
 
-        // 規則：核准/駁回檢舉只改 Report 本身的狀態，
-        // 不會自動刪除或懲處被檢舉的目標（那是另外的手動動作）
-        // 分類預設是檢舉人送出時選的，管理員審核時可以覆寫；沒選就維持原值
-        report.Status = dto.Status;
-        if (!string.IsNullOrWhiteSpace(dto.Category))
-            report.Category = dto.Category;
-        report.AdminNote = dto.AdminNote;
-        report.HandledAt = DateTime.Now;
-        report.HandledByMemberID = adminMemberId;
-
-        // 回填「被檢舉會員」＝該檢舉目標（餐廳/評論/圖片）背後的建立者/上傳者。
-        // AdminMembers/Edit 的「檢舉累積次數」與自動懲處是以 Reports.ReportedMemberID + Status=Approved 計數，
-        // 若這裡不回填，被檢舉會員的累積次數永遠是 0，故在管理員處理檢舉時一併寫入。
-        // 但排除 Admin：管理員被自動懲處停權會讓通知模組的固定管理員失格、啟動驗證失敗。
+        // 回填被檢舉會員＝目標內容擁有者（排除 Admin，避免管理員被自動懲處停權）
         var reportedOwner = report.Restaurant?.Member
             ?? report.Review?.Member
             ?? report.Image?.UploadedByMember;
-        report.ReportedMemberID = (reportedOwner != null && reportedOwner.Role != "Admin")
+        var reportedMemberId = (reportedOwner != null && reportedOwner.Role != "Admin")
             ? reportedOwner.MemberID
-            : null;
+            : (int?)null;
 
-        await _repository.SaveChangesAsync();
-        return true;
+        // 分類：管理員可覆寫，沒選就維持原值
+        var category = string.IsNullOrWhiteSpace(dto.Category) ? report.Category : dto.Category;
+
+        // 並行控制：條件式原子更新（WHERE Status='Pending'），最多一人成功
+        var affected = await _repository.TryHandleAsync(
+            reportId, dto.Status, category, note, reportedMemberId, adminMemberId, _clock.GetNow());
+
+        return affected > 0 ? ReportHandleOutcome.Handled : ReportHandleOutcome.AlreadyHandled;
     }
 
-    // 通知檢舉者：管理員在通知視窗編輯內容後按「儲存」時呼叫，交由 Alex 的通知模組建立未發送通知。
-    // 每個檢舉＋收件人只能通知一次（模組已存在該筆時回報 AlreadyNotified）。
+    // 通知檢舉者：管理員在通知視窗編輯內容後按「儲存」時呼叫。
+    // 待處理案件在此時才定案（並行控制／備註驗證），再交由 Alex 的通知模組建立未發送通知。
     public async Task<ReportNotifyResult> NotifyReporterAsync(int reportId, NotifyReporterDto dto, int adminMemberId)
     {
         var report = await _repository.GetByIdAsync(reportId);
-        if (report == null) return ReportNotifyResult.Fail();
+        if (report == null) return ReportNotifyResult.Fail("找不到指定的檢舉。");
 
-        // 待處理：按「儲存」的當下才把檢舉定案（用管理員的處理決定），再建立通知——
-        // 未按儲存前檢舉維持待處理、不算處理完成
-        report = await EnsureHandledAsync(report, dto, adminMemberId);
-        if (report == null || report.Status == "Pending") return ReportNotifyResult.Fail();
+        var ensured = await EnsureHandledAsync(report, dto, adminMemberId);
+        if (ensured.Error != null) return ensured.Error;
+        report = ensured.Report!;
 
-        var handledAt = report.HandledAt ?? DateTime.Now;
+        if (report.Status == "Pending") return ReportNotifyResult.Fail("此檢舉尚未處理，無法通知。");
+
         var result = await _notificationWindow.CreateOutcomeNotificationAsync(
-            new ReportNotificationRequest(reportId, report.ReporterMemberID, report.Status, adminMemberId, handledAt, dto.Title, dto.Content));
+            new ReportNotificationRequest(reportId, report.ReporterMemberID, report.Status, adminMemberId,
+                report.HandledAt ?? _clock.GetNow(), dto.Title, dto.Content));
 
         return ToNotifyResult(result);
     }
@@ -119,42 +125,59 @@ public class ReportService : IReportService
     public async Task<ReportNotifyResult> NotifyReportedMemberAsync(int reportId, NotifyReporterDto dto, int adminMemberId)
     {
         var report = await _repository.GetByIdAsync(reportId);
-        if (report == null) return ReportNotifyResult.Fail();
+        if (report == null) return ReportNotifyResult.Fail("找不到指定的檢舉。");
 
-        // 待處理：先定案再通知
-        report = await EnsureHandledAsync(report, dto, adminMemberId);
-        if (report == null || report.Status != "Approved") return ReportNotifyResult.Fail();
-        if (!report.ReportedMemberID.HasValue) return ReportNotifyResult.Fail();
+        var ensured = await EnsureHandledAsync(report, dto, adminMemberId);
+        if (ensured.Error != null) return ensured.Error;
+        report = ensured.Report!;
 
-        var handledAt = report.HandledAt ?? DateTime.Now;
+        if (report.Status != "Approved") return ReportNotifyResult.Fail("僅「檢舉成立」的案件才需通知被檢舉會員。");
+        if (!report.ReportedMemberID.HasValue) return ReportNotifyResult.Fail("此檢舉沒有可通知的被檢舉會員。");
+
         var result = await _notificationWindow.CreateReportedMemberNotificationAsync(
-            new ReportedMemberNotificationRequest(reportId, report.ReportedMemberID.Value, report.Status, adminMemberId, handledAt, dto.Title, dto.Content));
+            new ReportedMemberNotificationRequest(reportId, report.ReportedMemberID.Value, report.Status, adminMemberId,
+                report.HandledAt ?? _clock.GetNow(), dto.Title, dto.Content));
 
         return ToNotifyResult(result);
     }
 
-    // 若檢舉仍為待處理且帶有處理決定，於此時才定案（設定狀態／被檢舉會員／處理人）；
-    // 已處理者不動，重新讀取後回傳最新的 Report。
-    private async Task<Report?> EnsureHandledAsync(Report report, NotifyReporterDto dto, int adminMemberId)
+    // 待處理且帶有處理決定時，於此時才定案；成功則回傳最新的 Report，失敗則回傳明確的錯誤訊息。
+    // 已處理者直接放行（不重新定案）。
+    private async Task<(Report? Report, ReportNotifyResult? Error)> EnsureHandledAsync(Report report, NotifyReporterDto dto, int adminMemberId)
     {
-        if (report.Status != "Pending") return report;
-        if (string.IsNullOrWhiteSpace(dto.HandleStatus)) return report; // 沒有處理決定，維持待處理
+        if (report.Status != "Pending") return (report, null);           // 已處理，直接通知
+        if (string.IsNullOrWhiteSpace(dto.HandleStatus)) return (report, null); // 無處理決定，後續 pending 檢查會擋
 
-        await HandleReportAsync(report.ReportID, new ReportHandleDto
+        var outcome = await HandleReportAsync(report.ReportID, new ReportHandleDto
         {
             Status = dto.HandleStatus,
             Category = dto.HandleCategory,
             AdminNote = dto.HandleAdminNote
         }, adminMemberId);
 
-        return await _repository.GetByIdAsync(report.ReportID);
+        return outcome switch
+        {
+            ReportHandleOutcome.Handled => (await _repository.GetByIdAsync(report.ReportID), null),
+            ReportHandleOutcome.AlreadyHandled => (null, ReportNotifyResult.Fail("此檢舉已由其他管理員處理，請重新整理後確認最新狀態。")),
+            ReportHandleOutcome.InvalidStatus => (null, ReportNotifyResult.Fail("處理結果不正確（僅能為檢舉成立或駁回檢舉）。")),
+            ReportHandleOutcome.AdminNoteRequired => (null, ReportNotifyResult.Fail("處理檢舉時「管理員備註」為必填。")),
+            ReportHandleOutcome.AdminNoteTooLong => (null, ReportNotifyResult.Fail("「管理員備註」最多 30 字。")),
+            _ => (null, ReportNotifyResult.Fail("找不到指定的檢舉。"))
+        };
     }
 
+    // 通知結果對應明確訊息：會員不存在／已刪除、管理員無效、重複、保存失敗各自不同
     private static ReportNotifyResult ToNotifyResult(ReportNotificationResult result) => result.Classification switch
     {
         ReportNotificationClassification.Created => ReportNotifyResult.Ok(),
         ReportNotificationClassification.AlreadyExists => ReportNotifyResult.Already(),
-        _ => ReportNotifyResult.Fail()
+        ReportNotificationClassification.MemberNotFound => ReportNotifyResult.Recipient("收件會員不存在，無法發送通知。"),
+        ReportNotificationClassification.MemberDeleted => ReportNotifyResult.Recipient("收件會員已停權或刪除，無法發送通知；此檢舉已完成處理。"),
+        ReportNotificationClassification.AdminInvalid => ReportNotifyResult.Fail("目前管理員帳號狀態異常（需為正常啟用的管理員），無法建立通知。"),
+        ReportNotificationClassification.InvalidInput => ReportNotifyResult.Fail("通知資料不正確，無法建立。"),
+        ReportNotificationClassification.InvalidOutcome => ReportNotifyResult.Fail("處理結果不正確，無法建立通知。"),
+        ReportNotificationClassification.Failed => ReportNotifyResult.Fail("通知保存失敗，請稍後再試。"),
+        _ => ReportNotifyResult.Fail("通知失敗，請稍後再試。")
     };
 
     public async Task<List<ReportNotificationRecordDto>> GetSentNotificationsAsync(int reportId)
