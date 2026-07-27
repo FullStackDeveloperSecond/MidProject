@@ -4,27 +4,30 @@
   僅套用在 Views/Restaurants、Views/Tags，不影響共用 site.css。
 */
 :root {
-    --ra-bg: #f7f7f3;
+    --ra-cta: #FF6B35;
+    --ra-cta-hover: #E85A26;
+    --ra-bg: #FAF9F6;
     --ra-panel: #ffffff;
-    --ra-soft: #f1f0ea;
-    --ra-line: #deddd5;
-    --ra-line-strong: #c8c7be;
-    --ra-text: #1f1f1d;
-    --ra-muted: #74736b;
-    --ra-green: #0f6e56;
-    --ra-green-2: #1d9e75;
-    --ra-green-soft: #e1f5ee;
-    --ra-red: #9a2b2b;
-    --ra-red-soft: #fcebeb;
-    --ra-amber: #8a560d;
-    --ra-amber-soft: #fff5df;
-    --ra-blue-soft: #e8f2fb;
-    --ra-shadow: 0 18px 60px rgba(32, 32, 24, .18);
+    --ra-soft: #F4F1EC;
+    --ra-line: #EFEAE4;
+    --ra-line-strong: #DED9D2;
+    --ra-text: #2F2F2F;
+    --ra-muted: #7B746C;
+    --ra-green: #17604F;
+    --ra-green-2: #1F7A6B;
+    --ra-green-soft: #E4F5F0;
+    --ra-red: #B84438;
+    --ra-red-soft: #FDE8E5;
+    --ra-amber: #C76716;
+    --ra-amber-soft: #FFF0DC;
+    --ra-blue-soft: #EAF2F5;
+    --ra-shadow: 0 18px 48px rgba(65, 48, 32, .16);
 }
 
 .ra-page {
     position: relative;
     color: var(--ra-text);
+    font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", -apple-system, "Segoe UI", sans-serif;
 }
 
 .ra-page button,
@@ -92,15 +95,15 @@
 }
 
 .ra-page .filter-changed {
-    border-color: #7cb9ff;
-    background: #eef6ff;
-    box-shadow: 0 0 0 2px rgba(124, 185, 255, 0.35);
+    border-color: var(--ra-cta);
+    background: #FFF3EC;
+    box-shadow: 0 0 0 2px rgba(255, 107, 53, 0.22);
 }
 
 .ra-page .btn {
     min-height: 38px;
     border: 1px solid var(--ra-line-strong);
-    border-radius: 8px;
+    border-radius: 10px;
     background: var(--ra-panel);
     color: var(--ra-text);
     padding: 0 16px;
@@ -110,20 +113,23 @@
     gap: 8px;
     text-decoration: none;
     white-space: nowrap;
+    transition: background-color .12s ease, box-shadow .12s ease;
 }
 
 .ra-page .btn:hover {
-    background: #fbfbf7;
+    background: var(--ra-soft);
 }
 
 .ra-page .btn-primary {
-    border-color: var(--ra-green-2);
-    background: var(--ra-green-2);
+    border-color: var(--ra-cta);
+    background: var(--ra-cta);
     color: #fff;
+    box-shadow: 0 6px 16px rgba(255, 107, 53, .22);
 }
 
 .ra-page .btn-primary:hover {
-    background: var(--ra-green);
+    background: var(--ra-cta-hover);
+    border-color: var(--ra-cta-hover);
 }
 
 .ra-page .btn-danger {
@@ -209,17 +215,47 @@
 }
 
 .alert {
-    border: 1px solid #f0a126;
-    background: var(--ra-amber-soft);
-    color: var(--ra-amber);
-    border-radius: 8px;
+    border: 1px solid #BEE4DA;
+    background: var(--ra-green-soft);
+    color: var(--ra-green);
+    border-radius: 12px;
     padding: 14px 16px;
     margin-bottom: 14px;
+    font-weight: 600;
 }
 
 .alert ul {
     margin: 0;
     padding-left: 18px;
+}
+
+/* 停用餐廳一覽頁頂部的提醒橫幅：與一般成功提示（.alert）區分，用琥珀色標出「這裡是
+   已下架資料」的警示語意，並在最左側加上色條強調。 */
+.ra-warning-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    border: 1px solid #F3D4A8;
+    border-left: 4px solid var(--ra-amber);
+    background: var(--ra-amber-soft);
+    color: var(--ra-amber);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 14px;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.ra-warning-banner .ra-warning-icon {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #F3D4A8;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
 }
 
 .detail-header {
@@ -252,7 +288,7 @@
 .card {
     background: var(--ra-panel);
     border: 1px solid var(--ra-line);
-    border-radius: 8px;
+    border-radius: 14px;
     padding: 16px;
     margin-bottom: 14px;
 }
@@ -331,24 +367,54 @@
 
 .tag-grid {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 12px;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 14px;
 }
 
 .tag-card {
-    min-height: 78px;
+    position: relative;
+    min-height: 92px;
     border: 1px solid var(--ra-line);
     background: var(--ra-panel);
-    border-radius: 8px;
+    border-radius: 14px;
     padding: 14px 16px;
     display: flex;
+    flex-direction: column;
+    gap: 10px;
+    box-shadow: var(--ds-shadow, 0 8px 26px rgba(65, 48, 32, .07));
+    transition: transform .12s ease, box-shadow .12s ease;
+}
+
+.tag-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--ds-shadow-hover, 0 14px 34px rgba(65, 48, 32, .11));
+}
+
+.tag-card .tag-card-top {
+    display: flex;
+    align-items: flex-start;
     justify-content: space-between;
+    gap: 10px;
+}
+
+.tag-card .tag-swatch {
+    display: inline-flex;
     align-items: center;
-    gap: 12px;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 700;
+    flex-shrink: 0;
+}
+
+.tag-card strong {
+    font-size: 15px;
 }
 
 .tag-card.inactive {
-    opacity: .56;
+    opacity: .6;
     border-style: dashed;
 }
 
@@ -358,7 +424,11 @@
     gap: 12px;
     align-items: center;
     color: var(--ra-muted);
-    margin: 18px 0 12px;
+    margin: 24px 0 14px;
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .04em;
 }
 
 .divider::before,
@@ -392,7 +462,7 @@
     max-height: calc(100vh - 56px);
     overflow: auto;
     background: var(--ra-panel);
-    border-radius: 8px;
+    border-radius: 16px;
     box-shadow: var(--ra-shadow);
 }
 
@@ -690,10 +760,11 @@
     position: fixed;
     right: 16px;
     bottom: 16px;
-    background: #25251f;
+    background: #1F211F;
     color: #fff;
-    border-radius: 8px;
-    padding: 12px 14px;
+    border-radius: 12px;
+    padding: 12px 16px;
+    box-shadow: 0 14px 34px rgba(31, 33, 31, .3);
     opacity: 0;
     transform: translateY(8px);
     transition: .18s ease;
@@ -735,7 +806,7 @@
     height: 40px;
     margin: 0 auto 12px;
     border: 4px solid var(--ra-line);
-    border-top-color: var(--ra-green-2);
+    border-top-color: var(--ra-cta);
     border-radius: 50%;
     animation: ra-spin .8s linear infinite;
 }
@@ -744,6 +815,103 @@
     to {
         transform: rotate(360deg);
     }
+}
+
+/* 餐廳一覽：表格 / 卡片檢視切換。兩種檢視共用同一份資料，純前端顯示形式切換，
+   使用者的選擇會記在 localStorage，重整頁面後仍維持上次選擇。 */
+.ra-view-toggle {
+    display: inline-flex;
+    border: 1px solid var(--ra-line-strong);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.ra-view-toggle button {
+    border: none;
+    background: var(--ra-panel);
+    color: var(--ra-muted);
+    min-height: 36px;
+    padding: 0 14px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.ra-view-toggle button + button {
+    border-left: 1px solid var(--ra-line-strong);
+}
+
+.ra-view-toggle button.active {
+    background: var(--ra-cta);
+    color: #fff;
+}
+
+.ra-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+}
+
+.ra-restaurant-card {
+    background: var(--ra-panel);
+    border-radius: 16px;
+    box-shadow: var(--ds-shadow, 0 8px 26px rgba(65, 48, 32, .07));
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    transition: transform .12s ease, box-shadow .12s ease;
+}
+
+.ra-restaurant-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--ds-shadow-hover, 0 14px 34px rgba(65, 48, 32, .11));
+}
+
+.ra-restaurant-card .ra-rc-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.ra-restaurant-card .ra-rc-name {
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.ra-restaurant-card .ra-rc-loc {
+    color: var(--ra-muted);
+    font-size: 13px;
+}
+
+.ra-restaurant-card .ra-rc-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.ra-restaurant-card .ra-rc-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 8px;
+    border-top: 1px solid var(--ra-line);
+    font-size: 13px;
+    color: var(--ra-muted);
+}
+
+.ra-restaurant-card .ra-rc-rating {
+    color: var(--ra-text);
+    font-weight: 700;
+}
+
+.ra-restaurant-card .ra-rc-actions {
+    display: flex;
+    gap: 6px;
 }
 
 @media (max-width: 900px) {

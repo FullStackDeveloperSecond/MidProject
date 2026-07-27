@@ -1,4 +1,5 @@
 @model MidProject.Models.ViewModels.Tags.TagsIndexViewModel
+@using MidProject.Models.ViewModels.Restaurants
 @{
     ViewData["Title"] = "餐廳標籤一覽";
 }
@@ -31,6 +32,9 @@
         @foreach (var tag in Model.ActiveTags)
         {
             <article class="tag-card">
+                <div class="tag-card-top">
+                    <span class="tag-swatch @TagColorPalette.GetColorClass(tag.Name)">@tag.Name.Substring(0, 1)</span>
+                </div>
                 <div>
                     <strong>@tag.Name</strong>
                     <p class="muted">使用中 @tag.UsageCount 間餐廳</p>
@@ -49,6 +53,9 @@
         @foreach (var tag in Model.InactiveTags)
         {
             <article class="tag-card inactive">
+                <div class="tag-card-top">
+                    <span class="tag-swatch @TagColorPalette.GetColorClass(tag.Name)">@tag.Name.Substring(0, 1)</span>
+                </div>
                 <div>
                     <strong>@tag.Name</strong>
                     <p class="muted">已停用，原 @tag.UsageCount 間餐廳使用</p>

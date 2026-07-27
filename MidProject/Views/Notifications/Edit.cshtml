@@ -1,23 +1,23 @@
 @model MidProject.Models.ViewModels.Notifications.NotificationFormViewModel
 @{ ViewData["Title"] = "編輯通知"; }
-@section Styles { <link rel="stylesheet" href="~/css/notifications-admin.css" asp-append-version="true" /> }
+@section Styles {
+    <link rel="stylesheet" href="~/css/design-system.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/notifications-admin.css" asp-append-version="true" />
+}
 
 <div class="notification-admin">
-    <div class="mb-3"><h1 class="h2">編輯通知 #@Model.NotificationID</h1><p class="text-muted">儲存時會重新驗證全部欄位與通知狀態</p></div>
-    <div class="card">
-        <div class="card-header fw-semibold">通知資料</div>
-        <div class="card-body">
-            <form asp-action="Edit" asp-route-id="@Model.NotificationID" method="post">
-                @Html.AntiForgeryToken()
-                <input asp-for="NotificationID" type="hidden" />
-                <input asp-for="RowVersion" type="hidden" />
-                <partial name="_FormFields" model="Model" />
-                <div class="d-flex gap-2 mt-4">
-                    <button type="submit" class="btn btn-primary">儲存</button>
-                    <a asp-action="Details" asp-route-id="@Model.NotificationID" class="btn btn-secondary">返回</a>
-                </div>
-            </form>
-        </div>
+    <div class="ds-page-header"><h1 class="ds-h2 mb-1">編輯通知 #@Model.NotificationID</h1><p>儲存時會重新驗證全部欄位與通知狀態</p></div>
+    <div class="ds-card p-4">
+        <form asp-action="Edit" asp-route-id="@Model.NotificationID" method="post">
+            @Html.AntiForgeryToken()
+            <input asp-for="NotificationID" type="hidden" />
+            <input asp-for="RowVersion" type="hidden" />
+            <partial name="_FormFields" model="Model" />
+            <div class="d-flex gap-2 mt-4">
+                <button type="submit" class="btn btn-primary">儲存</button>
+                <a asp-action="Details" asp-route-id="@Model.NotificationID" class="btn btn-outline-secondary">返回</a>
+            </div>
+        </form>
     </div>
 </div>
 @section Scripts { <partial name="_ValidationScriptsPartial" /> }

@@ -132,9 +132,19 @@
 
 <div class="ds-block-title-row">
     <h6>餐廳列表</h6>
-    <span class="ds-muted small">共 @Model.TotalItems 筆</span>
+    <div class="d-flex align-items-center gap-3">
+        <span class="ds-muted small">共 @Model.TotalItems 筆</span>
+        <div class="ra-view-toggle" role="group" aria-label="切換檢視模式">
+            <button type="button" class="js-view-btn" data-view="table" aria-pressed="true">
+                <i class="fas fa-list"></i> 表格
+            </button>
+            <button type="button" class="js-view-btn" data-view="card" aria-pressed="false">
+                <i class="fas fa-grip"></i> 卡片
+            </button>
+        </div>
+    </div>
 </div>
-<div class="ds-table-wrap">
+<div class="ds-table-wrap js-view-panel" data-view="table">
     <table class="ds-table">
         <thead>
             <tr>
@@ -183,6 +193,45 @@
             }
         </tbody>
     </table>
+</div>
+
+<div class="ra-card-grid js-view-panel" data-view="card" hidden>
+    @if (!Model.Items.Any())
+    {
+        <p class="muted">目前沒有符合條件的餐廳。</p>
+    }
+    else
+    {
+        foreach (var item in Model.Items)
+        {
+            <article class="ra-restaurant-card">
+                <div class="ra-rc-top">
+                    <div>
+                        <div class="ra-rc-name">@item.Name</div>
+                        <div class="ra-rc-loc">@item.City · @item.District</div>
+                    </div>
+                    <div class="ra-rc-actions">
+                        <a class="ds-icon-btn ds-icon-btn-view" title="查看" aria-label="查看" href="@Url.Action("Details", new { id = item.Id })">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z" /><circle cx="12" cy="12" r="3" /></svg>
+                        </a>
+                        <button type="button" class="ds-icon-btn ds-icon-btn-edit js-edit-btn" title="編輯" aria-label="編輯" data-id="@item.Id">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="ra-rc-tags">
+                    @foreach (var tag in item.Tags)
+                    {
+                        <span class="ds-badge @TagColorPalette.GetColorClass(tag)">@tag</span>
+                    }
+                </div>
+                <div class="ra-rc-meta">
+                    <span class="muted">@(item.UploaderName ?? "-") 上傳 · @item.Phone</span>
+                    <span class="ra-rc-rating"><span class="stars">★</span> @item.Rating.ToString("0.0") <span class="muted">(@item.ReviewCount 則)</span></span>
+                </div>
+            </article>
+        }
+    }
 </div>
 
 @{

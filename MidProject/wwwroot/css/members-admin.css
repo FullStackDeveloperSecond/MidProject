@@ -3,10 +3,10 @@
   只影響外觀，不影響篩選/排序邏輯。
 */
 .member-stat-card-active {
-    box-shadow: 0 0 0 1px var(--bs-primary);
+    box-shadow: 0 0 0 1px var(--ds-cta, #FF6B35);
 }
 
 .member-stat-card-danger {
-    box-shadow: 0 0 0 1px var(--bs-danger);
-    background: rgba(220, 53, 69, 0.05);
+    box-shadow: 0 0 0 1px var(--ds-danger, #D55245);
+    background: rgba(213, 82, 69, 0.05);
 }

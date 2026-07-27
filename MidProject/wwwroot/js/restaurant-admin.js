@@ -547,6 +547,73 @@ const RestaurantAdmin = (() => {
         }
     }
 
+    // ---- 餐廳一覽：表格 / 卡片檢視切換（純前端顯示形式切換，選擇記在 localStorage） ----
+
+    const VIEW_STORAGE_KEY = "ra-restaurant-view";
+
+    function initViewToggle() {
+        const buttons = document.querySelectorAll(".js-view-btn");
+        const panels = document.querySelectorAll(".js-view-panel");
+        if (!buttons.length || !panels.length) return;
+
+        function applyView(view) {
+            buttons.forEach(btn => {
+                const active = btn.dataset.view === view;
+                btn.classList.toggle("active", active);
+                btn.setAttribute("aria-pressed", active ? "true" : "false");
+            });
+            panels.forEach(panel => {
+                panel.hidden = panel.dataset.view !== view;
+            });
+        }
+
+        buttons.forEach(btn => {
+            btn.addEventListener("click", () => {
+                const view = btn.dataset.view;
+                window.localStorage.setItem(VIEW_STORAGE_KEY, view);
+                applyView(view);
+            });
+        });
+
+        applyView(window.localStorage.getItem(VIEW_STORAGE_KEY) || "table");
+    }
+
+    // ---- 通用確認視窗（例如：解除停用餐廳前的二次確認） ----
+
+    function openConfirmModal(options) {
+        const root = modalRoot();
+        if (!root) return;
+        const confirmLabel = options.confirmLabel || "確定";
+        const confirmClass = options.danger ? "btn-danger" : "btn-primary";
+
+        // Message/title may come from user-entered data (e.g. a restaurant name), so
+        // they're set via textContent below rather than interpolated into this HTML
+        // string, to avoid re-introducing an XSS hole through this shared helper.
+        root.innerHTML = `
+            <div class="ra-modal confirm-modal" role="alertdialog" aria-modal="true">
+                <div class="modal-body">
+                    <p data-confirm-message></p>
+                </div>
+                <div class="modal-foot">
+                    <button type="button" class="btn" data-confirm="cancel">取消</button>
+                    <button type="button" class="btn ${confirmClass}" data-confirm="ok">${confirmLabel}</button>
+                </div>
+            </div>`;
+        root.querySelector(".ra-modal").setAttribute("aria-label", options.title || "確認");
+        root.querySelector("[data-confirm-message]").textContent = options.message || "確定要執行這個操作嗎？";
+        root.classList.add("open");
+        root.setAttribute("aria-hidden", "false");
+        bindModalChrome();
+
+        root.querySelector("[data-confirm='cancel']").onclick = () => closeModal();
+        root.querySelector("[data-confirm='ok']").onclick = () => {
+            closeModal();
+            if (typeof options.onConfirm === "function") {
+                options.onConfirm();
+            }
+        };
+    }
+
     function initFilterDistrictCascade() {
         const citySelect = document.getElementById("filterCitySelect");
         const districtSelect = document.getElementById("filterDistrictSelect");
@@ -591,6 +658,8 @@ const RestaurantAdmin = (() => {
         closeModal,
         toast,
         bindAjaxContent,
-        initFilterDistrictCascade
+        initFilterDistrictCascade,
+        initViewToggle,
+        openConfirmModal
     };
 })();

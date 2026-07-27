@@ -7,7 +7,7 @@
 }
 
 .notification-admin .notification-row:focus {
-    outline: 3px solid rgba(13, 110, 253, .25);
+    outline: 3px solid rgba(255, 107, 53, .22);
     outline-offset: -3px;
 }
 

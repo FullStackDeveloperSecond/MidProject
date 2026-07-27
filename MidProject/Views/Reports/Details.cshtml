@@ -4,15 +4,19 @@
     ViewData["Title"] = "檢舉詳情";
 }
 
+@section Styles {
+    <link rel="stylesheet" href="~/css/design-system.css" asp-append-version="true" />
+}
+
 <div class="detail-header-bar">
     <a class="btn btn-outline-secondary js-back-btn" href="@Url.Action("Index")">← 返回</a>
     <div class="detail-crumb"><a asp-action="Index">檢舉管理</a> / 檢舉詳情 #@Model.ReportID</div>
 </div>
 
-<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+<div class="ds-page-header d-flex flex-wrap align-items-center justify-content-between gap-3">
     <div>
-        <h1 class="h3 mb-1">檢舉詳情 #@Model.ReportID</h1>
-        <p class="text-muted mb-0">查看檢舉內容並完成管理員審核</p>
+        <h1 class="ds-h2 mb-1">檢舉詳情 #@Model.ReportID</h1>
+        <p>查看檢舉內容並完成管理員審核</p>
     </div>
 </div>
 
@@ -28,31 +32,30 @@
     <div class="col-lg-7">
         <!-- 檢舉內容：欄位與 Index 列表頁一致（編號/處理狀態/檢舉目標/檢舉分類/檢舉者/被檢舉會員/檢舉日期/處理管理員），
              另外補充目標內容、檢舉原因、處理備註這幾項只有詳情頁才需要的細節 -->
-        <div class="card shadow mb-4">
-            <div class="card-header py-3">
-                <h6 class="m-0 fw-bold text-primary">檢舉內容</h6>
-            </div>
-            <div class="card-body">
-                <dl class="row mb-0">
-                    <dt class="col-sm-3">編號</dt>
-                    <dd class="col-sm-9">@Model.ReportID</dd>
+        <div class="ds-detail-card">
+            <div class="ds-detail-card-header">檢舉內容</div>
+            <div class="ds-detail-card-body">
+                <div class="ds-info-row"><div class="ds-info-key">編號</div><div>@Model.ReportID</div></div>
 
-                    <dt class="col-sm-3">處理狀態</dt>
-                    <dd class="col-sm-9">
+                <div class="ds-info-row">
+                    <div class="ds-info-key">處理狀態</div>
+                    <div>
                         @{
                             var badgeClass = Model.Status switch
                             {
-                                "Pending" => "bg-warning text-dark",
-                                "Approved" => "bg-success",
-                                "Rejected" => "bg-secondary",
-                                _ => "bg-secondary"
+                                "Pending" => "ds-badge-warning",
+                                "Approved" => "ds-badge-success",
+                                "Rejected" => "ds-badge-gray",
+                                _ => "ds-badge-gray"
                             };
                         }
-                        <span class="badge @badgeClass">@Model.StatusDisplay</span>
-                    </dd>
+                        <span class="ds-badge @badgeClass">@Model.StatusDisplay</span>
+                    </div>
+                </div>
 
-                    <dt class="col-sm-3">檢舉目標</dt>
-                    <dd class="col-sm-9">
+                <div class="ds-info-row">
+                    <div class="ds-info-key">檢舉目標</div>
+                    <div>
                         @{
                             var targetController = Model.RestaurantID.HasValue ? "Restaurants"
                                 : Model.ReviewID.HasValue ? "Reviews"
@@ -62,7 +65,7 @@
                         @Model.TargetType
                         @if (Model.ImageID.HasValue)
                         {
-                            <span class="text-muted">#@Model.ImageID</span>
+                            <span class="ds-muted">#@Model.ImageID</span>
                         }
                         @if (Model.RestaurantName != null)
                         {
@@ -77,49 +80,38 @@
                             }
                             @: ）
                         }
-                    </dd>
+                    </div>
+                </div>
 
-                    <dt class="col-sm-3">檢舉分類</dt>
-                    <dd class="col-sm-9">@Model.CategoryDisplay</dd>
+                <div class="ds-info-row"><div class="ds-info-key">檢舉分類</div><div>@Model.CategoryDisplay</div></div>
 
-                    <dt class="col-sm-3">檢舉者</dt>
-                    <dd class="col-sm-9">
+                <div class="ds-info-row">
+                    <div class="ds-info-key">檢舉者</div>
+                    <div>
                         <a asp-controller="AdminMembers" asp-action="Edit" asp-route-id="@Model.ReporterMemberID">
                             @Model.ReporterUserName
                         </a>
-                    </dd>
+                    </div>
+                </div>
 
-                    <dt class="col-sm-3">被檢舉會員</dt>
-                    <dd class="col-sm-9">@(Model.ReportedMemberUserName ?? "—")</dd>
+                <div class="ds-info-row"><div class="ds-info-key">被檢舉會員</div><div>@(Model.ReportedMemberUserName ?? "—")</div></div>
+                <div class="ds-info-row"><div class="ds-info-key">檢舉日期</div><div>@Model.CreatedAt.ToString("yyyy-MM-dd HH:mm")</div></div>
+                <div class="ds-info-row"><div class="ds-info-key">處理管理員</div><div>@(Model.HandledByUserName ?? "—")</div></div>
+                <div class="ds-info-row"><div class="ds-info-key">檢舉原因</div><div>@Model.Reason</div></div>
 
-                    <dt class="col-sm-3">檢舉日期</dt>
-                    <dd class="col-sm-9">@Model.CreatedAt.ToString("yyyy-MM-dd HH:mm")</dd>
-
-                    <dt class="col-sm-3">處理管理員</dt>
-                    <dd class="col-sm-9">@(Model.HandledByUserName ?? "—")</dd>
-
-                    <dt class="col-sm-3">檢舉原因</dt>
-                    <dd class="col-sm-9">@Model.Reason</dd>
-
-                    @if (Model.HandledAt != null)
-                    {
-                        <dt class="col-sm-3">處理時間</dt>
-                        <dd class="col-sm-9">@Model.HandledAt?.ToString("yyyy-MM-dd HH:mm")</dd>
-
-                        <dt class="col-sm-3">處理備註</dt>
-                        <dd class="col-sm-9">@Model.AdminNote</dd>
-                    }
-                </dl>
+                @if (Model.HandledAt != null)
+                {
+                    <div class="ds-info-row"><div class="ds-info-key">處理時間</div><div>@Model.HandledAt?.ToString("yyyy-MM-dd HH:mm")</div></div>
+                    <div class="ds-info-row"><div class="ds-info-key">處理備註</div><div>@Model.AdminNote</div></div>
+                }
             </div>
         </div>
     </div>
 
     <div class="col-lg-5">
-        <div class="card shadow mb-4">
-            <div class="card-header py-3">
-                <h6 class="m-0 fw-bold text-primary">處理檢舉</h6>
-            </div>
-            <div class="card-body">
+        <div class="ds-detail-card">
+            <div class="ds-detail-card-header">處理檢舉</div>
+            <div class="ds-detail-card-body">
                 <form id="handleForm" asp-action="Handle" asp-route-id="@Model.ReportID" method="post">
                     @Html.AntiForgeryToken()
                     <div class="mb-3">
@@ -159,7 +151,7 @@
         @if (Model.Status != "Pending")
         {
             <!-- 只有已經審核完畢（核准/駁回）的檢舉才能通知檢舉會員審核結果，按下後開啟下方的通知視窗 -->
-            <button type="button" class="btn btn-outline-primary w-100 mb-4" id="notifyReopenBtn">
+            <button type="button" class="btn btn-outline-secondary w-100 mb-4" id="notifyReopenBtn">
                 <i class="fas fa-paper-plane me-1"></i>通知紀錄
             </button>
         }

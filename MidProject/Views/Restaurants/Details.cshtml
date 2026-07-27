@@ -31,7 +31,7 @@
             @if (Model.IsDeleted)
             {
                 <button type="button" class="btn js-edit-btn" data-id="@Model.Id">編輯</button>
-                <form method="post" asp-action="Restore" asp-route-id="@Model.Id" class="d-inline">
+                <form method="post" asp-action="Restore" asp-route-id="@Model.Id" class="d-inline" id="restoreForm">
                     @Html.AntiForgeryToken()
                     <button type="submit" class="btn btn-restore">解除停用</button>
                 </form>
@@ -46,7 +46,10 @@
 
     @if (Model.IsDeleted)
     {
-        <div class="alert">此資料目前 IsDeleted = 1。可先編輯修正資料，再解除停用回到餐廳一覽。</div>
+        <div class="ra-warning-banner">
+            <span class="ra-warning-icon" aria-hidden="true">!</span>
+            <span>此資料目前 IsDeleted = 1。可先編輯修正資料，再解除停用回到餐廳一覽。</span>
+        </div>
     }
 
     <div class="detail-grid">
@@ -224,6 +227,19 @@
             disableBtn.addEventListener('click', () => disableModalRoot.classList.add('open'));
             document.getElementById('closeDisableModal').addEventListener('click', () => disableModalRoot.classList.remove('open'));
             document.getElementById('cancelDisableModal').addEventListener('click', () => disableModalRoot.classList.remove('open'));
+        }
+        var restoreForm = document.getElementById('restoreForm');
+        if (restoreForm) {
+            var restaurantName = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Name));
+            restoreForm.addEventListener('submit', function (event) {
+                event.preventDefault();
+                RestaurantAdmin.openConfirmModal({
+                    title: '解除停用餐廳',
+                    message: '確定要解除停用「' + restaurantName + '」嗎？解除後此餐廳將重新出現在餐廳一覽與前台。',
+                    confirmLabel: '確認解除停用',
+                    onConfirm: function () { restoreForm.submit(); }
+                });
+            });
         }
     </script>
 }
