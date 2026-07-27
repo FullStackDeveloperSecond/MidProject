@@ -24,6 +24,10 @@ public class ReportDto
     // 被檢舉會員的 MemberID（同上，由檢舉目標的建立者/上傳者回推），供列表/詳情頁連結至會員詳細頁
     public int? ReportedMemberID { get; set; }
 
+    // 收件會員是否已停權/刪除（通知模組不發給已刪除會員）：供通知視窗標示「無法通知」原因
+    public bool ReporterMemberDeleted { get; set; }
+    public bool ReportedMemberDeleted { get; set; }
+
     public string Reason { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
     public string? Category { get; set; }

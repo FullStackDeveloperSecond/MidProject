@@ -252,6 +252,8 @@ public class ReportService : IReportService
             ?? r.Review?.Member?.UserName
             ?? r.Image?.UploadedByMember?.UserName,
         ReportedMemberID = EffectiveReportedMemberId(r),
+        ReporterMemberDeleted = r.ReporterMember == null || r.ReporterMember.IsDeleted,
+        ReportedMemberDeleted = IsReportedOwnerDeleted(r),
         Reason = r.Reason,
         Status = r.Status,
         Category = r.Category,
@@ -266,5 +268,12 @@ public class ReportService : IReportService
     {
         var owner = r.Restaurant?.Member ?? r.Review?.Member ?? r.Image?.UploadedByMember;
         return (owner != null && owner.Role != "Admin") ? owner.MemberID : null;
+    }
+
+    // 有效被檢舉會員（非 Admin）是否已停權/刪除——通知模組不會發給已刪除會員
+    private static bool IsReportedOwnerDeleted(Report r)
+    {
+        var owner = r.Restaurant?.Member ?? r.Review?.Member ?? r.Image?.UploadedByMember;
+        return owner != null && owner.Role != "Admin" && owner.IsDeleted;
     }
 }

@@ -263,6 +263,8 @@
             var reportId = @Model.ReportID;
             var reporterMemberId = @Model.ReporterMemberID;
             var reportedMemberId = @(Model.ReportedMemberID?.ToString() ?? "null");
+            var reporterMemberDeleted = @(Model.ReporterMemberDeleted ? "true" : "false");
+            var reportedMemberDeleted = @(Model.ReportedMemberDeleted ? "true" : "false");
             var reportStatus = '@Model.Status';
             var notifyReporterUrl = '@Url.Action("NotifyReporter", "Reports", new { id = Model.ReportID })';
             var notifyReportedMemberUrl = '@Url.Action("NotifyReportedMember", "Reports", new { id = Model.ReportID })';
@@ -327,6 +329,18 @@
                     $saveBtn.prop('disabled', true);
                 }
 
+                // 無法通知（收件會員已停權/刪除，通知模組不會發送）：顯示原因並鎖定，不可編輯/儲存
+                function setUnavailable(reason) {
+                    notified = true;
+                    $title.val(opts.defaults.title);
+                    $content.val(opts.defaults.content);
+                    $badge.removeClass('d-none').text(reason);
+                    $title.prop('readonly', true);
+                    $content.prop('readonly', true);
+                    $editBtn.prop('disabled', true);
+                    $saveBtn.prop('disabled', true);
+                }
+
                 $editBtn.on('click', function () {
                     if (notified) return;
                     setEditable(true);
@@ -377,8 +391,10 @@
                     hide: function () { $card.addClass('d-none'); },
                     setPending: setPending,
                     setNotified: setNotified,
+                    setUnavailable: setUnavailable,
                     memberId: opts.memberId,
                     titlePrefix: opts.titlePrefix,
+                    recipientDeleted: opts.recipientDeleted,
                     defaults: opts.defaults
                 };
             }
@@ -386,12 +402,14 @@
             var reporterCard = createCard({
                 cardId: 'reporterNotifyCard', titleId: 'reporterTitle', contentId: 'reporterContent',
                 editBtnId: 'editReporterNotify', saveBtnId: 'saveReporterNotify', badgeId: 'reporterSentBadge',
-                saveUrl: notifyReporterUrl, memberId: reporterMemberId, titlePrefix: '【檢舉結果通知】', defaults: defaultReporter
+                saveUrl: notifyReporterUrl, memberId: reporterMemberId, titlePrefix: '【檢舉結果通知】',
+                recipientDeleted: reporterMemberDeleted, defaults: defaultReporter
             });
             var reportedMemberCard = createCard({
                 cardId: 'reportedMemberNotifyCard', titleId: 'reportedMemberTitle', contentId: 'reportedMemberContent',
                 editBtnId: 'editReportedMemberNotify', saveBtnId: 'saveReportedMemberNotify', badgeId: 'reportedMemberSentBadge',
-                saveUrl: notifyReportedMemberUrl, memberId: reportedMemberId, titlePrefix: '【內容審核通知】', defaults: defaultReportedMember
+                saveUrl: notifyReportedMemberUrl, memberId: reportedMemberId, titlePrefix: '【內容審核通知】',
+                recipientDeleted: reportedMemberDeleted, defaults: defaultReportedMember
             });
 
             // 依收件會員把紀錄配到卡片；自我檢舉（檢舉者＝被檢舉會員）時以標題前綴輔助區分
@@ -406,15 +424,22 @@
             }
 
             // 依最新紀錄套用卡片狀態：有紀錄→已通知（鎖定＋顯示發送模組時間）；無→未通知（可編輯）
+            // 套用單張卡片狀態：有紀錄→已通知（顯示發送模組時間）；
+            // 無紀錄但收件會員已停權/刪除→無法通知（顯示原因、鎖定）；否則→未通知（可編輯儲存）
+            function applyCard(card, records) {
+                var rec = pickRecord(records, card);
+                if (rec) card.setNotified(rec);
+                else if (card.recipientDeleted) card.setUnavailable('會員已停權/刪除，無法發送通知');
+                else card.setPending(card.defaults);
+            }
+
             function applyRecords(records) {
-                var reporterRec = pickRecord(records, reporterCard);
-                if (reporterRec) reporterCard.setNotified(reporterRec); else reporterCard.setPending(reporterCard.defaults);
+                applyCard(reporterCard, records);
 
                 // 被檢舉會員卡片只在「檢舉成立且有被檢舉會員」時顯示
                 if (reportStatus === 'Approved' && reportedMemberId !== null) {
                     reportedMemberCard.show();
-                    var reportedRec = pickRecord(records, reportedMemberCard);
-                    if (reportedRec) reportedMemberCard.setNotified(reportedRec); else reportedMemberCard.setPending(reportedMemberCard.defaults);
+                    applyCard(reportedMemberCard, records);
                 } else {
                     reportedMemberCard.hide();
                 }
