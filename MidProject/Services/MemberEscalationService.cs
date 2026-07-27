@@ -23,24 +23,34 @@ public sealed class MemberEscalationService : IMemberEscalationService
     };
 
     private readonly AppDbContext _context;
+    private readonly ITaipeiClock _clock;
 
-    public MemberEscalationService(AppDbContext context)
+    public MemberEscalationService(AppDbContext context, ITaipeiClock clock)
     {
         _context = context;
+        _clock = clock;
     }
 
     public async Task<MemberEscalationRunResult> RunOnceAsync(CancellationToken cancellationToken = default)
     {
-        var now = DateTime.Now;
+        var now = _clock.GetNow();
 
-        // 1. 處分期限已過的會員：批次恢復正常（單一 ExecuteUpdate，不逐筆查詢/儲存）
-        var expiredCount = await _context.Members
+        // 1. 處分期限已過的會員：查出來後在記憶體中修改，最後跟第 2 步的懲處變更一起統一 SaveChanges。
+        // （原本用 ExecuteUpdateAsync 直接下 SQL UPDATE，但那只有關聯式資料庫 provider 支援，
+        // EF Core InMemory provider 無法轉譯這種寫法，會導致單元測試直接炸掉；改成查詢+追蹤修改，
+        // 一樣是「一次查詢 + 最後統一存檔」，沒有變成逐筆 SaveChanges，只是把 SQL 端的批次更新
+        // 換成應用程式端的批次更新，讓這段邏輯在任何 EF Core provider 下都能正確執行、也才能寫測試。）
+        var expiredMembers = await _context.Members
             .Where(m => m.Status != "Deleted" && m.Status != "Normal"
                      && m.PenaltyEndAt != null && m.PenaltyEndAt <= now)
-            .ExecuteUpdateAsync(s => s
-                .SetProperty(m => m.Status, "Normal")
-                .SetProperty(m => m.PenaltyEndAt, (DateTime?)null)
-                .SetProperty(m => m.UpdatedAt, now), cancellationToken);
+            .ToListAsync(cancellationToken);
+
+        foreach (var expiredMember in expiredMembers)
+        {
+            expiredMember.Status = "Normal";
+            expiredMember.PenaltyEndAt = null;
+            expiredMember.UpdatedAt = now;
+        }
 
         // 2. 一次查出所有候選會員與所有人的受理檢舉次數（各一個彙總查詢，避免對每個會員各自查一次）
         var candidates = await _context.Members
@@ -50,7 +60,11 @@ public sealed class MemberEscalationService : IMemberEscalationService
 
         if (candidates.Count == 0)
         {
-            return new MemberEscalationRunResult(expiredCount, 0);
+            if (expiredMembers.Count > 0)
+            {
+                await _context.SaveChangesAsync(cancellationToken);
+            }
+            return new MemberEscalationRunResult(expiredMembers.Count, 0);
         }
 
         var approvedCounts = await _context.Reports
@@ -67,7 +81,11 @@ public sealed class MemberEscalationService : IMemberEscalationService
 
         if (idsNeedingEscalation.Count == 0)
         {
-            return new MemberEscalationRunResult(expiredCount, 0);
+            if (expiredMembers.Count > 0)
+            {
+                await _context.SaveChangesAsync(cancellationToken);
+            }
+            return new MemberEscalationRunResult(expiredMembers.Count, 0);
         }
 
         var membersToEscalate = await _context.Members
@@ -103,10 +121,10 @@ public sealed class MemberEscalationService : IMemberEscalationService
             ApplyEscalation(member, approvedCounts[member.MemberID], now, handledByMemberId);
         }
 
-        // 3. 全部會員的變更一次性儲存，而不是每個人各自呼叫一次 SaveChanges
+        // 3. 全部會員的變更（含第 1 步處分到期恢復正常的部分）一次性儲存，而不是每個人各自呼叫一次 SaveChanges
         await _context.SaveChangesAsync(cancellationToken);
 
-        return new MemberEscalationRunResult(expiredCount, membersToEscalate.Count);
+        return new MemberEscalationRunResult(expiredMembers.Count, membersToEscalate.Count);
     }
 
     private static void ApplyEscalation(Member member, int approvedCount, DateTime now, int? handledByMemberId)
