@@ -25,7 +25,7 @@ public class AccountController : Controller
     public IActionResult Login()
     {
         // 如果已經是登入狀態，直接送他去會員管理列表
-        if (User.Identity.IsAuthenticated)
+        if (User.Identity?.IsAuthenticated == true)
         {
             return RedirectToAction("Index", "AdminMembers");
         }
@@ -44,7 +44,7 @@ public class AccountController : Controller
             return View();
         }
 
-        Member admin = null;
+        Member? admin = null;
 
         // 💡 改用 ADO.NET 原生 SQL 查詢，繞過 EF Core 的 Entity 對應錯誤
         // 6.1 後台 Admin 與一般 User 皆可登入，登入後依角色導向不同頁面
@@ -155,7 +155,10 @@ public class AccountController : Controller
             : RedirectToAction("Index", "Home");
     }
 
-    // 登出 Action
+    // 登出 Action：改用 POST + Anti-forgery token（登出會改變登入狀態，不該用 GET 就能觸發，
+    // 否則外部網頁只要放一個 <img src="/Account/Logout"> 就能強制使用者登出，屬於 CSRF 風險）
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> Logout()
     {
         await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
@@ -166,7 +169,7 @@ public class AccountController : Controller
     [HttpGet]
     public IActionResult Register()
     {
-        if (User.Identity.IsAuthenticated) return RedirectToAction("Index", "AdminMembers");
+        if (User.Identity?.IsAuthenticated == true) return RedirectToAction("Index", "AdminMembers");
         return View();
     }
 

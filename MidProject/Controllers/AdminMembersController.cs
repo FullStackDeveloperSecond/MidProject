@@ -4,24 +4,47 @@ using Microsoft.EntityFrameworkCore;
 using MidProject.Data;
 using MidProject.Models;
 using MidProject.Models.ViewModels;
+using MidProject.Services.IServices;
 using System.Security.Claims;
 
 [Authorize(Roles = "Admin")]
 public class AdminMembersController : Controller
 {
     private readonly AppDbContext _context;
+    private readonly IMemberEscalationService _escalationService;
 
-    public AdminMembersController(AppDbContext context)
+    public AdminMembersController(AppDbContext context, IMemberEscalationService escalationService)
     {
         _context = context;
+        _escalationService = escalationService;
     }
 
-    
+    // 5.5 立即重新檢查懲處（POST，管理員手動觸發）：跟排程背景服務共用同一份 IMemberEscalationService，
+    // 不是另一套邏輯。明確的使用者動作才會寫資料庫，跟 GET 頁面瀏覽脫鉤。
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RecalculateEscalation(int? returnToMemberId)
+    {
+        var result = await _escalationService.RunOnceAsync();
+        TempData["EscalationResult"] =
+            $"已重新整理。";
+
+        return returnToMemberId.HasValue
+            ? RedirectToAction(nameof(Edit), new { id = returnToMemberId.Value })
+            : RedirectToAction(nameof(Index));
+    }
+
     // 4. 會員列表頁
     // 純讀取，不寫入資料庫：自動懲處計算已改由 MemberEscalationBackgroundService 排程批次處理，
     // 這裡看到的 Status / PenaltyEndAt 是該排程上次執行後的結果，不會因為開這個頁面而被修改。
     public async Task<IActionResult> Index(string keyword, string statusFilter, int? levelFilter, string sortBy, bool showAbnormal = false, bool todayOnly = false, int page = 1)
     {
+        // 統計卡片、列表都是各自獨立的查詢；這個頁面本身雖然不再寫資料庫，
+        // 但自動懲處排程（MemberEscalationBackgroundService）仍會每 5 分鐘在背景寫入 Members 表。
+        // 用一個唯讀交易（RepeatableRead）把本次請求的所有查詢包在同一個快照裡，
+        // 避免萬一排程剛好在這幾個查詢中間執行，導致統計數字跟下面的列表內容對不上。
+        await using var transaction = await _context.Database.BeginTransactionAsync(System.Data.IsolationLevel.RepeatableRead);
+
         // 4.2 統計卡片資料
         ViewBag.TotalMembers = await _context.Members.CountAsync(m => !m.IsDeleted);
         ViewBag.TodayRegistered = await _context.Members.CountAsync(m => m.CreatedAt.Date == DateTime.Today && !m.IsDeleted);
@@ -78,6 +101,8 @@ public class AdminMembersController : Controller
         ViewBag.CurrentPage = page;
         ViewBag.TotalPages = (int)Math.Ceiling((double)totalItems / pageSize);
         ViewBag.Levels = await _context.UserLevels.OrderBy(l => l.MinExp).ToListAsync(); // 供篩選下拉選單與經驗值進度使用
+
+        await transaction.CommitAsync();
 
         return View(members);
     }

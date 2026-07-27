@@ -76,8 +76,10 @@ builder.Services.AddScoped<IReportNotificationWindow, ReportNotificationWindow>(
 builder.Services.AddScoped<IDashboardNotificationWindow, DashboardNotificationWindow>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 
-// 會員自動懲處改為排程背景服務（每 5 分鐘批次執行一次），
-// 不再放在 AdminMembersController 的 Index/Edit（GET）裡順便觸發寫入資料庫
+// 會員自動懲處：批次邏輯本體是 Scoped 服務，排程背景服務每 30 秒呼叫一次當安全網，
+// 管理員也可以在會員列表/編輯頁按「立即重新檢查」手動觸發同一份邏輯（AdminMembersController.RecalculateEscalation）。
+// 不再放在 AdminMembersController 的 Index/Edit（GET）裡順便觸發寫入資料庫。
+builder.Services.AddScoped<IMemberEscalationService, MemberEscalationService>();
 builder.Services.AddHostedService<MemberEscalationBackgroundService>();
 
 var app = builder.Build();
