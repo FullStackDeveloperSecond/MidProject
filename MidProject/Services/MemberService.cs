@@ -80,7 +80,11 @@ public sealed class MemberService : IMemberService
         var unlockRequested = model.UnlockAccountRequested && memberInDb.IsLocked;
 
         var errors = new Dictionary<string, string>();
-        if (statusChanged && string.IsNullOrWhiteSpace(model.StatusChangeReason))
+        if (string.IsNullOrWhiteSpace(model.Status) || !StatusLabels.ContainsKey(model.Status))
+        {
+            errors[nameof(MemberEditVM.Status)] = "會員狀態不正確。";
+        }
+        else if (statusChanged && string.IsNullOrWhiteSpace(model.StatusChangeReason))
         {
             errors[nameof(MemberEditVM.StatusChangeReason)] = "變更會員狀態時，請填寫變更原因。";
         }

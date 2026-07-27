@@ -95,6 +95,28 @@ public class MemberServiceTests
         Assert.Contains("測試管理員", updated.AdminNote);
     }
 
+    [Theory]
+    [InlineData("Deleted")]
+    [InlineData("Unexpected")]
+    public async Task SaveMemberEditAsync_DisallowedStatus_IsRejectedWithoutChangingMember(string status)
+    {
+        var (service, context, _) = CreateService();
+        var member = await SeedMemberAsync(context, m => m.Status = "Normal");
+
+        var model = BaseModel(member);
+        model.Status = status;
+        model.StatusChangeReason = "不應套用";
+
+        var outcome = await service.SaveMemberEditAsync(member.MemberID, model, new MemberEditOperator(1, "測試管理員"));
+
+        Assert.Equal(MemberEditOutcomeKind.ValidationFailed, outcome.Kind);
+        Assert.True(outcome.ValidationErrors!.ContainsKey(nameof(MemberEditVM.Status)));
+
+        var unchanged = await context.Members.FindAsync(member.MemberID);
+        Assert.Equal("Normal", unchanged!.Status);
+        Assert.False(unchanged.IsDeleted);
+    }
+
     // 備註欄在畫面上是 readonly 預覽，真正的來源必須是伺服器端比對出的變更，不能是表單傳入的
     // model.AdminNote —— 否則繞過 UI（例如直接發送 POST）就能偽造任意稽核紀錄。
     [Fact]

@@ -19,7 +19,12 @@ public sealed class MemberRepository : IMemberRepository
         var query = _context.Members.AsQueryable();
         if (includeDetails)
         {
-            query = query.Include(m => m.UserLevel).Include(m => m.AvatarImage);
+            // 詳情與驗證失敗後的重新顯示都只供畫面使用。使用 no-tracking，
+            // 避免把尚未通過驗證的表單值套到同一個被追蹤的 Member，
+            // 之後若同 request 內有其他 SaveChanges 時意外寫回資料庫。
+            query = query.AsNoTracking()
+                .Include(m => m.UserLevel)
+                .Include(m => m.AvatarImage);
         }
 
         return await query.FirstOrDefaultAsync(m => m.MemberID == id, cancellationToken);

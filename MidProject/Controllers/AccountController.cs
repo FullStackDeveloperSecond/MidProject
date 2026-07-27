@@ -47,7 +47,7 @@ public class AccountController : Controller
         // 6.1 這個網站是後台管理系統，只開放 Admin 角色登入（見 MemberLoginPolicy.CheckEligibility）
         // （原本這裡是繞過 EF、直接用 ADO.NET 讀 Members 表；查證後目前的 EF 對應設定跟 migration
         // 都是同步的，一般 FirstOrDefaultAsync 查詢可以正常運作，沒有理由再手動組 SQL、自己拼實體。）
-        var admin = await _context.Members.FirstOrDefaultAsync(m => m.Email == email && !m.IsDeleted);
+        var admin = await _context.Members.FirstOrDefaultAsync(m => m.Email == email);
 
         // 💡 防禦性檢查：如果資料庫完全找不到這筆帳號資料
         if (admin == null)
@@ -56,8 +56,9 @@ public class AccountController : Controller
             return View();
         }
 
-        // 8. 帳號資格檢查：鎖定／停用／停權的帳號一律拒絕登入（Suspended 目前的慣例是同時 IsDeleted=true，
-        // 已經被上面的 SQL 篩掉，這裡仍明確檢查一次，避免未來這個慣例被打破時悄悄放行）。
+        // 8. 帳號資格檢查：鎖定／停用／停權／刪除的帳號一律拒絕登入。
+        // 必須先取得帳號再交給 policy，否則 Suspended 通常同時 IsDeleted=true，
+        // 會在這裡被誤判為查無帳號，永遠無法顯示正確的停權訊息。
         // 規則本身抽到 MemberLoginPolicy（純函式，無 DbContext/HttpContext 依賴），方便單元測試。
         var eligibilityError = MemberLoginPolicy.CheckEligibility(admin);
         if (eligibilityError != null)

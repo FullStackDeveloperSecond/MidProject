@@ -19,6 +19,14 @@ public static class MemberLoginPolicy
         {
             return "此系統僅供管理員登入使用。";
         }
+        if (member.Status == "Suspended")
+        {
+            return "帳號目前為停權狀態，請聯繫管理員。";
+        }
+        if (member.IsDeleted || member.Status == "Deleted")
+        {
+            return "帳號已刪除，請聯繫管理員。";
+        }
         if (member.IsLocked)
         {
             return "帳號已因密碼輸入錯誤過多次被鎖定，請聯繫管理員解除鎖定。";
@@ -26,10 +34,6 @@ public static class MemberLoginPolicy
         if (!member.IsActive)
         {
             return "帳號已停用，請聯繫管理員。";
-        }
-        if (member.Status == "Suspended")
-        {
-            return "帳號目前為停權狀態，請聯繫管理員。";
         }
         return null;
     }

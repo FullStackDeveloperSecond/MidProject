@@ -63,11 +63,25 @@ public class MemberLoginPolicyTests
     {
         var member = CreateEligibleMember();
         member.Status = "Suspended";
+        member.IsDeleted = true;
 
         var result = MemberLoginPolicy.CheckEligibility(member);
 
         Assert.NotNull(result);
         Assert.Contains("停權", result);
+    }
+
+    [Fact]
+    public void CheckEligibility_DeletedMember_ReturnsDeletedMessage()
+    {
+        var member = CreateEligibleMember();
+        member.Status = "Deleted";
+        member.IsDeleted = true;
+
+        var result = MemberLoginPolicy.CheckEligibility(member);
+
+        Assert.NotNull(result);
+        Assert.Contains("刪除", result);
     }
 
     [Theory]

@@ -81,7 +81,11 @@ public class AdminMembersController : Controller
         if (id != model.MemberID) return NotFound();
 
         var adminIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        int? currentAdminId = int.TryParse(adminIdClaim, out var parsedAdminId) ? parsedAdminId : null;
+        if (!int.TryParse(adminIdClaim, out var currentAdminId) || currentAdminId <= 0)
+        {
+            return Forbid();
+        }
+
         var currentAdminName = User.FindFirstValue(ClaimTypes.Name) ?? "管理員";
         var memberEditOperator = new MemberEditOperator(currentAdminId, currentAdminName);
 
