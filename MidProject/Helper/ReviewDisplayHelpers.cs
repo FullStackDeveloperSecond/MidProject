@@ -24,9 +24,10 @@ namespace MidProject.Helpers
             _ => (status, "rs-pending"),
         };
 
-        public static string FormatRelative(DateTime dt)
+        /// <summary>now 由呼叫端傳入（View 用 @inject ITaipeiClock 取得），避免這裡直接用 DateTime.Now。</summary>
+        public static string FormatRelative(DateTime dt, DateTime now)
         {
-            var diff = DateTime.Now - dt;
+            var diff = now - dt;
             if (diff.TotalMinutes < 1) return "剛剛";
             if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes} 分鐘前";
             if (diff.TotalHours < 24) return $"{(int)diff.TotalHours} 小時前";
