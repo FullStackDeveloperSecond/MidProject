@@ -232,9 +232,11 @@ public class AppDbContext : DbContext
             entity.HasIndex(e => e.NotificationType);
             entity.HasIndex(e => new { e.IsDeleted, e.ScheduledAt, e.NotificationID });
             entity.HasIndex(e => new { e.IsSent, e.IsDeleted, e.ScheduledAt, e.NotificationID });
-            // 2026/07: 取消唯一約束，允許同一檢舉（同一結果）掛多筆通知——
-            // 「通知檢舉者」與「通知被檢舉會員」都要能以 SourceReportID 關聯回檢舉，供通知紀錄查詢
-            entity.HasIndex(e => new { e.SourceReportID, e.SourceReportOutcome })
+            // 2026/07: 去重粒度改為（來源檢舉＋結果＋收件會員）複合唯一——
+            // 同一檢舉＋同一結果對同一位收件人只會有一筆通知（避免重複通知），
+            // 但「通知檢舉者」與「通知被檢舉會員」因 MemberID 不同仍可各存一筆。
+            entity.HasIndex(e => new { e.SourceReportID, e.SourceReportOutcome, e.MemberID })
+                .IsUnique()
                 .HasFilter("[SourceReportID] IS NOT NULL AND [SourceReportOutcome] IS NOT NULL");
             entity.Property(e => e.NotificationType).HasMaxLength(20).IsRequired().HasDefaultValue("Personal");
             entity.Property(e => e.TargetRole).HasMaxLength(10);

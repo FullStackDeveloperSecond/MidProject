@@ -54,7 +54,9 @@ public sealed class ReportNotificationWindow : IReportNotificationWindow
             return Result(ReportNotificationClassification.AdminInvalid, correlationId, "ADMIN_INVALID");
         }
 
-        if (await _repository.ReportSourceExistsAsync(request.ReportID, request.Outcome, cancellationToken))
+        // 去重以（來源檢舉＋結果＋收件會員）為粒度，與資料庫複合唯一索引一致；
+        // 這樣同一檢舉的「通知被檢舉會員」不會誤擋到「通知檢舉者」（收件人不同）
+        if (await _repository.ReportSourceExistsForMemberAsync(request.ReportID, request.Outcome, request.ReporterMemberID, cancellationToken))
         {
             return Result(ReportNotificationClassification.AlreadyExists, correlationId);
         }
@@ -92,7 +94,7 @@ public sealed class ReportNotificationWindow : IReportNotificationWindow
         catch (DbUpdateException ex)
         {
             _repository.ClearTracking();
-            if (await _repository.ReportSourceExistsAsync(request.ReportID, request.Outcome, cancellationToken))
+            if (await _repository.ReportSourceExistsForMemberAsync(request.ReportID, request.Outcome, request.ReporterMemberID, cancellationToken))
             {
                 return Result(ReportNotificationClassification.AlreadyExists, correlationId);
             }
