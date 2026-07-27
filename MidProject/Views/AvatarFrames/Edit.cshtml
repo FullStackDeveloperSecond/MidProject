@@ -11,7 +11,7 @@
 <form method="post" asp-action="Edit" asp-route-id="@Model.FrameID" enctype="multipart/form-data">
     @Html.AntiForgeryToken()
     <input type="hidden" asp-for="FrameID" />
-    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+    <div asp-validation-summary="All" class="text-danger"></div>
 
     <div class="row">
         <div class="col-md-4">
@@ -40,6 +40,7 @@
                     <option value="Rare">稀有</option>
                     <option value="Limited">限定</option>
                 </select>
+                <span asp-validation-for="Rarity" class="text-danger"></span>
             </div>
 
             <div class="mb-3">
@@ -80,7 +81,7 @@
 <div class="d-flex justify-content-between align-items-center border border-danger-subtle rounded p-3 bg-danger-subtle bg-opacity-10">
     <div>
         <strong class="text-danger d-block">刪除此商品</strong>
-        <span class="text-muted small">刪除後不會影響已兌換會員的使用權，但商城將永久移除此商品。</span>
+        <span class="text-muted small">刪除後不會影響已兌換會員的使用權，商城會馬上下架此商品；可到「已刪除商品」頁面隨時復原。</span>
     </div>
     <form method="post" asp-action="Delete" asp-route-id="@Model.FrameID" onsubmit="return confirm('確定要刪除「@Model.Name」嗎？刪除後可到「已刪除商品」頁面復原。');">
         @Html.AntiForgeryToken()
