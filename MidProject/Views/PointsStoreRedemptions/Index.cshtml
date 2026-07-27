@@ -36,6 +36,11 @@
     </div>
 </div>
 
+@if (!string.IsNullOrEmpty(Model.DateRangeError))
+{
+    <div class="alert alert-danger">@Model.DateRangeError</div>
+}
+
 <form method="get" class="row g-2 mb-3 align-items-end">
     <div class="col-md-3">
         <label class="form-label small text-muted mb-1">會員關鍵字</label>

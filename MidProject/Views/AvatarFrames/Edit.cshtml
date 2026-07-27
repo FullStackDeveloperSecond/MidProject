@@ -49,6 +49,13 @@
             </div>
 
             <div class="mb-3">
+                <label class="form-label">排序值</label>
+                <input asp-for="SortOrder" type="number" min="0" class="form-control" />
+                <span asp-validation-for="SortOrder" class="text-danger"></span>
+                <div class="form-text">數字越小排越前面，商品列表依此排序。</div>
+            </div>
+
+            <div class="mb-3">
                 <label class="form-label">商品描述（選填）</label>
                 <textarea asp-for="Description" class="form-control" rows="3"></textarea>
                 <span asp-validation-for="Description" class="text-danger"></span>
@@ -75,7 +82,7 @@
         <strong class="text-danger d-block">刪除此商品</strong>
         <span class="text-muted small">刪除後不會影響已兌換會員的使用權，但商城將永久移除此商品。</span>
     </div>
-    <form method="post" asp-action="Delete" asp-route-id="@Model.FrameID" onsubmit="return confirm('確定要刪除「@Model.Name」嗎？此動作無法復原。');">
+    <form method="post" asp-action="Delete" asp-route-id="@Model.FrameID" onsubmit="return confirm('確定要刪除「@Model.Name」嗎？刪除後可到「已刪除商品」頁面復原。');">
         @Html.AntiForgeryToken()
         <button type="submit" class="btn btn-outline-danger">刪除商品</button>
     </form>
