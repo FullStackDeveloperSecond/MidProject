@@ -32,7 +32,7 @@ public class Member
     [Required, StringLength(20)]
     public string Status { get; set; } = "Normal";
 
-    // 記錄自動懲處機制上次套用時的受理檢舉次數，用來避免同一次數重複套用（見 AdminMembersController.ApplyAutoEscalationAsync）
+    // 記錄自動懲處機制上次套用時的受理檢舉次數，用來避免同一次數重複套用（見 Services/MemberEscalationBackgroundService.cs）
     public int WarningCount { get; set; }
 
     // 記錄連續密碼登入失敗次數，達 3 次時 IsLocked 會被設為 true（見 AccountController.Login）；登入成功或管理員手動解鎖時歸零

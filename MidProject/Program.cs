@@ -75,6 +75,11 @@ builder.Services.AddScoped<NotificationAdminAuthorizationFilter>();
 builder.Services.AddScoped<IReportNotificationWindow, ReportNotificationWindow>();
 builder.Services.AddScoped<IDashboardNotificationWindow, DashboardNotificationWindow>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
+
+// 會員自動懲處改為排程背景服務（每 5 分鐘批次執行一次），
+// 不再放在 AdminMembersController 的 Index/Edit（GET）裡順便觸發寫入資料庫
+builder.Services.AddHostedService<MemberEscalationBackgroundService>();
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment() && builder.Configuration.GetValue<bool>("SeedData:Enabled"))

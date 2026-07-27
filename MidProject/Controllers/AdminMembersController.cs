@@ -18,6 +18,8 @@ public class AdminMembersController : Controller
 
     
     // 4. 會員列表頁
+    // 純讀取，不寫入資料庫：自動懲處計算已改由 MemberEscalationBackgroundService 排程批次處理，
+    // 這裡看到的 Status / PenaltyEndAt 是該排程上次執行後的結果，不會因為開這個頁面而被修改。
     public async Task<IActionResult> Index(string keyword, string statusFilter, int? levelFilter, string sortBy, bool showAbnormal = false, bool todayOnly = false, int page = 1)
     {
         // 4.2 統計卡片資料
@@ -66,12 +68,6 @@ public class AdminMembersController : Controller
         var totalItems = await query.CountAsync();
         var members = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
 
-        // 依累積受理檢舉次數自動套用懲處（僅升級，不會反向降級）
-        foreach (var m in members)
-        {
-            await ApplyAutoEscalationAsync(m);
-        }
-
         // 狀態保留
         ViewBag.Keyword = keyword;
         ViewBag.StatusFilter = statusFilter;
@@ -87,6 +83,7 @@ public class AdminMembersController : Controller
     }
 
     // 5. 會員詳細 / 編輯頁 (GET)
+    // 純讀取，不寫入資料庫：自動懲處計算已改由 MemberEscalationBackgroundService 排程批次處理（見該檔案）。
     public async Task<IActionResult> Edit(int id)
     {
         // 停權會員仍可開啟編輯頁（管理員可解除停權），故不排除 IsDeleted
@@ -95,9 +92,6 @@ public class AdminMembersController : Controller
             .Include(m => m.AvatarImage)
             .FirstOrDefaultAsync(m => m.MemberID == id);
         if (member == null) return NotFound();
-
-        // 依累積受理檢舉次數自動套用懲處（僅升級，不會反向降級）
-        await ApplyAutoEscalationAsync(member);
 
         // 3.4 & 5.7 關聯檢舉紀錄：只顯示 Status = Approved (受理) 的紀錄
         ViewBag.ApprovedReports = await _context.Reports
@@ -179,7 +173,7 @@ public class AdminMembersController : Controller
                 memberInDb.FailedLoginCount = 0;
             }
 
-            // 5.5 處分期限現在由自動懲處機制（ApplyAutoEscalationAsync）依受理檢舉次數計算，
+            // 5.5 處分期限現在由自動懲處排程（MemberEscalationBackgroundService）依受理檢舉次數計算，
             // 手動編輯僅在「正常／停權」時清空期限，其餘狀態維持既有的處分期限不變
             if (model.Status == "Normal" || model.Status == "Suspended")
             {
@@ -252,83 +246,6 @@ public class AdminMembersController : Controller
         return View(displayMember);
     }
 
-    // 依累積受理（Approved）檢舉次數自動套用懲處等級：
-    // 1 次=警告、2 次=禁言 1 週、3 次=禁言 1 個月、4 次以上=停權並軟刪除（會員列表仍反灰顯示，但不計入會員總數）。
-    // 只會升級，不會反向降級，也不會再變更已是 Deleted 的終止狀態。
-    // 自動懲處僅調整 Status / PenaltyEndAt，不寫入 AdminNote（AdminNote 只留給手動調整動作記錄）。
-    private static readonly Dictionary<string, int> StatusSeverity = new()
-    {
-        ["Normal"] = 0,
-        ["Warning"] = 1,
-        ["Muted"] = 2,
-        ["Suspended"] = 3,
-        ["Deleted"] = 4
-    };
-
-    private async Task ApplyAutoEscalationAsync(Member member)
-    {
-        if (member.Status == "Deleted") return;
-
-        // 1. 懲罰期限已過：狀態自動恢復為正常（僅限有期限的懲處，如禁言；停權為永久，需人工解除）
-        if (member.PenaltyEndAt.HasValue && member.PenaltyEndAt.Value <= DateTime.Now)
-        {
-            member.Status = "Normal";
-            member.PenaltyEndAt = null;
-            member.UpdatedAt = DateTime.Now;
-            await _context.SaveChangesAsync();
-            return;
-        }
-
-        var approvedCount = await _context.Reports
-            .CountAsync(r => r.ReportedMemberID == member.MemberID && r.Status == "Approved" && !r.IsDeleted);
-
-        // 借用未使用的 WarningCount 欄位記錄「上次套用懲處時的受理檢舉次數」。
-        // 只有次數比上次套用時更高才重新計算，避免次數沒變時每次讀取頁面就重算處分期限（造成同一等級的懲處期限不斷被往後延），
-        // 也避免管理員手動調整過的狀態被同一次數的懲處邏輯每次都強制蓋回去。
-        if (approvedCount <= member.WarningCount) return;
-
-        string targetStatus;
-        DateTime? targetPenaltyEndAt;
-
-        if (approvedCount >= 4)
-        {
-            targetStatus = "Suspended";
-            targetPenaltyEndAt = null;
-        }
-        else if (approvedCount == 3)
-        {
-            targetStatus = "Muted";
-            targetPenaltyEndAt = DateTime.Now.AddMonths(1);
-        }
-        else if (approvedCount == 2)
-        {
-            targetStatus = "Muted";
-            targetPenaltyEndAt = DateTime.Now.AddDays(7);
-        }
-        else if (approvedCount == 1)
-        {
-            targetStatus = "Warning";
-            targetPenaltyEndAt = null;
-        }
-        else
-        {
-            return;
-        }
-
-        // 不反向降級
-        if (StatusSeverity[targetStatus] < StatusSeverity[member.Status]) return;
-
-        member.Status = targetStatus;
-        member.PenaltyEndAt = targetPenaltyEndAt;
-        member.WarningCount = approvedCount;
-        member.UpdatedAt = DateTime.Now;
-
-        if (targetStatus == "Suspended")
-        {
-            member.IsDeleted = true;
-            member.DeletedAt = DateTime.Now;
-        }
-
-        await _context.SaveChangesAsync();
-    }
+    // 自動懲處計算（依累積受理檢舉次數升級 Status / PenaltyEndAt）已搬到 MemberEscalationBackgroundService
+    // 排程背景服務，每 5 分鐘批次執行一次；這個 Controller 不再自己算、也不再在 GET 裡寫資料庫。
 }
