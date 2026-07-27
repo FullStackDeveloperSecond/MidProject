@@ -52,7 +52,17 @@ public sealed class MemberService : IMemberService
         };
     }
 
-    public async Task<MemberEditOutcome> SaveMemberEditAsync(int id, MemberEditVM model, int? currentAdminId, CancellationToken cancellationToken = default)
+    private static readonly Dictionary<string, string> StatusLabels = new()
+    {
+        ["Normal"] = "正常",
+        ["Warning"] = "警告",
+        ["Muted"] = "禁言",
+        ["Suspended"] = "停權"
+    };
+
+    private static string StatusLabel(string status) => StatusLabels.TryGetValue(status, out var label) ? label : status;
+
+    public async Task<MemberEditOutcome> SaveMemberEditAsync(int id, MemberEditVM model, MemberEditOperator memberEditOperator, CancellationToken cancellationToken = default)
     {
         var memberInDb = await _repository.GetByIdAsync(id, includeDetails: false, cancellationToken);
         if (memberInDb == null)
@@ -60,9 +70,9 @@ public sealed class MemberService : IMemberService
             return MemberEditOutcome.NotFound();
         }
 
-        // 每個「手動調整」子動作都先在前端彈窗確認、即時把變更疊加預覽進 AdminNote 文字框並帶入對應的隱藏欄位，
-        // 尚未真的送出到資料庫；要按下這個表單的「保存變更」才會一次性套用所有已預覽的變更並真正保存
-        // （跟「解除停權」原本的流程一致）。
+        // 每個「手動調整」子動作都先在前端彈窗確認、即時把變更帶入對應的隱藏欄位並在 AdminNote 文字框
+        // 顯示預覽（僅供畫面顯示，送出後端一律忽略），尚未真的送出到資料庫；要按下這個表單的「保存變更」
+        // 才會一次性套用所有已預覽的變更並真正保存（跟「解除停權」原本的流程一致）。
         var statusChanged = memberInDb.Status != model.Status;
         var nicknameChanged = model.NickName != null && memberInDb.NickName != model.NickName;
         var avatarRemoval = model.RemoveAvatarRequested && memberInDb.AvatarImageID != null;
@@ -96,11 +106,44 @@ public sealed class MemberService : IMemberService
         }
 
         var now = _clock.GetNow();
+        var timestamp = now.ToString("yyyy/M/d HH:mm");
 
         // 5.3 允許編輯欄位（帳號 UserName 不可變更）
-        // 各子動作變更時，前端已經把「時間 已將X從A變更為B，原因：xxx」疊加寫進 AdminNote 文字框中預覽；
-        // 這裡直接保存文字框當下的內容即可，送出前使用者仍可自由編輯這段預覽文字
-        memberInDb.AdminNote = model.AdminNote;
+        // AdminNote 一律由後端依「資料庫比對出的實際變更」與已驗證過的原因欄位重新組字串，絕不採用
+        // 表單送來的 model.AdminNote —— 該欄位在畫面上雖是 readonly 預覽，但 <textarea> 的內容仍會
+        // 隨表單一起送出，繞過 UI（例如直接發送 POST）就能把任意文字寫進稽核紀錄。時間戳記、比對用的
+        // 新舊值都取自伺服器端（_clock／memberInDb），操作人員身分也只採用 Controller 端已驗證過的
+        // memberEditOperator，全部不接受表單欄位覆寫。
+        var noteLines = new List<string>();
+        if (statusChanged)
+        {
+            noteLines.Add($"{timestamp} 已將狀態從「{StatusLabel(memberInDb.Status)}」變更為「{StatusLabel(model.Status)}」，原因：{model.StatusChangeReason}（操作人員：{memberEditOperator.DisplayName}）");
+        }
+        if (nicknameChanged)
+        {
+            noteLines.Add($"{timestamp} 已將名稱從「{memberInDb.NickName}」變更為「{model.NickName}」，原因：{model.NicknameChangeReason}（操作人員：{memberEditOperator.DisplayName}）");
+        }
+        if (avatarRemoval)
+        {
+            noteLines.Add($"{timestamp} 因{model.AvatarRemovalReason}，已移除照片（操作人員：{memberEditOperator.DisplayName}）");
+        }
+        if (pointsChanged)
+        {
+            noteLines.Add($"{timestamp} 已將點數從 {memberInDb.Points} 調整為 {model.Points}，原因：{model.PointsChangeReason}（操作人員：{memberEditOperator.DisplayName}）");
+        }
+        if (unlockRequested)
+        {
+            noteLines.Add(string.IsNullOrWhiteSpace(model.UnlockReason)
+                ? $"{timestamp} 已解除帳號鎖定（操作人員：{memberEditOperator.DisplayName}）"
+                : $"{timestamp} 已解除帳號鎖定，原因：{model.UnlockReason}（操作人員：{memberEditOperator.DisplayName}）");
+        }
+        if (noteLines.Count > 0)
+        {
+            var combinedNote = string.Join('\n', noteLines);
+            memberInDb.AdminNote = string.IsNullOrWhiteSpace(memberInDb.AdminNote)
+                ? combinedNote
+                : combinedNote + '\n' + memberInDb.AdminNote;
+        }
         memberInDb.Status = model.Status;
 
         if (nicknameChanged)
@@ -134,7 +177,7 @@ public sealed class MemberService : IMemberService
         {
             memberInDb.IsDeleted = true;
             memberInDb.DeletedAt = now;
-            memberInDb.DeletedBy = currentAdminId;
+            memberInDb.DeletedBy = memberEditOperator.MemberId;
         }
         else
         {

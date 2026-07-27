@@ -69,7 +69,7 @@ public class MemberServiceTests
         model.Status = "Warning";
         // 故意不填 StatusChangeReason
 
-        var outcome = await service.SaveMemberEditAsync(member.MemberID, model, currentAdminId: 1);
+        var outcome = await service.SaveMemberEditAsync(member.MemberID, model, new MemberEditOperator(1, "測試管理員"));
 
         Assert.Equal(MemberEditOutcomeKind.ValidationFailed, outcome.Kind);
         Assert.True(outcome.ValidationErrors!.ContainsKey(nameof(MemberEditVM.StatusChangeReason)));
@@ -84,15 +84,38 @@ public class MemberServiceTests
         var model = BaseModel(member);
         model.Status = "Warning";
         model.StatusChangeReason = "測試原因";
-        model.AdminNote = $"{clock.GetNow():yyyy/M/d HH:mm} 已將狀態從「正常」變更為「警告」，原因：測試原因";
-
-        var outcome = await service.SaveMemberEditAsync(member.MemberID, model, currentAdminId: 1);
+        var outcome = await service.SaveMemberEditAsync(member.MemberID, model, new MemberEditOperator(1, "測試管理員"));
 
         Assert.Equal(MemberEditOutcomeKind.Success, outcome.Kind);
 
         var updated = await context.Members.FindAsync(member.MemberID);
         Assert.Equal("Warning", updated!.Status);
         Assert.Contains("測試原因", updated.AdminNote);
+        Assert.Contains($"{clock.GetNow():yyyy/M/d HH:mm}", updated.AdminNote);
+        Assert.Contains("測試管理員", updated.AdminNote);
+    }
+
+    // 備註欄在畫面上是 readonly 預覽，真正的來源必須是伺服器端比對出的變更，不能是表單傳入的
+    // model.AdminNote —— 否則繞過 UI（例如直接發送 POST）就能偽造任意稽核紀錄。
+    [Fact]
+    public async Task SaveMemberEditAsync_ForgedAdminNoteInRequest_IsIgnored()
+    {
+        var (service, context, _) = CreateService();
+        var member = await SeedMemberAsync(context, m => m.Status = "Normal");
+
+        var model = BaseModel(member);
+        model.Status = "Warning";
+        model.StatusChangeReason = "測試原因";
+        model.AdminNote = "2000/1/1 00:00 已將狀態從「停權」變更為「正常」，原因：假造紀錄（操作人員：假冒的人）";
+
+        var outcome = await service.SaveMemberEditAsync(member.MemberID, model, new MemberEditOperator(1, "測試管理員"));
+
+        Assert.Equal(MemberEditOutcomeKind.Success, outcome.Kind);
+
+        var updated = await context.Members.FindAsync(member.MemberID);
+        Assert.DoesNotContain("假造紀錄", updated!.AdminNote);
+        Assert.DoesNotContain("假冒的人", updated.AdminNote);
+        Assert.DoesNotContain("2000/1/1", updated.AdminNote);
     }
 
     [Fact]
@@ -105,7 +128,7 @@ public class MemberServiceTests
         model.Status = "Suspended";
         model.StatusChangeReason = "累積違規";
 
-        var outcome = await service.SaveMemberEditAsync(member.MemberID, model, currentAdminId: 42);
+        var outcome = await service.SaveMemberEditAsync(member.MemberID, model, new MemberEditOperator(42, "測試管理員"));
 
         Assert.Equal(MemberEditOutcomeKind.Success, outcome.Kind);
 
@@ -131,7 +154,7 @@ public class MemberServiceTests
         model.Status = "Normal";
         model.StatusChangeReason = "解除停權";
 
-        var outcome = await service.SaveMemberEditAsync(member.MemberID, model, currentAdminId: 1);
+        var outcome = await service.SaveMemberEditAsync(member.MemberID, model, new MemberEditOperator(1, "測試管理員"));
 
         Assert.Equal(MemberEditOutcomeKind.Success, outcome.Kind);
 
@@ -152,7 +175,7 @@ public class MemberServiceTests
         model.NickName = "新名稱";
         // 故意不填 NicknameChangeReason
 
-        var outcome = await service.SaveMemberEditAsync(member.MemberID, model, currentAdminId: 1);
+        var outcome = await service.SaveMemberEditAsync(member.MemberID, model, new MemberEditOperator(1, "測試管理員"));
 
         Assert.Equal(MemberEditOutcomeKind.ValidationFailed, outcome.Kind);
         Assert.True(outcome.ValidationErrors!.ContainsKey(nameof(MemberEditVM.NicknameChangeReason)));
@@ -168,7 +191,7 @@ public class MemberServiceTests
         model.RemoveAvatarRequested = true;
         // 故意不填 AvatarRemovalReason
 
-        var outcome = await service.SaveMemberEditAsync(member.MemberID, model, currentAdminId: 1);
+        var outcome = await service.SaveMemberEditAsync(member.MemberID, model, new MemberEditOperator(1, "測試管理員"));
 
         Assert.Equal(MemberEditOutcomeKind.ValidationFailed, outcome.Kind);
         Assert.True(outcome.ValidationErrors!.ContainsKey(nameof(MemberEditVM.AvatarRemovalReason)));
@@ -184,7 +207,7 @@ public class MemberServiceTests
         model.Points = 200;
         // 故意不填 PointsChangeReason
 
-        var outcome = await service.SaveMemberEditAsync(member.MemberID, model, currentAdminId: 1);
+        var outcome = await service.SaveMemberEditAsync(member.MemberID, model, new MemberEditOperator(1, "測試管理員"));
 
         Assert.Equal(MemberEditOutcomeKind.ValidationFailed, outcome.Kind);
         Assert.True(outcome.ValidationErrors!.ContainsKey(nameof(MemberEditVM.PointsChangeReason)));
@@ -204,7 +227,7 @@ public class MemberServiceTests
         model.UnlockAccountRequested = true;
         // 解除鎖定原因為選填，不填也應該成功
 
-        var outcome = await service.SaveMemberEditAsync(member.MemberID, model, currentAdminId: 1);
+        var outcome = await service.SaveMemberEditAsync(member.MemberID, model, new MemberEditOperator(1, "測試管理員"));
 
         Assert.Equal(MemberEditOutcomeKind.Success, outcome.Kind);
 
@@ -219,7 +242,7 @@ public class MemberServiceTests
         var (service, _, _) = CreateService();
 
         var model = new MemberEditVM { MemberID = 999, Status = "Normal" };
-        var outcome = await service.SaveMemberEditAsync(999, model, currentAdminId: 1);
+        var outcome = await service.SaveMemberEditAsync(999, model, new MemberEditOperator(1, "測試管理員"));
 
         Assert.Equal(MemberEditOutcomeKind.NotFound, outcome.Kind);
     }

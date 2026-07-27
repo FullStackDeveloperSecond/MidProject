@@ -10,8 +10,13 @@ public interface IMemberService
 {
     Task<MemberListPageData> GetIndexViewDataAsync(MemberIndexQuery query, CancellationToken cancellationToken = default);
     Task<MemberEditViewData?> GetEditViewDataAsync(int id, CancellationToken cancellationToken = default);
-    Task<MemberEditOutcome> SaveMemberEditAsync(int id, MemberEditVM model, int? currentAdminId, CancellationToken cancellationToken = default);
+    Task<MemberEditOutcome> SaveMemberEditAsync(int id, MemberEditVM model, MemberEditOperator memberEditOperator, CancellationToken cancellationToken = default);
 }
+
+// 執行變更的管理員身分，一律來自 Controller 端已驗證過的登入 Cookie Claims
+// （[Authorize(Roles="Admin")] 保證進得來的一定是登入中的 Admin），不會是表單欄位、不可能被使用者偽造。
+// Service 組稽核紀錄文字、寫入 DeletedBy 時都只採用這裡的資料。
+public sealed record MemberEditOperator(int? MemberId, string DisplayName);
 
 public sealed record MemberIndexQuery(
     string? Keyword,

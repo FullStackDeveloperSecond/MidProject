@@ -82,8 +82,10 @@ public class AdminMembersController : Controller
 
         var adminIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
         int? currentAdminId = int.TryParse(adminIdClaim, out var parsedAdminId) ? parsedAdminId : null;
+        var currentAdminName = User.FindFirstValue(ClaimTypes.Name) ?? "管理員";
+        var memberEditOperator = new MemberEditOperator(currentAdminId, currentAdminName);
 
-        var outcome = await _memberService.SaveMemberEditAsync(id, model, currentAdminId);
+        var outcome = await _memberService.SaveMemberEditAsync(id, model, memberEditOperator);
 
         if (outcome.Kind == MemberEditOutcomeKind.NotFound)
         {
