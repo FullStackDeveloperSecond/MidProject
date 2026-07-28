@@ -1,4 +1,6 @@
+using System.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using MidProject.Data;
 using MidProject.Models;
 using MidProject.Services.IServices;
@@ -13,6 +15,9 @@ namespace MidProject.Services;
 // 可以共用同一份實作，兩邊算出來的結果保證一致。
 public sealed class MemberEscalationService : IMemberEscalationService
 {
+    private static readonly SemaphoreSlim ProcessRunGate = new(1, 1);
+    private const string SqlServerLockResource = "MidProject.MemberEscalation.RunOnce";
+
     private static readonly Dictionary<string, int> StatusSeverity = new()
     {
         ["Normal"] = 0,
@@ -32,6 +37,73 @@ public sealed class MemberEscalationService : IMemberEscalationService
     }
 
     public async Task<MemberEscalationRunResult> RunOnceAsync(CancellationToken cancellationToken = default)
+    {
+        // 正式環境使用 SQL Server transaction-owned application lock，因此背景排程、管理員手動觸發，
+        // 甚至多個應用程式執行個體都只能同時有一個懲處批次。測試用的 InMemory provider 則使用
+        // process-wide semaphore，保持同一份互斥語意。
+        if (_context.Database.ProviderName?.Contains("SqlServer", StringComparison.Ordinal) == true)
+        {
+            await using var transaction = await _context.Database.BeginTransactionAsync(
+                IsolationLevel.ReadCommitted,
+                cancellationToken);
+
+            var lockResult = await AcquireSqlServerRunLockAsync(cancellationToken);
+            if (lockResult < 0)
+            {
+                throw new TimeoutException($"無法取得會員懲處排程鎖，SQL Server 回傳代碼 {lockResult}。");
+            }
+
+            var result = await RunOnceCoreAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return result;
+        }
+
+        await ProcessRunGate.WaitAsync(cancellationToken);
+        try
+        {
+            return await RunOnceCoreAsync(cancellationToken);
+        }
+        finally
+        {
+            ProcessRunGate.Release();
+        }
+    }
+
+    private async Task<int> AcquireSqlServerRunLockAsync(CancellationToken cancellationToken)
+    {
+        var connection = _context.Database.GetDbConnection();
+        await using var command = connection.CreateCommand();
+        command.Transaction = _context.Database.CurrentTransaction!.GetDbTransaction();
+        command.CommandText = "sp_getapplock";
+        command.CommandType = CommandType.StoredProcedure;
+
+        AddParameter(command, "@Resource", SqlServerLockResource);
+        AddParameter(command, "@LockMode", "Exclusive");
+        AddParameter(command, "@LockOwner", "Transaction");
+        AddParameter(command, "@LockTimeout", 15_000);
+
+        var returnValue = command.CreateParameter();
+        returnValue.ParameterName = "@RETURN_VALUE";
+        returnValue.Direction = ParameterDirection.ReturnValue;
+        returnValue.DbType = DbType.Int32;
+        command.Parameters.Add(returnValue);
+
+        await command.ExecuteNonQueryAsync(cancellationToken);
+        return Convert.ToInt32(returnValue.Value);
+    }
+
+    private static void AddParameter(
+        System.Data.Common.DbCommand command,
+        string name,
+        object value)
+    {
+        var parameter = command.CreateParameter();
+        parameter.ParameterName = name;
+        parameter.Value = value;
+        command.Parameters.Add(parameter);
+    }
+
+    private async Task<MemberEscalationRunResult> RunOnceCoreAsync(CancellationToken cancellationToken)
     {
         var now = _clock.GetNow();
 

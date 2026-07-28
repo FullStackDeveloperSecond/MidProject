@@ -86,6 +86,15 @@ public class AdminMembersController : Controller
             return Forbid();
         }
 
+        if (!ModelState.IsValid)
+        {
+            var invalidData = await _memberService.GetEditViewDataAsync(id);
+            if (invalidData == null) return NotFound();
+
+            ApplyEditViewBag(invalidData);
+            return View(invalidData.Member);
+        }
+
         var currentAdminName = User.FindFirstValue(ClaimTypes.Name) ?? "管理員";
         var memberEditOperator = new MemberEditOperator(currentAdminId, currentAdminName);
 
@@ -99,8 +108,15 @@ public class AdminMembersController : Controller
         {
             return RedirectToAction(nameof(Index));
         }
+        if (outcome.Kind == MemberEditOutcomeKind.ConcurrencyConflict)
+        {
+            ModelState.Clear();
+            ModelState.AddModelError(
+                string.Empty,
+                "此會員資料已由其他管理員更新。畫面已重新載入最新資料，請確認後再送出。");
+        }
 
-        foreach (var (field, message) in outcome.ValidationErrors!)
+        foreach (var (field, message) in outcome.ValidationErrors ?? new Dictionary<string, string>())
         {
             ModelState.AddModelError(field, message);
         }

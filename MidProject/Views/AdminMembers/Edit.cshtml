@@ -65,10 +65,15 @@
 }
 
 <form asp-action="Edit" method="post" id="editForm" class="@(isSuspended ? "opacity-50" : "")">
+    @if (!ViewData.ModelState.IsValid)
+    {
+        <div asp-validation-summary="All" class="alert alert-danger"></div>
+    }
     <div class="row">
         <div class="col-md-4">
             <div class="card p-3 mb-3">
                 <input type="hidden" asp-for="MemberID" />
+                <input type="hidden" name="RowVersion" value="@Convert.ToBase64String(Model.RowVersion)" />
                 <input type="hidden" name="UnlockAccountRequested" id="unlockAccountRequestedInput" value="@(unlockAccountRequested ? "true" : "false")" />
                 <input type="hidden" name="UnlockReason" id="unlockReasonInput" value="@ViewBag.UnlockReason" />
 

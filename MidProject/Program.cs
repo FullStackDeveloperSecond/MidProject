@@ -38,6 +38,8 @@ if (string.IsNullOrWhiteSpace(connectionString))
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(connectionString));
 
+builder.Services.AddScoped<AdminCookieAuthenticationEvents>();
+
 //���U Cookie ���ҪA��
 builder.Services.AddAuthentication(Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
@@ -45,6 +47,7 @@ builder.Services.AddAuthentication(Microsoft.AspNetCore.Authentication.Cookies.C
         // �p�G���n�J�ξ��ҥ��ġA�|�۰ʸ���ܦ����|
         options.LoginPath = "/Account/Login";
         options.AccessDeniedPath = "/Home/Index";
+        options.EventsType = typeof(AdminCookieAuthenticationEvents);
     });
 
 builder.Services.AddScoped<IReportRepository, ReportRepository>();

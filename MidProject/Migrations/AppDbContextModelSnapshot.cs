@@ -307,6 +307,12 @@ namespace MidProject.Migrations
                         .HasColumnType("nvarchar(10)")
                         .HasDefaultValue("User");
 
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .ValueGeneratedOnAdd()

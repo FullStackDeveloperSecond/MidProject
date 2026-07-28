@@ -62,6 +62,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Points).HasDefaultValue(0);
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETDATE()");
             entity.Property(e => e.UpdatedAt).HasDefaultValueSql("GETDATE()");
+            entity.Property(e => e.RowVersion).IsRowVersion();
             entity.ToTable(table =>
             {
                 table.HasCheckConstraint("CK_Members_Role", "[Role] IN ('User', 'Admin')");

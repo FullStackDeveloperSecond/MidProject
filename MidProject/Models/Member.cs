@@ -52,6 +52,10 @@ public class Member
     public DateTime? DeletedAt { get; set; }
     public int? DeletedBy { get; set; }
 
+    // 防止兩位管理員同時編輯時，後送出的請求覆蓋先前的狀態與稽核紀錄。
+    [Timestamp]
+    public byte[] RowVersion { get; set; } = Array.Empty<byte>();
+
     public Image? AvatarImage { get; set; }
     public Member? DeletedByMember { get; set; }
 

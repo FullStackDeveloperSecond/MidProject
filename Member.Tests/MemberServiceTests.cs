@@ -53,6 +53,7 @@ public class MemberServiceTests
     private static MemberEditVM BaseModel(MemberModel member) => new()
     {
         MemberID = member.MemberID,
+        RowVersion = Convert.ToBase64String(member.RowVersion),
         Status = member.Status,
         AdminNote = member.AdminNote,
         NickName = member.NickName,
@@ -233,6 +234,50 @@ public class MemberServiceTests
 
         Assert.Equal(MemberEditOutcomeKind.ValidationFailed, outcome.Kind);
         Assert.True(outcome.ValidationErrors!.ContainsKey(nameof(MemberEditVM.PointsChangeReason)));
+    }
+
+    [Fact]
+    public async Task SaveMemberEditAsync_NegativePoints_IsRejectedWithoutWriting()
+    {
+        var (service, context, _) = CreateService();
+        var member = await SeedMemberAsync(context, m => m.Points = 100);
+
+        var model = BaseModel(member);
+        model.Points = -1;
+        model.PointsChangeReason = "惡意繞過前端驗證";
+
+        var outcome = await service.SaveMemberEditAsync(
+            member.MemberID,
+            model,
+            new MemberEditOperator(1, "測試管理員"));
+
+        Assert.Equal(MemberEditOutcomeKind.ValidationFailed, outcome.Kind);
+        Assert.True(outcome.ValidationErrors!.ContainsKey(nameof(MemberEditVM.Points)));
+        Assert.Equal(100, (await context.Members.FindAsync(member.MemberID))!.Points);
+    }
+
+    [Fact]
+    public async Task SaveMemberEditAsync_StaleRowVersion_ReturnsConcurrencyConflict()
+    {
+        var (service, context, _) = CreateService();
+        var member = await SeedMemberAsync(context, m =>
+        {
+            m.Points = 100;
+            m.RowVersion = new byte[] { 1 };
+        });
+
+        var model = BaseModel(member);
+        model.RowVersion = Convert.ToBase64String(new byte[] { 0 });
+        model.Points = 200;
+        model.PointsChangeReason = "測試並行更新";
+
+        var outcome = await service.SaveMemberEditAsync(
+            member.MemberID,
+            model,
+            new MemberEditOperator(1, "測試管理員"));
+
+        Assert.Equal(MemberEditOutcomeKind.ConcurrencyConflict, outcome.Kind);
+        Assert.Equal(100, (await context.Members.FindAsync(member.MemberID))!.Points);
     }
 
     [Fact]

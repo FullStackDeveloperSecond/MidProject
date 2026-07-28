@@ -59,7 +59,12 @@ namespace MidProject.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> SoftDelete(int id)
         {
-            var ok = await _reviewService.SoftDeleteAsync(id, GetCurrentAdminMemberId());
+            if (!TryGetCurrentAdminMemberId(out var adminMemberId))
+            {
+                return Forbid();
+            }
+
+            var ok = await _reviewService.SoftDeleteAsync(id, adminMemberId);
             if (!ok)
             {
                 return NotFound();
@@ -89,7 +94,12 @@ namespace MidProject.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteImage(int imageId, int reviewId)
         {
-            var ok = await _reviewService.DeleteImageAsync(imageId, GetCurrentAdminMemberId());
+            if (!TryGetCurrentAdminMemberId(out var adminMemberId))
+            {
+                return Forbid();
+            }
+
+            var ok = await _reviewService.DeleteImageAsync(imageId, adminMemberId);
             if (!ok)
             {
                 return NotFound();
@@ -99,9 +109,12 @@ namespace MidProject.Controllers
             return RedirectToAction(nameof(Details), new { id = reviewId });
         }
 
-        private int GetCurrentAdminMemberId()
+        private bool TryGetCurrentAdminMemberId(out int adminMemberId)
         {
-            return int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            return int.TryParse(
+                    User.FindFirstValue(ClaimTypes.NameIdentifier),
+                    out adminMemberId)
+                && adminMemberId > 0;
         }
     }
 }

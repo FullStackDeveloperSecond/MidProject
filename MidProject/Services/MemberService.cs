@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+using Microsoft.EntityFrameworkCore;
 using MidProject.Models.ViewModels;
 using MidProject.Repositories.IRepositories;
 using MidProject.Services.IServices;
@@ -80,6 +82,29 @@ public sealed class MemberService : IMemberService
         var unlockRequested = model.UnlockAccountRequested && memberInDb.IsLocked;
 
         var errors = new Dictionary<string, string>();
+        var annotationResults = new List<ValidationResult>();
+        Validator.TryValidateObject(
+            model,
+            new ValidationContext(model),
+            annotationResults,
+            validateAllProperties: true);
+        foreach (var validationResult in annotationResults)
+        {
+            var field = validationResult.MemberNames.FirstOrDefault() ?? string.Empty;
+            errors.TryAdd(field, validationResult.ErrorMessage ?? "輸入資料不正確。");
+        }
+
+        byte[] postedRowVersion;
+        try
+        {
+            postedRowVersion = Convert.FromBase64String(model.RowVersion ?? string.Empty);
+        }
+        catch (FormatException)
+        {
+            postedRowVersion = Array.Empty<byte>();
+            errors[nameof(MemberEditVM.RowVersion)] = "資料版本格式不正確，請重新整理後再試。";
+        }
+
         if (string.IsNullOrWhiteSpace(model.Status) || !StatusLabels.ContainsKey(model.Status))
         {
             errors[nameof(MemberEditVM.Status)] = "會員狀態不正確。";
@@ -107,6 +132,11 @@ public sealed class MemberService : IMemberService
             var redisplayData = await BuildRedisplayDataAsync(
                 id, model, memberInDb.Status, memberInDb.NickName, memberInDb.Points, cancellationToken);
             return MemberEditOutcome.ValidationFailed(errors, redisplayData);
+        }
+
+        if (!postedRowVersion.SequenceEqual(memberInDb.RowVersion))
+        {
+            return await BuildConcurrencyConflictAsync(id, cancellationToken);
         }
 
         var now = _clock.GetNow();
@@ -192,8 +222,25 @@ public sealed class MemberService : IMemberService
 
         memberInDb.UpdatedAt = now;
 
-        await _repository.SaveChangesAsync(cancellationToken);
-        return MemberEditOutcome.Success();
+        try
+        {
+            await _repository.SaveChangesAsync(cancellationToken);
+            return MemberEditOutcome.Success();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return await BuildConcurrencyConflictAsync(id, cancellationToken);
+        }
+    }
+
+    private async Task<MemberEditOutcome> BuildConcurrencyConflictAsync(
+        int id,
+        CancellationToken cancellationToken)
+    {
+        var currentData = await GetEditViewDataAsync(id, cancellationToken);
+        return currentData == null
+            ? MemberEditOutcome.NotFound()
+            : MemberEditOutcome.ConcurrencyConflict(currentData);
     }
 
     // 驗證失敗時：重新查詢資料庫中完整且正確的會員資料（含等級、經驗值、點數、頭像等），

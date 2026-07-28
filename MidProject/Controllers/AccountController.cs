@@ -73,11 +73,18 @@ public class AccountController : Controller
         if (!isPasswordValid)
         {
             // 8. 連續密碼錯誤達 3 次鎖定帳號，須由管理員在會員編輯頁手動解鎖（AdminMembersController.Edit）
-            var (newFailedCount, willLock) = MemberLoginPolicy.RecordFailedAttempt(admin.FailedLoginCount);
+            // 必須讓 SQL Server 直接以資料庫中的目前值遞增，不能先在記憶體算好固定值再覆寫；
+            // 否則多個並行的錯誤密碼請求可能都讀到相同次數，造成實際嘗試次數被少算。
             await _context.Members.Where(m => m.MemberID == admin.MemberID)
                 .ExecuteUpdateAsync(s => s
-                    .SetProperty(m => m.FailedLoginCount, newFailedCount)
-                    .SetProperty(m => m.IsLocked, willLock));
+                    .SetProperty(m => m.FailedLoginCount, m => m.FailedLoginCount + 1)
+                    .SetProperty(m => m.IsLocked, m => m.FailedLoginCount + 1 >= MemberLoginPolicy.MaxFailedAttempts));
+
+            var willLock = await _context.Members
+                .AsNoTracking()
+                .Where(m => m.MemberID == admin.MemberID)
+                .Select(m => m.IsLocked)
+                .SingleAsync();
 
             ModelState.AddModelError("", willLock
                 ? "帳號或密碼錯誤，密碼已連續錯誤 3 次，帳號已被鎖定，請聯繫管理員解除鎖定。"

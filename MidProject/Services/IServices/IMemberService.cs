@@ -54,6 +54,7 @@ public enum MemberEditOutcomeKind
 {
     Success,
     ValidationFailed,
+    ConcurrencyConflict,
     NotFound
 }
 
@@ -69,4 +70,7 @@ public sealed class MemberEditOutcome
 
     public static MemberEditOutcome ValidationFailed(Dictionary<string, string> errors, MemberEditViewData redisplayData) =>
         new() { Kind = MemberEditOutcomeKind.ValidationFailed, ValidationErrors = errors, RedisplayData = redisplayData };
+
+    public static MemberEditOutcome ConcurrencyConflict(MemberEditViewData redisplayData) =>
+        new() { Kind = MemberEditOutcomeKind.ConcurrencyConflict, RedisplayData = redisplayData };
 }
