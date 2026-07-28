@@ -1,9 +1,11 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MidProject.Models.ViewModels.Restaurants;
 using MidProject.Services.IServices;
 
 namespace MidProject.Controllers;
 
+[Authorize(Roles = "Admin")]
 public class RestaurantsController : Controller
 {
     private readonly IRestaurantService _restaurantService;
