@@ -75,7 +75,6 @@ public static class ReportsTestDataSeeder
             {
                 var category = categories[i % categories.Length];
                 var status = statuses[i % statuses.Length];
-                var reporter = reporters[i % reporters.Count];
                 var reasonOptions = reasonsByCategory[category];
                 var reason = reasonOptions[i % reasonOptions.Length];
 
@@ -105,6 +104,17 @@ public static class ReportsTestDataSeeder
                         targetOwnerId = img.UploadedByMemberID;
                         break;
                 }
+
+                // 禁止自我檢舉：檢舉者不得是目標內容的擁有者。
+                var eligibleReporters = reporters
+                    .Where(member => member.MemberID != targetOwnerId)
+                    .ToList();
+                if (eligibleReporters.Count == 0)
+                {
+                    i++;
+                    continue;
+                }
+                var reporter = eligibleReporters[i % eligibleReporters.Count];
 
                 var report = new Report
                 {
@@ -143,8 +153,8 @@ public static class ReportsTestDataSeeder
 
         // 為已處理（Approved/Rejected）的檢舉各補一筆「通知檢舉者」的通知紀錄，
         // 並寫入 SourceReportID / SourceReportOutcome，讓「查詢單一檢舉的通知紀錄」有資料可用。
-        // 注意：(SourceReportID, SourceReportOutcome) 有唯一索引，每個檢舉＋結果只能掛一筆帶標記的通知；
-        // SourceReportID 為 nullable，掛不了標記的通知（如通知被檢舉會員）留 NULL 即可。
+        // 唯一索引粒度為（SourceReportID, SourceReportOutcome, MemberID），
+        // 同一檢舉可分別通知檢舉者與被檢舉會員，但同一收件人只會有一筆。
         // 需在 SaveChangesAsync 之後執行，ReportID 才會由資料庫產生完成。
         var notifications = new List<Notification>();
         foreach (var report in reports.Where(r => r.Status != "Pending"))

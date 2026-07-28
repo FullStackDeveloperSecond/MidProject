@@ -32,7 +32,11 @@ public class Member
     [Required, StringLength(20)]
     public string Status { get; set; } = "Normal";
 
+    // 記錄自動懲處機制上次套用時的受理檢舉次數，用來避免同一次數重複套用（見 Services/MemberEscalationBackgroundService.cs）
     public int WarningCount { get; set; }
+
+    // 記錄連續密碼登入失敗次數，達 3 次時 IsLocked 會被設為 true（見 AccountController.Login）；登入成功或管理員手動解鎖時歸零
+    public int FailedLoginCount { get; set; }
 
     public string? AdminNote { get; set; }
     public DateTime? PenaltyEndAt { get; set; }
@@ -42,13 +46,19 @@ public class Member
     public int Experience { get; set; }
     public int Points { get; set; }
     public int? AvatarImageID { get; set; }
+    public int? EquippedFrameID { get; set; }
 
     public DateTime CreatedAt { get; set; } = DateTime.Now;
     public DateTime UpdatedAt { get; set; } = DateTime.Now;
     public DateTime? DeletedAt { get; set; }
     public int? DeletedBy { get; set; }
 
+    // 防止兩位管理員同時編輯時，後送出的請求覆蓋先前的狀態與稽核紀錄。
+    [Timestamp]
+    public byte[] RowVersion { get; set; } = Array.Empty<byte>();
+
     public Image? AvatarImage { get; set; }
+    public AvatarFrame? EquippedFrame { get; set; }
     public Member? DeletedByMember { get; set; }
 
     public ICollection<Restaurant> Restaurants { get; set; } = new List<Restaurant>();
@@ -56,6 +66,8 @@ public class Member
     public ICollection<Image> UploadedImages { get; set; } = new List<Image>();
     public ICollection<FavoriteFolder> FavoriteFolders { get; set; } = new List<FavoriteFolder>();
     public ICollection<Favorite> Favorites { get; set; } = new List<Favorite>();
+    public ICollection<MemberAvatarFrame> MemberAvatarFrames { get; set; } = new List<MemberAvatarFrame>();
+    public ICollection<PointsTransaction> PointsTransactions { get; set; } = new List<PointsTransaction>();
     [ForeignKey("LevelID")]
     public virtual UserLevel UserLevel { get; set; } = null!;
 }

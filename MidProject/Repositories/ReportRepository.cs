@@ -14,7 +14,7 @@ public class ReportRepository : IReportRepository
         _context = context;
     }
 
-    public async Task<PagedResult<Report>> GetReportsAsync(ReportQueryParams query)
+    public async Task<PagedResult<Report>> GetReportsAsync(ReportQueryParams query, DateTime today)
     {
         var q = _context.Reports
             .Include(r => r.ReporterMember)
@@ -84,7 +84,7 @@ public class ReportRepository : IReportRepository
 
         // 處理天數：已處理＝處理日－檢舉日（正數）；待處理＝檢舉日－今天（負數，越久未處理越小）。
         // 與 ReportDto.ProcessingDays 的計算一致，在資料庫端算出來才能正確排序＋分頁。
-        var today = DateTime.Now.Date;
+        var currentDate = today.Date;
 
         // 依指定欄位排序，預設依檢舉日期新到舊
         q = (query.SortBy, query.SortDirection?.ToLower()) switch
@@ -94,10 +94,10 @@ public class ReportRepository : IReportRepository
             ("Status", "asc") => q.OrderBy(r => r.Status),
             ("Status", "desc") => q.OrderByDescending(r => r.Status),
             ("ProcessingDays", "asc") => q.OrderBy(r => r.Status == "Pending"
-                ? EF.Functions.DateDiffDay(today, r.CreatedAt.Date)
+                ? EF.Functions.DateDiffDay(currentDate, r.CreatedAt.Date)
                 : (r.HandledAt.HasValue ? EF.Functions.DateDiffDay(r.CreatedAt.Date, r.HandledAt.Value.Date) : 0)),
             ("ProcessingDays", "desc") => q.OrderByDescending(r => r.Status == "Pending"
-                ? EF.Functions.DateDiffDay(today, r.CreatedAt.Date)
+                ? EF.Functions.DateDiffDay(currentDate, r.CreatedAt.Date)
                 : (r.HandledAt.HasValue ? EF.Functions.DateDiffDay(r.CreatedAt.Date, r.HandledAt.Value.Date) : 0)),
             ("CreatedAt", "asc") => q.OrderBy(r => r.CreatedAt),
             _ => q.OrderByDescending(r => r.CreatedAt)
@@ -141,11 +141,6 @@ public class ReportRepository : IReportRepository
     public async Task AddAsync(Report report)
     {
         await _context.Reports.AddAsync(report);
-    }
-
-    public async Task AddNotificationAsync(Notification notification)
-    {
-        await _context.Notifications.AddAsync(notification);
     }
 
     public async Task<int?> GetTargetOwnerMemberIdAsync(int? restaurantId, int? reviewId, int? imageId)

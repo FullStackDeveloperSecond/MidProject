@@ -1,8 +1,10 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MidProject.Services.IServices;
 
 namespace MidProject.Controllers;
 
+[Authorize(Roles = "Admin")]
 public class TagsController : Controller
 {
     private readonly ITagService _tagService;

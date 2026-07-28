@@ -52,6 +52,21 @@ public sealed class ReportNotificationIntegrationTests : ReportTestBase
     }
 
     [Fact]
+    public async Task NotifyReporter_InvalidHandleCategory_DoesNotHandleOrNotify()
+    {
+        var id = AddReport(reviewId: ReviewId);
+        var dto = Notify("Approved");
+        dto.HandleCategory = "任意分類";
+
+        var result = await Service.NotifyReporterAsync(id, dto, AdminId);
+
+        Assert.False(result.Success);
+        Assert.Contains("分類", result.Message);
+        Assert.Empty(Window.ReporterRequests);
+        Assert.Equal("Pending", (await Service.GetByIdAsync(id))!.Status);
+    }
+
+    [Fact]
     public async Task NotifyReporter_WindowReportsMemberDeleted_ReturnsRecipientUnavailable_ButReportHandled()
     {
         var id = AddReport(reviewId: ReviewId, reporterId: DeletedReporterId);

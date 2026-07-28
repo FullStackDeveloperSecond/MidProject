@@ -19,14 +19,15 @@ namespace MidProject.Helpers
         public static (string Label, string CssClass) GetReportStatusLabel(string status) => status switch
         {
             "Pending" => ("待處理", "rs-pending"),
-            "Approved" => ("已通過", "rs-approved"),
-            "Rejected" => ("已駁回", "rs-rejected"),
+            "Approved" => ("檢舉成立", "rs-approved"),
+            "Rejected" => ("駁回檢舉", "rs-rejected"),
             _ => (status, "rs-pending"),
         };
 
-        public static string FormatRelative(DateTime dt)
+        /// <summary>now 由呼叫端傳入（View 用 @inject ITaipeiClock 取得），避免這裡直接用 DateTime.Now。</summary>
+        public static string FormatRelative(DateTime dt, DateTime now)
         {
-            var diff = DateTime.Now - dt;
+            var diff = now - dt;
             if (diff.TotalMinutes < 1) return "剛剛";
             if (diff.TotalMinutes < 60) return $"{(int)diff.TotalMinutes} 分鐘前";
             if (diff.TotalHours < 24) return $"{(int)diff.TotalHours} 小時前";

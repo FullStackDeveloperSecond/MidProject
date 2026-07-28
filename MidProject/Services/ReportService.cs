@@ -7,6 +7,11 @@ namespace MidProject.Services;
 
 public class ReportService : IReportService
 {
+    private static readonly HashSet<string> AllowedCategories = new(StringComparer.Ordinal)
+    {
+        "不實資訊", "廣告洗版", "人身攻擊", "仇恨言論", "色情內容", "垃圾訊息", "未分類"
+    };
+
     private readonly IReportRepository _repository;
     private readonly IReportNotificationWindow _notificationWindow;
     private readonly ITaipeiClock _clock;
@@ -20,11 +25,12 @@ public class ReportService : IReportService
 
     public async Task<PagedResult<ReportDto>> GetReportsAsync(ReportQueryParams query)
     {
-        var paged = await _repository.GetReportsAsync(query);
+        var today = _clock.GetNow().Date;
+        var paged = await _repository.GetReportsAsync(query, today);
 
         return new PagedResult<ReportDto>
         {
-            Items = paged.Items.Select(ToDto).ToList(),
+            Items = paged.Items.Select(report => ToDto(report, today)).ToList(),
             TotalCount = paged.TotalCount,
             Page = paged.Page,
             PageSize = paged.PageSize
@@ -34,7 +40,7 @@ public class ReportService : IReportService
     public async Task<ReportDto?> GetByIdAsync(int reportId)
     {
         var report = await _repository.GetByIdAsync(reportId);
-        return report == null ? null : ToDto(report);
+        return report == null ? null : ToDto(report, _clock.GetNow().Date);
     }
 
     public async Task<Report> CreateReportAsync(ReportCreateDto dto, int reporterMemberId)
@@ -48,6 +54,8 @@ public class ReportService : IReportService
 
         // 建立時即填入被檢舉會員＝檢舉目標（餐廳／評論／圖片）的擁有者
         var reportedMemberId = await _repository.GetTargetOwnerMemberIdAsync(dto.RestaurantID, dto.ReviewID, dto.ImageID);
+        if (reportedMemberId == reporterMemberId)
+            throw new InvalidOperationException("不能檢舉自己的內容。");
 
         var report = new Report
         {
@@ -74,6 +82,9 @@ public class ReportService : IReportService
         if (dto.Status != "Approved" && dto.Status != "Rejected")
             return ReportHandleOutcome.InvalidStatus;
 
+        if (!string.IsNullOrWhiteSpace(dto.Category) && !AllowedCategories.Contains(dto.Category))
+            return ReportHandleOutcome.InvalidCategory;
+
         // 管理員備註必填、空白視為未填、最多 30 字
         var note = dto.AdminNote?.Trim();
         if (string.IsNullOrEmpty(note)) return ReportHandleOutcome.AdminNoteRequired;
@@ -87,6 +98,9 @@ public class ReportService : IReportService
         var reportedOwner = report.Restaurant?.Member
             ?? report.Review?.Member
             ?? report.Image?.UploadedByMember;
+        if (reportedOwner?.MemberID == report.ReporterMemberID)
+            return ReportHandleOutcome.SelfReportNotAllowed;
+
         var reportedMemberId = (reportedOwner != null && reportedOwner.Role != "Admin")
             ? reportedOwner.MemberID
             : (int?)null;
@@ -160,6 +174,8 @@ public class ReportService : IReportService
             ReportHandleOutcome.Handled => (await _repository.GetByIdAsync(report.ReportID), null),
             ReportHandleOutcome.AlreadyHandled => (null, ReportNotifyResult.Fail("此檢舉已由其他管理員處理，請重新整理後確認最新狀態。")),
             ReportHandleOutcome.InvalidStatus => (null, ReportNotifyResult.Fail("處理結果不正確（僅能為檢舉成立或駁回檢舉）。")),
+            ReportHandleOutcome.InvalidCategory => (null, ReportNotifyResult.Fail("檢舉分類不正確。")),
+            ReportHandleOutcome.SelfReportNotAllowed => (null, ReportNotifyResult.Fail("不允許處理會員檢舉自己內容的案件。")),
             ReportHandleOutcome.AdminNoteRequired => (null, ReportNotifyResult.Fail("處理檢舉時「管理員備註」為必填。")),
             ReportHandleOutcome.AdminNoteTooLong => (null, ReportNotifyResult.Fail("「管理員備註」最多 30 字。")),
             _ => (null, ReportNotifyResult.Fail("找不到指定的檢舉。"))
@@ -201,7 +217,8 @@ public class ReportService : IReportService
     {
         var (pending, approved, rejected) = await _repository.GetStatusCountsAsync();
 
-        var monthStart = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
+        var now = _clock.GetNow();
+        var monthStart = new DateTime(now.Year, now.Month, 1);
         var pendingNewThisMonth = await _repository.GetPendingCountSinceAsync(monthStart);
 
         // 近 12 個月（含當月），先建立好每個月的桶子，確保沒有資料的月份也會顯示 0，而不是整根柱子消失
@@ -232,7 +249,7 @@ public class ReportService : IReportService
         };
     }
 
-    private static ReportDto ToDto(Report r) => new()
+    private static ReportDto ToDto(Report r, DateTime today) => new()
     {
         ReportID = r.ReportID,
         ReporterMemberID = r.ReporterMemberID,
@@ -260,7 +277,10 @@ public class ReportService : IReportService
         CreatedAt = r.CreatedAt,
         HandledAt = r.HandledAt,
         HandledByUserName = r.HandledByMember?.UserName,
-        AdminNote = r.AdminNote
+        AdminNote = r.AdminNote,
+        ProcessingDays = r.Status == "Pending"
+            ? (r.CreatedAt.Date - today).Days
+            : (r.HandledAt.HasValue ? (r.HandledAt.Value.Date - r.CreatedAt.Date).Days : 0)
     };
 
     // 被檢舉會員的有效 ID：目標內容擁有者，但擁有者為 Admin 時回傳 null（排除管理員）

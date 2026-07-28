@@ -16,7 +16,7 @@
       "applicationUrl": "http://localhost:5058",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
-        "Notifications__IdentityMode": "DevelopmentTemporary"
+        "Notifications__IdentityMode": "AccountLogin"
       }
     },
     "IIS Express": {
@@ -24,7 +24,7 @@
       "launchBrowser": true,
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
-        "Notifications__IdentityMode": "DevelopmentTemporary"
+        "Notifications__IdentityMode": "AccountLogin"
       }
     }
   }

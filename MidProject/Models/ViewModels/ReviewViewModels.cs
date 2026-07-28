@@ -17,6 +17,9 @@ namespace MidProject.Models.ViewModels
         public string SortBy { get; set; } = "time";  // time / rating / report
         public string SortDir { get; set; } = "desc";  // desc=大到小/新到舊, asc=反過來
 
+        /// <summary>精確篩選單一餐廳的評論（例如從餐廳詳細頁點過來），跟 Search 的模糊搜尋是兩種情境。</summary>
+        public int? RestaurantID { get; set; }
+
         // 分頁資訊
         public int Page { get; set; }
         public int PageSize { get; set; }

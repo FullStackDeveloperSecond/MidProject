@@ -1,0 +1,133 @@
+@model MidProject.Models.ViewModels.PointsStore.RedemptionsIndexViewModel
+@{
+    ViewData["Title"] = "點數商城兌換紀錄";
+}
+
+<div class="mb-3">
+    <h2>點數商城兌換紀錄</h2>
+    <p class="text-muted">會員以點數兌換頭像外框的完整流水紀錄，可依會員、商品與時間區間查詢。</p>
+</div>
+
+<div class="row mb-3 g-3">
+    <div class="col-md-3">
+        <div class="card bg-light p-3 h-100">
+            <h6 class="text-muted mb-1">本月兌換次數</h6>
+            <h4 class="mb-0">@Model.MonthlyRedemptionCount</h4>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-light p-3 h-100">
+            <h6 class="text-muted mb-1">本月消耗點數</h6>
+            <h4 class="mb-0">@Model.MonthlyPointsSpent.ToString("N0")</h4>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-light p-3 h-100">
+            <h6 class="text-muted mb-1">最熱銷商品</h6>
+            <h4 class="mb-0">@(Model.TopFrameName ?? "—")</h4>
+            <small class="text-muted">本月 @Model.TopFrameCount 次兌換</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-light p-3 h-100">
+            <h6 class="text-muted mb-1">兌換會員數</h6>
+            <h4 class="mb-0">@Model.DistinctMemberCount</h4>
+        </div>
+    </div>
+</div>
+
+@if (!string.IsNullOrEmpty(Model.DateRangeError))
+{
+    <div class="alert alert-danger">@Model.DateRangeError</div>
+}
+
+<form method="get" class="row g-2 mb-3 align-items-end">
+    <div class="col-md-3">
+        <label class="form-label small text-muted mb-1">會員關鍵字</label>
+        <div class="input-group">
+            <input type="text" name="keyword" class="form-control" value="@Model.Keyword" placeholder="搜尋會員帳號或名稱…" />
+            <button type="submit" class="btn btn-primary">🔍 搜尋</button>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <label class="form-label small text-muted mb-1">商品</label>
+        <select name="frameFilter" class="form-select" onchange="this.form.submit()">
+            <option value="">所有商品</option>
+            @foreach (var f in Model.AvailableFrames)
+            {
+                <option value="@f.FrameID" selected="@(Model.FrameFilter == f.FrameID)">@f.Name</option>
+            }
+        </select>
+    </div>
+    <div class="col-md-2">
+        <label class="form-label small text-muted mb-1">起始日期</label>
+        <input type="date" name="startDate" class="form-control" value="@Model.StartDate?.ToString("yyyy-MM-dd")" onchange="this.form.submit()" />
+    </div>
+    <div class="col-md-2">
+        <label class="form-label small text-muted mb-1">結束日期</label>
+        <input type="date" name="endDate" class="form-control" value="@Model.EndDate?.ToString("yyyy-MM-dd")" onchange="this.form.submit()" />
+    </div>
+    <div class="col-md-2">
+        <a asp-action="Index" class="btn btn-outline-secondary w-100">重設篩選</a>
+    </div>
+</form>
+
+<table class="table table-hover align-middle">
+    <thead>
+        <tr>
+            <th>兌換時間</th>
+            <th>會員</th>
+            <th>商品</th>
+            <th>扣除點數</th>
+            <th>兌換後餘額</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var r in Model.Redemptions)
+        {
+            <tr>
+                <td>@r.RedeemedAt.ToString("yyyy-MM-dd HH:mm")</td>
+                <td>
+                    <div class="d-flex align-items-center gap-2">
+                        @if (!string.IsNullOrEmpty(r.MemberAvatarUrl))
+                        {
+                            <img src="@r.MemberAvatarUrl" width="28" height="28" class="rounded-circle" />
+                        }
+                        <span>@r.MemberName</span>
+                    </div>
+                </td>
+                <td>
+                    <div class="d-flex align-items-center gap-2">
+                        @if (!string.IsNullOrEmpty(r.FrameImageUrl))
+                        {
+                            <img src="@r.FrameImageUrl" width="28" height="28" class="rounded-circle" />
+                        }
+                        <span>@r.FrameName</span>
+                    </div>
+                </td>
+                <td class="text-danger">-@r.PointsSpent.ToString("N0")</td>
+                <td>@r.BalanceAfter.ToString("N0")</td>
+            </tr>
+        }
+        @if (!Model.Redemptions.Any())
+        {
+            <tr>
+                <td colspan="5" class="text-center text-muted py-4">目前沒有符合條件的兌換紀錄。</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@if (Model.TotalPages > 1)
+{
+    <nav>
+        <ul class="pagination">
+            @for (int i = 1; i <= Model.TotalPages; i++)
+            {
+                <li class="page-item @(i == Model.CurrentPage ? "active" : "")">
+                    <a class="page-link" href="@Url.Action("Index", new { page = i, keyword = Model.Keyword, frameFilter = Model.FrameFilter, startDate = Model.StartDate, endDate = Model.EndDate })">@i</a>
+                </li>
+            }
+        </ul>
+    </nav>
+}

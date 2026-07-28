@@ -5,10 +5,9 @@ namespace MidProject.Repositories;
 
 public interface IReportRepository
 {
-    Task<PagedResult<Report>> GetReportsAsync(ReportQueryParams query);
+    Task<PagedResult<Report>> GetReportsAsync(ReportQueryParams query, DateTime today);
     Task<Report?> GetByIdAsync(int reportId);
     Task AddAsync(Report report);
-    Task AddNotificationAsync(Notification notification);
     Task SaveChangesAsync();
 
     // 依檢舉目標（餐廳／評論／圖片）回推內容擁有者的 MemberID，供建立檢舉時填入被檢舉會員

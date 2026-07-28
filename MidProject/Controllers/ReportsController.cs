@@ -68,6 +68,8 @@ public class ReportsController : Controller
             ReportHandleOutcome.Handled => "檢舉已處理。",
             ReportHandleOutcome.AlreadyHandled => "此檢舉已由其他管理員處理，請重新整理後確認。",
             ReportHandleOutcome.InvalidStatus => "處理結果不正確（僅能為檢舉成立或駁回檢舉）。",
+            ReportHandleOutcome.InvalidCategory => "檢舉分類不正確。",
+            ReportHandleOutcome.SelfReportNotAllowed => "不允許處理會員檢舉自己內容的案件。",
             ReportHandleOutcome.AdminNoteRequired => "處理檢舉時「管理員備註」為必填。",
             ReportHandleOutcome.AdminNoteTooLong => "「管理員備註」最多 30 字。",
             _ => "找不到指定的檢舉。"

@@ -23,4 +23,5 @@ public class Image
     public Member? DeletedByMember { get; set; }
     public ICollection<RestaurantImage> RestaurantImages { get; set; } = new List<RestaurantImage>();
     public ICollection<ReviewImage> ReviewImages { get; set; } = new List<ReviewImage>();
+    public ICollection<AvatarFrame> AvatarFrames { get; set; } = new List<AvatarFrame>();
 }

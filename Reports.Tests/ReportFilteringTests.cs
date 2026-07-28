@@ -68,4 +68,14 @@ public sealed class ReportFilteringTests : ReportTestBase
         Assert.Equal(1, result.TotalCount);
         Assert.Contains("廣告", result.Items[0].Reason);
     }
+
+    [Fact]
+    public async Task ProcessingDays_UsesInjectedTaipeiClock()
+    {
+        AddReport(reviewId: ReviewId, createdAt: Clock.GetNow().AddDays(-2));
+
+        var result = await Service.GetReportsAsync(new ReportQueryParams { PageSize = 50 });
+
+        Assert.Equal(-2, Assert.Single(result.Items).ProcessingDays);
+    }
 }

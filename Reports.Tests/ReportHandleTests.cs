@@ -53,6 +53,28 @@ public sealed class ReportHandleTests : ReportTestBase
     }
 
     [Fact]
+    public async Task Handle_InvalidCategory_IsRejected()
+    {
+        var id = AddReport(reviewId: ReviewId);
+
+        var outcome = await Service.HandleReportAsync(id, Dto(category: "任意分類"), AdminId);
+
+        Assert.Equal(ReportHandleOutcome.InvalidCategory, outcome);
+        Assert.Equal("Pending", (await Service.GetByIdAsync(id))!.Status);
+    }
+
+    [Fact]
+    public async Task Handle_SelfReport_IsRejected()
+    {
+        var id = AddReport(reviewId: ReviewId, reporterId: OwnerId);
+
+        var outcome = await Service.HandleReportAsync(id, Dto(), AdminId);
+
+        Assert.Equal(ReportHandleOutcome.SelfReportNotAllowed, outcome);
+        Assert.Equal("Pending", (await Service.GetByIdAsync(id))!.Status);
+    }
+
+    [Fact]
     public async Task Handle_Twice_SecondIsAlreadyHandled_AndResultNotOverridden()
     {
         var id = AddReport(reviewId: ReviewId);

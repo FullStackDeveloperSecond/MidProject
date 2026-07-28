@@ -55,10 +55,8 @@ public class ReportDto
         _ => Status
     };
 
-    // 處理天數：已處理案件＝處理日期－檢舉日期；待處理案件則呈現負數＝檢舉日期－今天（累積未處理天數）
-    public int ProcessingDays => Status == "Pending"
-        ? (CreatedAt.Date - DateTime.Now.Date).Days
-        : (HandledAt.HasValue ? (HandledAt.Value.Date - CreatedAt.Date).Days : 0);
+    // 由 ReportService 使用共用台灣時間計算，避免部署主機時區影響列表顯示。
+    public int ProcessingDays { get; set; }
 
     // 通知檢舉會員審核結果的預設標題／內容範本，管理員送出前可自行編輯
     public string DefaultNotificationTitle => "【檢舉結果通知】您提交的檢舉已完成審核";
@@ -115,6 +113,8 @@ public enum ReportHandleOutcome
     NotFound,
     AlreadyHandled,   // 已被（其他管理員）處理，並行控制擋下
     InvalidStatus,    // 只接受 Approved / Rejected
+    InvalidCategory,  // 只接受既定違規分類
+    SelfReportNotAllowed, // 不允許會員檢舉自己的內容
     AdminNoteRequired,// 管理員備註必填
     AdminNoteTooLong  // 管理員備註超過長度
 }
