@@ -12,11 +12,16 @@ public class RestaurantService : IRestaurantService
 
     private readonly IRestaurantRepository _restaurantRepository;
     private readonly ITagRepository _tagRepository;
+    private readonly IImageUploadService _imageUploadService;
 
-    public RestaurantService(IRestaurantRepository restaurantRepository, ITagRepository tagRepository)
+    public RestaurantService(
+        IRestaurantRepository restaurantRepository,
+        ITagRepository tagRepository,
+        IImageUploadService imageUploadService)
     {
         _restaurantRepository = restaurantRepository;
         _tagRepository = tagRepository;
+        _imageUploadService = imageUploadService;
     }
 
     public async Task<RestaurantIndexViewModel> GetIndexAsync(RestaurantFilterQuery filter)
@@ -193,6 +198,7 @@ public class RestaurantService : IRestaurantService
         await _restaurantRepository.AddAsync(restaurant);
         await _restaurantRepository.ReplaceTagsAsync(restaurant.RestaurantID, form.SelectedTagIds);
         await _restaurantRepository.ReplaceBusinessHoursAsync(restaurant.RestaurantID, BuildHourEntitiesFromRows(form.Hours));
+        await ApplyImageChangesAsync(restaurant.RestaurantID, form, adminId);
 
         return (true, restaurant.RestaurantID);
     }
@@ -223,6 +229,7 @@ public class RestaurantService : IRestaurantService
 
         await _restaurantRepository.ReplaceTagsAsync(id, form.SelectedTagIds);
         await _restaurantRepository.ReplaceBusinessHoursAsync(id, BuildHourEntitiesFromRows(form.Hours));
+        await ApplyImageChangesAsync(id, form, adminId);
 
         return true;
     }
@@ -247,6 +254,31 @@ public class RestaurantService : IRestaurantService
         if (restaurant == null || !restaurant.IsDeleted) return false;
         await _restaurantRepository.RestoreAsync(id);
         return true;
+    }
+
+    private async Task ApplyImageChangesAsync(int restaurantId, RestaurantFormViewModel form, int adminId)
+    {
+        if (form.RemoveCoverImage && form.CoverImageFile == null)
+        {
+            await _restaurantRepository.RemoveCoverImageAsync(restaurantId);
+        }
+
+        if (form.CoverImageFile != null)
+        {
+            var coverImage = await _imageUploadService.SaveAsync(form.CoverImageFile, "RestaurantCover", adminId);
+            await _restaurantRepository.SetCoverImageAsync(restaurantId, coverImage);
+        }
+
+        foreach (var imageId in form.RemoveEnvironmentImageIds.Distinct())
+        {
+            await _restaurantRepository.RemoveEnvironmentImageAsync(restaurantId, imageId);
+        }
+
+        foreach (var file in form.EnvironmentImageFiles)
+        {
+            var environmentImage = await _imageUploadService.SaveAsync(file, "RestaurantEnvironment", adminId);
+            await _restaurantRepository.AddEnvironmentImageAsync(restaurantId, environmentImage);
+        }
     }
 
     private static RestaurantRowViewModel MapRow(Restaurant r, RestaurantReviewStats reviewStats, int favoriteCount)

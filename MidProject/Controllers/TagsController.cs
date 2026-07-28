@@ -27,7 +27,12 @@ public class TagsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(string name)
     {
-        var (success, error) = await _tagService.CreateAsync(name, GetAdminId());
+        if (!TryGetAdminId(out var adminId))
+        {
+            return Forbid();
+        }
+
+        var (success, error) = await _tagService.CreateAsync(name, adminId);
         TempData["Toast"] = success ? "標籤已新增。" : error;
         return RedirectToAction(nameof(Index));
     }
@@ -37,7 +42,12 @@ public class TagsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Toggle(int id)
     {
-        var success = await _tagService.ToggleAsync(id, GetAdminId());
+        if (!TryGetAdminId(out var adminId))
+        {
+            return Forbid();
+        }
+
+        var success = await _tagService.ToggleAsync(id, adminId);
         if (!success) return NotFound();
         return RedirectToAction(nameof(Index));
     }
@@ -48,9 +58,12 @@ public class TagsController : Controller
     public async Task<IActionResult> Reorder(List<int> orderedIds)
     {
         if (orderedIds == null || orderedIds.Count == 0) return BadRequest();
-        await _tagService.ReorderAsync(orderedIds);
-        return Ok();
+        return await _tagService.ReorderAsync(orderedIds) ? Ok() : BadRequest();
     }
 
-    private int GetAdminId() => int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : 0;
+    private bool TryGetAdminId(out int adminId)
+    {
+        var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return int.TryParse(claim, out adminId) && adminId > 0;
+    }
 }

@@ -94,7 +94,12 @@ public class RestaurantsController : Controller
             return PartialView("_FormPartial", form);
         }
 
-        var (success, newId) = await _restaurantService.CreateAsync(form, GetAdminId());
+        if (!TryGetAdminId(out var adminId))
+        {
+            return Forbid();
+        }
+
+        var (success, newId) = await _restaurantService.CreateAsync(form, adminId);
         if (!success)
         {
             form = await _restaurantService.RehydrateFormAsync(form);
@@ -123,7 +128,12 @@ public class RestaurantsController : Controller
             return PartialView("_FormPartial", form);
         }
 
-        var success = await _restaurantService.EditAsync(id, form, GetAdminId());
+        if (!TryGetAdminId(out var adminId))
+        {
+            return Forbid();
+        }
+
+        var success = await _restaurantService.EditAsync(id, form, adminId);
         if (!success)
         {
             form = await _restaurantService.RehydrateFormAsync(form);
@@ -138,7 +148,12 @@ public class RestaurantsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Disable(int id, string reason)
     {
-        var success = await _restaurantService.DisableAsync(id, reason, GetAdminId());
+        if (!TryGetAdminId(out var adminId))
+        {
+            return Forbid();
+        }
+
+        var success = await _restaurantService.DisableAsync(id, reason, adminId);
         if (!success) return NotFound();
         TempData["Toast"] = "餐廳已移至停用餐廳一覽。";
         return RedirectToAction(nameof(Deleted));
@@ -155,5 +170,9 @@ public class RestaurantsController : Controller
         return RedirectToAction(nameof(Index));
     }
 
-    private int GetAdminId() => int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : 0;
+    private bool TryGetAdminId(out int adminId)
+    {
+        var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return int.TryParse(claim, out adminId) && adminId > 0;
+    }
 }

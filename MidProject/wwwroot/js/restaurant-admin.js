@@ -445,6 +445,14 @@ const RestaurantAdmin = (() => {
                     body: new FormData(form)
                 });
 
+                if (response.status === 403) {
+                    toast("無法識別管理員身分，請重新登入後再試。");
+                    if (submitButton) {
+                        submitButton.disabled = false;
+                    }
+                    return;
+                }
+
                 const text = await response.text();
                 let json = null;
                 try {

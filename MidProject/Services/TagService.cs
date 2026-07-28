@@ -67,5 +67,5 @@ public class TagService : ITagService
         return true;
     }
 
-    public Task ReorderAsync(List<int> orderedIds) => _tagRepository.ReorderAsync(orderedIds);
+    public Task<bool> ReorderAsync(IReadOnlyList<int> orderedIds) => _tagRepository.ReorderAsync(orderedIds);
 }

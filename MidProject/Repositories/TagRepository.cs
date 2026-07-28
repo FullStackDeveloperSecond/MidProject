@@ -60,22 +60,32 @@ public class TagRepository : ITagRepository
             .ToDictionaryAsync(x => x.TagId, x => x.Count);
     }
 
-    // 拖曳排序只重新編號目前「使用中」的標籤（停用標籤的 SortOrder 維持不動，
-    // 停用區塊本來就不能拖曳，也不參與這份清單），依前端送來的新順序逐一寫回。
-    public async Task ReorderAsync(List<int> orderedIds)
+    public async Task<bool> ReorderAsync(IReadOnlyList<int> orderedIds)
     {
-        var tags = await _db.Tags.Where(t => orderedIds.Contains(t.TagID)).ToListAsync();
-        var tagsById = tags.ToDictionary(t => t.TagID);
+        if (orderedIds.Count == 0 || orderedIds.Distinct().Count() != orderedIds.Count)
+        {
+            return false;
+        }
+
+        var activeTags = await _db.Tags.Where(t => !t.IsDeleted).ToListAsync();
+        if (activeTags.Count != orderedIds.Count)
+        {
+            return false;
+        }
+
+        var tagsById = activeTags.ToDictionary(t => t.TagID);
+        if (orderedIds.Any(id => !tagsById.ContainsKey(id)))
+        {
+            return false;
+        }
 
         for (var i = 0; i < orderedIds.Count; i++)
         {
-            if (tagsById.TryGetValue(orderedIds[i], out var tag))
-            {
-                tag.SortOrder = i;
-            }
+            tagsById[orderedIds[i]].SortOrder = i;
         }
 
         await _db.SaveChangesAsync();
+        return true;
     }
 
     public Task SaveChangesAsync() => _db.SaveChangesAsync();

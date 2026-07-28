@@ -10,6 +10,6 @@ public interface ITagRepository
     Task AddAsync(Tag tag);
     Task ToggleAsync(int id, int byMemberId);
     Task<Dictionary<int, int>> GetActiveUsageCountsAsync();
-    Task ReorderAsync(List<int> orderedIds);
+    Task<bool> ReorderAsync(IReadOnlyList<int> orderedIds);
     Task SaveChangesAsync();
 }

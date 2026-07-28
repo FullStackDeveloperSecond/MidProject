@@ -84,9 +84,9 @@ public class RestaurantRepository : IRestaurantRepository
 
         query = filter.Sort switch
         {
-            "rating" => query.OrderByDescending(r => r.AverageRating),
-            "review" => query.OrderByDescending(r => r.ReviewCount),
-            _ => query.OrderByDescending(r => r.CreatedAt)
+            "rating" => query.OrderByDescending(r => r.AverageRating).ThenBy(r => r.RestaurantID),
+            "review" => query.OrderByDescending(r => r.ReviewCount).ThenBy(r => r.RestaurantID),
+            _ => query.OrderByDescending(r => r.CreatedAt).ThenBy(r => r.RestaurantID)
         };
 
         var totalCount = await query.CountAsync();
@@ -110,7 +110,9 @@ public class RestaurantRepository : IRestaurantRepository
 
     public async Task<(List<Restaurant> Items, int TotalCount)> GetDeletedPagedAsync(RestaurantDeletedFilterQuery filter, int pageSize)
     {
-        var query = ApplyDeletedFilters(filter).OrderByDescending(r => r.DeletedAt ?? r.CreatedAt);
+        var query = ApplyDeletedFilters(filter)
+            .OrderByDescending(r => r.DeletedAt ?? r.CreatedAt)
+            .ThenBy(r => r.RestaurantID);
 
         var totalCount = await query.CountAsync();
         var page = Math.Max(1, filter.Page);
@@ -125,6 +127,7 @@ public class RestaurantRepository : IRestaurantRepository
     {
         return await ApplyDeletedFilters(filter)
             .OrderByDescending(r => r.DeletedAt ?? r.CreatedAt)
+            .ThenBy(r => r.RestaurantID)
             .FirstOrDefaultAsync();
     }
 

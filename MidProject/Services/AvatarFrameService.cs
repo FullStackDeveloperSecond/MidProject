@@ -46,10 +46,10 @@ public class AvatarFrameService : IAvatarFrameService
         var resolvedSort = sortBy is "priceAsc" or "priceDesc" or "name" ? sortBy : "newest";
         framesQuery = resolvedSort switch
         {
-            "priceAsc" => framesQuery.OrderBy(f => f.PointsPrice),
-            "priceDesc" => framesQuery.OrderByDescending(f => f.PointsPrice),
-            "name" => framesQuery.OrderBy(f => f.Name),
-            _ => framesQuery.OrderByDescending(f => f.CreatedAt)
+            "priceAsc" => framesQuery.OrderBy(f => f.PointsPrice).ThenBy(f => f.FrameID),
+            "priceDesc" => framesQuery.OrderByDescending(f => f.PointsPrice).ThenBy(f => f.FrameID),
+            "name" => framesQuery.OrderBy(f => f.Name).ThenBy(f => f.FrameID),
+            _ => framesQuery.OrderByDescending(f => f.CreatedAt).ThenBy(f => f.FrameID)
         };
 
         var totalItems = await framesQuery.CountAsync();
@@ -111,9 +111,9 @@ public class AvatarFrameService : IAvatarFrameService
         var resolvedSort = sortBy is "name" or "price" ? sortBy : "deletedAt";
         framesQuery = resolvedSort switch
         {
-            "name" => framesQuery.OrderBy(f => f.Name),
-            "price" => framesQuery.OrderByDescending(f => f.PointsPrice),
-            _ => framesQuery.OrderByDescending(f => f.DeletedAt)
+            "name" => framesQuery.OrderBy(f => f.Name).ThenBy(f => f.FrameID),
+            "price" => framesQuery.OrderByDescending(f => f.PointsPrice).ThenBy(f => f.FrameID),
+            _ => framesQuery.OrderByDescending(f => f.DeletedAt).ThenBy(f => f.FrameID)
         };
 
         var totalItems = await framesQuery.CountAsync();
