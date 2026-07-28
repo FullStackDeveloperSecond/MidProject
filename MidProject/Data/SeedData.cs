@@ -12,10 +12,12 @@ public static class SeedData
         using var scope = serviceProvider.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         var clock = scope.ServiceProvider.GetRequiredService<ITaipeiClock>();
+        var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+        var credentials = SeedDataCredentials.FromConfiguration(configuration);
         var now = clock.GetNow();
 
         await SeedUserLevelsAsync(context);
-        await SeedMembersAsync(context, now);
+        await SeedMembersAsync(context, now, credentials);
         await SeedRestaurantsAsync(context, now);
         await SeedReviewsAsync(context, now);
         await SeedFavoritesAsync(context, now);
@@ -54,8 +56,13 @@ public static class SeedData
         await context.SaveChangesAsync();
     }
 
-    public static async Task SeedMembersAsync(AppDbContext context, DateTime now)
+    public static async Task SeedMembersAsync(
+        AppDbContext context,
+        DateTime now,
+        SeedDataCredentials credentials)
     {
+        ArgumentNullException.ThrowIfNull(credentials);
+
         var levels = await context.UserLevels.ToDictionaryAsync(level => level.LevelName);
         var definitions = new[]
         {
@@ -81,7 +88,9 @@ public static class SeedData
                 NickName = definition.NickName,
                 Email = definition.Email,
                 PasswordHash = PasswordHashService.HashPassword(
-                    definition.Role == "Admin" ? "Admin123!" : "User123!"),
+                    definition.Role == "Admin"
+                        ? credentials.AdminPassword
+                        : credentials.UserPassword),
                 Role = definition.Role,
                 Status = definition.Status,
                 WarningCount = definition.Status == "Warning" ? 1 : 0,

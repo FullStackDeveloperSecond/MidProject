@@ -93,6 +93,23 @@ dotnet ef database update \
 
 ### 4. 啟動
 
+Development 預設會建立 Demo 會員，但密碼不會保存於 Git。第一次啟動前，請透過
+.NET User Secrets 設定本機專用密碼：
+
+```bash
+dotnet user-secrets set "SeedData:AdminPassword" \
+  "YOUR_LOCAL_DEMO_ADMIN_PASSWORD" \
+  --project MidProject/MidProject.csproj
+
+dotnet user-secrets set "SeedData:UserPassword" \
+  "YOUR_LOCAL_DEMO_USER_PASSWORD" \
+  --project MidProject/MidProject.csproj
+```
+
+CI、容器或其他受控環境也可使用 `SeedData__AdminPassword` 與
+`SeedData__UserPassword` 環境變數。啟用 Development SeedData 卻未提供任一密碼時，
+應用程式會在寫入 Demo 資料前停止，避免建立可預測的帳號憑證。
+
 ```bash
 dotnet run --project MidProject/MidProject.csproj
 ```
