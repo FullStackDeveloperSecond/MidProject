@@ -29,8 +29,8 @@ public class ReviewServiceTests
     private static (AppDbContext Db, ReviewService Service, FakeTaipeiClock Clock) CreateSut()
     {
         var db = CreateContext();
-        var repo = new ReviewRepository(db);
         var clock = new FakeTaipeiClock();
+        var repo = new ReviewRepository(db, clock);
         var service = new ReviewService(repo, db, clock);
         return (db, service, clock);
     }
@@ -191,7 +191,7 @@ public class ReviewServiceTests
     {
         var (_, service, _) = CreateSut();
 
-        var success = await service.DeleteImageAsync(999, adminMemberId: 1);
+        var success = await service.DeleteImageAsync(999, reviewId: 999, adminMemberId: 1);
 
         Assert.False(success);
     }
@@ -201,6 +201,8 @@ public class ReviewServiceTests
     {
         var (db, service, clock) = CreateSut();
         var member = SeedMember(db);
+        var restaurant = SeedRestaurant(db);
+        var review = SeedReview(db, restaurant.RestaurantID, member.MemberID);
         var image = new Image
         {
             UploadedByMemberID = member.MemberID,
@@ -209,8 +211,14 @@ public class ReviewServiceTests
         };
         db.Images.Add(image);
         await db.SaveChangesAsync();
+        db.ReviewImages.Add(new ReviewImage
+        {
+            ReviewID = review.ReviewID,
+            ImageID = image.ImageID,
+        });
+        await db.SaveChangesAsync();
 
-        var success = await service.DeleteImageAsync(image.ImageID, adminMemberId: 5);
+        var success = await service.DeleteImageAsync(image.ImageID, review.ReviewID, adminMemberId: 5);
 
         Assert.True(success);
 
@@ -221,5 +229,37 @@ public class ReviewServiceTests
         Assert.Equal(clock.Now, updated.DeletedAt);
         // 規格書 5.5/8：只軟刪除，實體檔案網址要保留，不能被清掉
         Assert.Equal("/uploads/ReviewImage/test.jpg", updated.ImageURL);
+    }
+
+    [Fact]
+    public async Task DeleteImageAsync_WhenImageBelongsToAnotherReview_DoesNotDelete()
+    {
+        var (db, service, _) = CreateSut();
+        var member = SeedMember(db);
+        var restaurant = SeedRestaurant(db);
+        var ownerReview = SeedReview(db, restaurant.RestaurantID, member.MemberID);
+        var requestedReview = SeedReview(db, restaurant.RestaurantID, member.MemberID);
+        var image = new Image
+        {
+            UploadedByMemberID = member.MemberID,
+            ImageURL = "/uploads/ReviewImage/other-review.jpg",
+            ImageType = "ReviewImage",
+        };
+        db.Images.Add(image);
+        await db.SaveChangesAsync();
+        db.ReviewImages.Add(new ReviewImage
+        {
+            ReviewID = ownerReview.ReviewID,
+            ImageID = image.ImageID,
+        });
+        await db.SaveChangesAsync();
+
+        var success = await service.DeleteImageAsync(
+            image.ImageID,
+            requestedReview.ReviewID,
+            adminMemberId: 5);
+
+        Assert.False(success);
+        Assert.False((await db.Images.FindAsync(image.ImageID))!.IsDeleted);
     }
 }

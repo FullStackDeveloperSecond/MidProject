@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using MidProject.Data;
 
@@ -11,9 +12,11 @@ using MidProject.Data;
 namespace MidProject.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260723064747_FixPointsStoreMappings")]
+    partial class FixPointsStoreMappings
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -336,11 +339,6 @@ namespace MidProject.Migrations
                         .HasColumnType("int")
                         .HasDefaultValue(0);
 
-                    b.Property<int>("FailedLoginCount")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
-
                     b.Property<bool>("IsActive")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
@@ -389,12 +387,6 @@ namespace MidProject.Migrations
                         .HasColumnType("nvarchar(10)")
                         .HasDefaultValue("User");
 
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
                     b.Property<string>("Status")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -438,8 +430,6 @@ namespace MidProject.Migrations
                     b.ToTable("Members", t =>
                         {
                             t.HasCheckConstraint("CK_Members_Experience", "[Experience] >= 0");
-
-                            t.HasCheckConstraint("CK_Members_FailedLoginCount", "[FailedLoginCount] >= 0");
 
                             t.HasCheckConstraint("CK_Members_Points", "[Points] >= 0");
 

@@ -131,9 +131,9 @@ namespace MidProject.Services
             return true;
         }
 
-        public async Task<bool> DeleteImageAsync(int imageId, int adminMemberId)
+        public async Task<bool> DeleteImageAsync(int imageId, int reviewId, int adminMemberId)
         {
-            var image = await _repo.GetImageByIdAsync(imageId);
+            var image = await _repo.GetImageForReviewAsync(imageId, reviewId);
             if (image == null)
             {
                 return false;

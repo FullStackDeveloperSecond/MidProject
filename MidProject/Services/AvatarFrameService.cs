@@ -120,33 +120,40 @@ public class AvatarFrameService : IAvatarFrameService
             return (false, ex.Message);
         }
 
-        await using var transaction = await _dbContext.Database.BeginTransactionAsync();
         try
         {
-            _dbContext.Images.Add(image);
-            await _dbContext.SaveChangesAsync();
-
-            var now = _clock.GetNow();
-            await _frameRepository.AddAsync(new AvatarFrame
+            await using var transaction = await _dbContext.Database.BeginTransactionAsync();
+            try
             {
-                Name = form.Name.Trim(),
-                Description = string.IsNullOrWhiteSpace(form.Description) ? null : form.Description.Trim(),
-                Rarity = form.Rarity,
-                PointsPrice = form.PointsPrice,
-                SortOrder = form.SortOrder,
-                IsActive = form.IsActive,
-                ImageID = image.ImageID,
-                CreatedAt = now,
-                UpdatedAt = now
-            });
+                _dbContext.Images.Add(image);
+                await _dbContext.SaveChangesAsync();
 
-            await transaction.CommitAsync();
+                var now = _clock.GetNow();
+                await _frameRepository.AddAsync(new AvatarFrame
+                {
+                    Name = form.Name.Trim(),
+                    Description = string.IsNullOrWhiteSpace(form.Description) ? null : form.Description.Trim(),
+                    Rarity = form.Rarity,
+                    PointsPrice = form.PointsPrice,
+                    SortOrder = form.SortOrder,
+                    IsActive = form.IsActive,
+                    ImageID = image.ImageID,
+                    CreatedAt = now,
+                    UpdatedAt = now
+                });
+
+                await transaction.CommitAsync();
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
         catch
         {
-            await transaction.RollbackAsync();
-            // DB 交易回滾了，但圖片檔案已經實際寫到硬碟，交易救不回來，要手動清掉，
-            // 不然會留下一個資料庫裡完全沒有紀錄指向的孤兒檔案。
+            // DB 交易無法建立或交易內容失敗時，清除已經寫入硬碟的檔案，
+            // 避免留下資料庫裡完全沒有紀錄指向的孤兒檔案。
             await _imageUploadService.DeleteAsync(image.ImageURL);
             return (false, "新增失敗，請重試。");
         }
@@ -188,43 +195,50 @@ public class AvatarFrameService : IAvatarFrameService
         // 商品欄位更新、新圖片寫入 DB、舊圖片軟刪除，三步驟包在同一個交易裡：
         // 要嘛全部成功，要嘛全部回滾，不會出現「Frame 已經指向新圖但舊圖沒被標記刪除」
         // 或「新圖片資料寫進去了但 Frame 欄位沒更新」這種中間狀態。
-        await using var transaction = await _dbContext.Database.BeginTransactionAsync();
         try
         {
-            frame.Name = form.Name.Trim();
-            frame.Description = string.IsNullOrWhiteSpace(form.Description) ? null : form.Description.Trim();
-            frame.Rarity = form.Rarity;
-            frame.PointsPrice = form.PointsPrice;
-            frame.SortOrder = form.SortOrder;
-            frame.IsActive = form.IsActive;
-            frame.UpdatedAt = now;
-
-            if (newImage != null)
+            await using var transaction = await _dbContext.Database.BeginTransactionAsync();
+            try
             {
-                _dbContext.Images.Add(newImage);
-                await _dbContext.SaveChangesAsync();
-                frame.ImageID = newImage.ImageID;
-            }
+                frame.Name = form.Name.Trim();
+                frame.Description = string.IsNullOrWhiteSpace(form.Description) ? null : form.Description.Trim();
+                frame.Rarity = form.Rarity;
+                frame.PointsPrice = form.PointsPrice;
+                frame.SortOrder = form.SortOrder;
+                frame.IsActive = form.IsActive;
+                frame.UpdatedAt = now;
 
-            await _frameRepository.SaveChangesAsync();
-
-            if (newImage != null && oldImageId.HasValue)
-            {
-                var oldImage = await _dbContext.Images.FindAsync(oldImageId.Value);
-                if (oldImage != null)
+                if (newImage != null)
                 {
-                    oldImage.IsDeleted = true;
-                    oldImage.DeletedAt = now;
-                    oldImage.DeletedBy = adminId;
+                    _dbContext.Images.Add(newImage);
                     await _dbContext.SaveChangesAsync();
+                    frame.ImageID = newImage.ImageID;
                 }
-            }
 
-            await transaction.CommitAsync();
+                await _frameRepository.SaveChangesAsync();
+
+                if (newImage != null && oldImageId.HasValue)
+                {
+                    var oldImage = await _dbContext.Images.FindAsync(oldImageId.Value);
+                    if (oldImage != null)
+                    {
+                        oldImage.IsDeleted = true;
+                        oldImage.DeletedAt = now;
+                        oldImage.DeletedBy = adminId;
+                        await _dbContext.SaveChangesAsync();
+                    }
+                }
+
+                await transaction.CommitAsync();
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
         catch
         {
-            await transaction.RollbackAsync();
             if (newImage != null)
             {
                 await _imageUploadService.DeleteAsync(newImage.ImageURL);

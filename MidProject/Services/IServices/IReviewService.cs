@@ -18,6 +18,6 @@ namespace MidProject.Services.IServices
 
         Task<bool> RestoreAsync(int id);
 
-        Task<bool> DeleteImageAsync(int imageId, int adminMemberId);
+        Task<bool> DeleteImageAsync(int imageId, int reviewId, int adminMemberId);
     }
 }

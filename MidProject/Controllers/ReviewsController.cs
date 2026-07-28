@@ -15,7 +15,7 @@ namespace MidProject.Controllers
     /// 假設條件（跟愷核對，如果名稱不同要照他實際的改）：
     /// 1. Review 有 navigation property：Member、Restaurant、ReviewImages（ReviewImages 裡有 Image）、DeletedByMember（透過 DeletedBy 關聯 Members）
     /// 2. Report 有 navigation property：ReporterMember（透過 ReporterMemberID 關聯 Members）
-    /// 3. 只有登入的管理員可以進來（[Authorize(Roles = "Admin")]），GetCurrentAdminMemberId() 讀真正的登入者 Claim
+    /// 3. 只有登入的管理員可以進來（[Authorize(Roles = "Admin")]），管理員 ID 讀取登入 Cookie 的 ClaimTypes.NameIdentifier
     /// 4. IReviewRepository / IReviewService 已在 Program.cs 註冊 DI
     /// </summary>
     [Authorize(Roles = "Admin")]
@@ -59,12 +59,12 @@ namespace MidProject.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> SoftDelete(int id)
         {
-            if (!TryGetAdminId(out var adminId))
+            if (!TryGetCurrentAdminMemberId(out var adminMemberId))
             {
                 return Forbid();
             }
 
-            var ok = await _reviewService.SoftDeleteAsync(id, adminId);
+            var ok = await _reviewService.SoftDeleteAsync(id, adminMemberId);
             if (!ok)
             {
                 return NotFound();
@@ -94,12 +94,12 @@ namespace MidProject.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteImage(int imageId, int reviewId)
         {
-            if (!TryGetAdminId(out var adminId))
+            if (!TryGetCurrentAdminMemberId(out var adminMemberId))
             {
                 return Forbid();
             }
 
-            var ok = await _reviewService.DeleteImageAsync(imageId, adminId);
+            var ok = await _reviewService.DeleteImageAsync(imageId, reviewId, adminMemberId);
             if (!ok)
             {
                 return NotFound();
@@ -109,11 +109,12 @@ namespace MidProject.Controllers
             return RedirectToAction(nameof(Details), new { id = reviewId });
         }
 
-        /// <summary>從登入 Cookie 的 Claim 讀取目前管理員的 MemberID；解析失敗或非正數都視為不合法，不猜測、不預設值。</summary>
-        private bool TryGetAdminId(out int adminId)
+        private bool TryGetCurrentAdminMemberId(out int adminMemberId)
         {
-            var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            return int.TryParse(claim, out adminId) && adminId > 0;
+            return int.TryParse(
+                    User.FindFirstValue(ClaimTypes.NameIdentifier),
+                    out adminMemberId)
+                && adminMemberId > 0;
         }
     }
 }

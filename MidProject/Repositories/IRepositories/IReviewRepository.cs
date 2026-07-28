@@ -26,7 +26,8 @@ namespace MidProject.Repositories.IRepositories
         /// <summary>撈某則評論底下所有未刪除的檢舉紀錄。</summary>
         Task<List<Report>> GetReportsForReviewAsync(int reviewId);
 
-        Task<Image?> GetImageByIdAsync(int imageId);
+        /// <summary>取得確實隸屬指定評論的評論圖片；不允許跨評論或跨模組操作圖片。</summary>
+        Task<Image?> GetImageForReviewAsync(int imageId, int reviewId);
 
         Task<Restaurant?> GetRestaurantByIdAsync(int restaurantId);
 

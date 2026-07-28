@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using MidProject.Data;
 
@@ -11,9 +12,11 @@ using MidProject.Data;
 namespace MidProject.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260724061013_AddFailedLoginCountToMembers")]
+    partial class AddFailedLoginCountToMembers
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,85 +24,6 @@ namespace MidProject.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
-
-            modelBuilder.Entity("MidProject.Models.AvatarFrame", b =>
-                {
-                    b.Property<int>("FrameID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("FrameID"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETDATE()");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int?>("DeletedBy")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<int?>("ImageID")
-                        .HasColumnType("int");
-
-                    b.Property<bool>("IsActive")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(true);
-
-                    b.Property<bool>("IsDeleted")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false);
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
-                    b.Property<int>("PointsPrice")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Rarity")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)")
-                        .HasDefaultValue("Common");
-
-                    b.Property<int>("SortOrder")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(0);
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETDATE()");
-
-                    b.HasKey("FrameID");
-
-                    b.HasIndex("DeletedBy");
-
-                    b.HasIndex("ImageID");
-
-                    b.HasIndex("IsActive");
-
-                    b.HasIndex("IsDeleted");
-
-                    b.ToTable("AvatarFrames", t =>
-                        {
-                            t.HasCheckConstraint("CK_AvatarFrames_PointsPrice", "[PointsPrice] >= 0");
-
-                            t.HasCheckConstraint("CK_AvatarFrames_Rarity", "[Rarity] IN ('Common', 'Rare', 'Limited')");
-                        });
-                });
 
             modelBuilder.Entity("MidProject.Models.BusinessHour", b =>
                 {
@@ -291,7 +215,7 @@ namespace MidProject.Migrations
 
                     b.ToTable("Images", t =>
                         {
-                            t.HasCheckConstraint("CK_Images_ImageType", "[ImageType] IN ('RestaurantCover', 'RestaurantEnvironment', 'ReviewImage', 'MemberAvatar', 'AvatarFrame')");
+                            t.HasCheckConstraint("CK_Images_ImageType", "[ImageType] IN ('RestaurantCover', 'RestaurantEnvironment', 'ReviewImage', 'MemberAvatar')");
                         });
                 });
 
@@ -327,9 +251,6 @@ namespace MidProject.Migrations
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
-
-                    b.Property<int?>("EquippedFrameID")
-                        .HasColumnType("int");
 
                     b.Property<int>("Experience")
                         .ValueGeneratedOnAdd()
@@ -389,12 +310,6 @@ namespace MidProject.Migrations
                         .HasColumnType("nvarchar(10)")
                         .HasDefaultValue("User");
 
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("rowversion");
-
                     b.Property<string>("Status")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -426,8 +341,6 @@ namespace MidProject.Migrations
                     b.HasIndex("Email")
                         .IsUnique();
 
-                    b.HasIndex("EquippedFrameID");
-
                     b.HasIndex("IsDeleted");
 
                     b.HasIndex("LevelID");
@@ -449,35 +362,6 @@ namespace MidProject.Migrations
 
                             t.HasCheckConstraint("CK_Members_WarningCount", "[WarningCount] >= 0");
                         });
-                });
-
-            modelBuilder.Entity("MidProject.Models.MemberAvatarFrame", b =>
-                {
-                    b.Property<int>("MemberAvatarFrameID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("MemberAvatarFrameID"));
-
-                    b.Property<int>("FrameID")
-                        .HasColumnType("int");
-
-                    b.Property<int>("MemberID")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("RedeemedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETDATE()");
-
-                    b.HasKey("MemberAvatarFrameID");
-
-                    b.HasIndex("FrameID");
-
-                    b.HasIndex("MemberID", "FrameID")
-                        .IsUnique();
-
-                    b.ToTable("MemberAvatarFrames");
                 });
 
             modelBuilder.Entity("MidProject.Models.Notification", b =>
@@ -595,63 +479,6 @@ namespace MidProject.Migrations
                             t.HasCheckConstraint("CK_Notifications_TargetRole", "[TargetRole] IS NULL OR [TargetRole] IN ('User', 'Admin')");
 
                             t.HasCheckConstraint("CK_Notifications_TargetStatus", "[TargetStatus] IS NULL OR [TargetStatus] IN ('Normal', 'Warning', 'Muted', 'Suspended', 'Deleted')");
-                        });
-                });
-
-            modelBuilder.Entity("MidProject.Models.PointsTransaction", b =>
-                {
-                    b.Property<int>("TransactionID")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("TransactionID"));
-
-                    b.Property<int>("Amount")
-                        .HasColumnType("int");
-
-                    b.Property<int>("BalanceAfter")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("GETDATE()");
-
-                    b.Property<int?>("CreatedBy")
-                        .HasColumnType("int");
-
-                    b.Property<int>("MemberID")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Note")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<int?>("RelatedFrameID")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Type")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
-
-                    b.HasKey("TransactionID");
-
-                    b.HasIndex("CreatedBy");
-
-                    b.HasIndex("RelatedFrameID");
-
-                    b.HasIndex("Type");
-
-                    b.HasIndex("MemberID", "CreatedAt");
-
-                    b.ToTable("PointsTransactions", t =>
-                        {
-                            t.HasCheckConstraint("CK_PointsTransactions_BalanceAfter", "[BalanceAfter] >= 0");
-
-                            t.HasCheckConstraint("CK_PointsTransactions_RelatedFrame", "([Type] = 'Redeem' AND [RelatedFrameID] IS NOT NULL) OR ([Type] <> 'Redeem' AND [RelatedFrameID] IS NULL)");
-
-                            t.HasCheckConstraint("CK_PointsTransactions_Type", "[Type] IN ('Redeem', 'AdminAdjust', 'Earn')");
                         });
                 });
 
@@ -1043,23 +870,6 @@ namespace MidProject.Migrations
                         });
                 });
 
-            modelBuilder.Entity("MidProject.Models.AvatarFrame", b =>
-                {
-                    b.HasOne("MidProject.Models.Member", "DeletedByMember")
-                        .WithMany()
-                        .HasForeignKey("DeletedBy")
-                        .OnDelete(DeleteBehavior.NoAction);
-
-                    b.HasOne("MidProject.Models.Image", "Image")
-                        .WithMany("AvatarFrames")
-                        .HasForeignKey("ImageID")
-                        .OnDelete(DeleteBehavior.NoAction);
-
-                    b.Navigation("DeletedByMember");
-
-                    b.Navigation("Image");
-                });
-
             modelBuilder.Entity("MidProject.Models.BusinessHour", b =>
                 {
                     b.HasOne("MidProject.Models.Restaurant", "Restaurant")
@@ -1153,11 +963,6 @@ namespace MidProject.Migrations
                         .HasForeignKey("DeletedBy")
                         .OnDelete(DeleteBehavior.NoAction);
 
-                    b.HasOne("MidProject.Models.AvatarFrame", "EquippedFrame")
-                        .WithMany()
-                        .HasForeignKey("EquippedFrameID")
-                        .OnDelete(DeleteBehavior.NoAction);
-
                     b.HasOne("MidProject.Models.UserLevel", "UserLevel")
                         .WithMany("Members")
                         .HasForeignKey("LevelID")
@@ -1168,28 +973,7 @@ namespace MidProject.Migrations
 
                     b.Navigation("DeletedByMember");
 
-                    b.Navigation("EquippedFrame");
-
                     b.Navigation("UserLevel");
-                });
-
-            modelBuilder.Entity("MidProject.Models.MemberAvatarFrame", b =>
-                {
-                    b.HasOne("MidProject.Models.AvatarFrame", "Frame")
-                        .WithMany("MemberAvatarFrames")
-                        .HasForeignKey("FrameID")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.HasOne("MidProject.Models.Member", "Member")
-                        .WithMany("MemberAvatarFrames")
-                        .HasForeignKey("MemberID")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.Navigation("Frame");
-
-                    b.Navigation("Member");
                 });
 
             modelBuilder.Entity("MidProject.Models.Notification", b =>
@@ -1210,11 +994,6 @@ namespace MidProject.Migrations
                         .HasForeignKey("MemberID")
                         .OnDelete(DeleteBehavior.NoAction);
 
-                    b.HasOne("MidProject.Models.Report", "SourceReport")
-                        .WithMany("Notifications")
-                        .HasForeignKey("SourceReportID")
-                        .OnDelete(DeleteBehavior.NoAction);
-
                     b.HasOne("MidProject.Models.UserLevel", "TargetLevel")
                         .WithMany("Notifications")
                         .HasForeignKey("TargetLevelID")
@@ -1226,34 +1005,7 @@ namespace MidProject.Migrations
 
                     b.Navigation("Member");
 
-                    b.Navigation("SourceReport");
-
                     b.Navigation("TargetLevel");
-                });
-
-            modelBuilder.Entity("MidProject.Models.PointsTransaction", b =>
-                {
-                    b.HasOne("MidProject.Models.Member", "CreatedByMember")
-                        .WithMany()
-                        .HasForeignKey("CreatedBy")
-                        .OnDelete(DeleteBehavior.NoAction);
-
-                    b.HasOne("MidProject.Models.Member", "Member")
-                        .WithMany("PointsTransactions")
-                        .HasForeignKey("MemberID")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.HasOne("MidProject.Models.AvatarFrame", "RelatedFrame")
-                        .WithMany()
-                        .HasForeignKey("RelatedFrameID")
-                        .OnDelete(DeleteBehavior.NoAction);
-
-                    b.Navigation("CreatedByMember");
-
-                    b.Navigation("Member");
-
-                    b.Navigation("RelatedFrame");
                 });
 
             modelBuilder.Entity("MidProject.Models.Report", b =>
@@ -1420,11 +1172,6 @@ namespace MidProject.Migrations
                     b.Navigation("DeletedByMember");
                 });
 
-            modelBuilder.Entity("MidProject.Models.AvatarFrame", b =>
-                {
-                    b.Navigation("MemberAvatarFrames");
-                });
-
             modelBuilder.Entity("MidProject.Models.FavoriteFolder", b =>
                 {
                     b.Navigation("Favorites");
@@ -1432,8 +1179,6 @@ namespace MidProject.Migrations
 
             modelBuilder.Entity("MidProject.Models.Image", b =>
                 {
-                    b.Navigation("AvatarFrames");
-
                     b.Navigation("RestaurantImages");
 
                     b.Navigation("ReviewImages");
@@ -1445,20 +1190,11 @@ namespace MidProject.Migrations
 
                     b.Navigation("Favorites");
 
-                    b.Navigation("MemberAvatarFrames");
-
-                    b.Navigation("PointsTransactions");
-
                     b.Navigation("Restaurants");
 
                     b.Navigation("Reviews");
 
                     b.Navigation("UploadedImages");
-                });
-
-            modelBuilder.Entity("MidProject.Models.Report", b =>
-                {
-                    b.Navigation("Notifications");
                 });
 
             modelBuilder.Entity("MidProject.Models.Restaurant", b =>

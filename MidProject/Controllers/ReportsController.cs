@@ -1,9 +1,11 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MidProject.Models.DTOs;
 using MidProject.Services;
 
 namespace MidProject.Controllers;
 
+[Authorize(Roles = "Admin")]
 public class ReportsController : Controller
 {
     private readonly IReportService _reportService;
