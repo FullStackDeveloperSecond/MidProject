@@ -6,7 +6,7 @@ using MidProject.Services.IServices;
 namespace MidProject.Controllers;
 
 [Route("Notifications")]
-[ServiceFilter(typeof(NotificationAdminAuthorizationFilter))]
+[ServiceFilter(typeof(AdminAuthorizationFilter))]
 public sealed class NotificationsController : Controller
 {
     private const string ValidationFailedMessage = "資料驗證失敗，請修正標示欄位後再試。";
@@ -16,10 +16,14 @@ public sealed class NotificationsController : Controller
     private const string FailedMessage = "操作失敗，請稍後再試；若持續發生請聯絡系統管理員。";
 
     private readonly INotificationService _service;
+    private readonly ICurrentAdminAccessor _currentAdmin;
 
-    public NotificationsController(INotificationService service)
+    public NotificationsController(
+        INotificationService service,
+        ICurrentAdminAccessor currentAdmin)
     {
         _service = service;
+        _currentAdmin = currentAdmin;
     }
 
     [HttpGet("")]
@@ -56,7 +60,7 @@ public sealed class NotificationsController : Controller
             return View(await _service.GetCreateFormAsync(form, cancellationToken));
         }
 
-        var result = await _service.CreateAsync(form, Admin.MemberID, HttpContext.TraceIdentifier, cancellationToken);
+        var result = await _service.CreateAsync(form, _currentAdmin.MemberID, HttpContext.TraceIdentifier, cancellationToken);
         if (result.Classification == NotificationCommandClassification.Success)
         {
             TempData["NotificationSuccess"] = "通知建立成功。";
@@ -103,7 +107,7 @@ public sealed class NotificationsController : Controller
             return View(await _service.GetEditFormAsync(id, form, cancellationToken));
         }
 
-        var result = await _service.EditAsync(id, form, Admin.MemberID, HttpContext.TraceIdentifier, cancellationToken);
+        var result = await _service.EditAsync(id, form, _currentAdmin.MemberID, HttpContext.TraceIdentifier, cancellationToken);
         if (result.Classification == NotificationCommandClassification.Success)
         {
             TempData["NotificationSuccess"] = "通知更新成功。";
@@ -147,7 +151,7 @@ public sealed class NotificationsController : Controller
         [FromForm] string rowVersion,
         CancellationToken cancellationToken)
     {
-        var result = await _service.DeleteAsync(id, rowVersion, Admin.MemberID, HttpContext.TraceIdentifier, cancellationToken);
+        var result = await _service.DeleteAsync(id, rowVersion, _currentAdmin.MemberID, HttpContext.TraceIdentifier, cancellationToken);
         if (result.Classification == NotificationCommandClassification.Success)
         {
             TempData["NotificationSuccess"] = "通知刪除成功。";
@@ -168,7 +172,7 @@ public sealed class NotificationsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Send(int id, CancellationToken cancellationToken)
     {
-        var result = await _service.SendAsync(id, Admin.MemberID, HttpContext.TraceIdentifier, cancellationToken);
+        var result = await _service.SendAsync(id, _currentAdmin.MemberID, HttpContext.TraceIdentifier, cancellationToken);
         if (result.Classification == SingleSendClassification.Success)
         {
             TempData["NotificationSuccess"] = "通知發送成功。";
@@ -193,7 +197,7 @@ public sealed class NotificationsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> SendDue(CancellationToken cancellationToken)
     {
-        var result = await _service.SendDueAsync(Admin.MemberID, HttpContext.TraceIdentifier, cancellationToken);
+        var result = await _service.SendDueAsync(_currentAdmin.MemberID, HttpContext.TraceIdentifier, cancellationToken);
         TempData["NotificationSuccess"] =
             $"批次處理完成：成功 {result.SuccessCount}、已發送 {result.AlreadySentCount}、未到期 {result.NotDueCount}、已取消／刪除 {result.DeletedCount}、失敗 {result.FailedCount}。";
         if (result.FailedCount > 0)
@@ -202,8 +206,6 @@ public sealed class NotificationsController : Controller
         }
         return RedirectToAction(nameof(Index));
     }
-
-    private NotificationAdminContext Admin => NotificationAdminContext.FromHttpContext(HttpContext);
 
     private IActionResult MessageView(string message, int statusCode)
     {

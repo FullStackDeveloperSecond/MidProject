@@ -1,0 +1,47 @@
+name: build-test-migrations
+
+on:
+  pull_request:
+  push:
+    branches:
+      - dev
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+          cache: true
+          cache-dependency-path: |
+            MidProject/MidProject.csproj
+            Notification.AcceptanceTests/Notification.AcceptanceTests.csproj
+
+      - name: Restore
+        run: |
+          dotnet tool restore
+          dotnet restore MidProject.sln
+
+      - name: Build
+        run: dotnet build MidProject.sln --configuration Release --no-restore
+
+      - name: Notification protocol tests
+        run: >-
+          dotnet test MidProject.sln
+          --configuration Release
+          --no-build
+          --filter "Suite=Protocol"
+          --logger "console;verbosity=minimal"
+
+      - name: Migration drift
+        run: |
+          dotnet MidProject/bin/Release/net8.0/MidProject.dll \
+            --verify-migration-drift

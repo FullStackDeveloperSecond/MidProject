@@ -15,6 +15,15 @@
 # ASP.NET / logs
 logs/
 *.log
+/MidProject/App_Data/logs/
+
+# Runtime uploads stay local. Keep only directory placeholders and explicit Demo assets.
+/MidProject/wwwroot/uploads/**
+!/MidProject/wwwroot/uploads/**/
+!/MidProject/wwwroot/uploads/**/.gitkeep
+!/MidProject/wwwroot/uploads/MemberAvatar/avatar24-01.jpg
+!/MidProject/wwwroot/uploads/ReviewImage/義大利麵.jpg
+!/MidProject/wwwroot/uploads/ReviewImage/蛋餅.jpg
 
 # OS files
 .DS_Store

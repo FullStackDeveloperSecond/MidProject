@@ -1,9 +1,11 @@
 using Microsoft.AspNetCore.Mvc;
 using MidProject.Models.ViewModels.Restaurants;
+using MidProject.Services;
 using MidProject.Services.IServices;
 
 namespace MidProject.Controllers;
 
+[ServiceFilter(typeof(AdminAuthorizationFilter))]
 public class RestaurantsController : Controller
 {
     private readonly IRestaurantService _restaurantService;
@@ -84,9 +86,13 @@ public class RestaurantsController : Controller
             return PartialView("_FormPartial", form);
         }
 
-        var (success, newId) = await _restaurantService.CreateAsync(form);
+        var (success, newId, error) = await _restaurantService.CreateAsync(form);
         if (!success)
         {
+            if (!string.IsNullOrWhiteSpace(error))
+            {
+                ModelState.AddModelError(string.Empty, error);
+            }
             form = await _restaurantService.RehydrateFormAsync(form);
             return PartialView("_FormPartial", form);
         }
@@ -113,9 +119,13 @@ public class RestaurantsController : Controller
             return PartialView("_FormPartial", form);
         }
 
-        var success = await _restaurantService.EditAsync(id, form);
+        var (success, error) = await _restaurantService.EditAsync(id, form);
         if (!success)
         {
+            if (!string.IsNullOrWhiteSpace(error))
+            {
+                ModelState.AddModelError(string.Empty, error);
+            }
             form = await _restaurantService.RehydrateFormAsync(form);
             return PartialView("_FormPartial", form);
         }

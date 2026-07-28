@@ -11,16 +11,22 @@ public class AvatarFrameService : IAvatarFrameService
 {
     private readonly IAvatarFrameRepository _frameRepository;
     private readonly IImageUploadService _imageUploadService;
+    private readonly IImageLifecycleService _imageLifecycleService;
     private readonly AppDbContext _dbContext;
+    private readonly ILogger<AvatarFrameService> _logger;
 
     public AvatarFrameService(
         IAvatarFrameRepository frameRepository,
         IImageUploadService imageUploadService,
-        AppDbContext dbContext)
+        IImageLifecycleService imageLifecycleService,
+        AppDbContext dbContext,
+        ILogger<AvatarFrameService> logger)
     {
         _frameRepository = frameRepository;
         _imageUploadService = imageUploadService;
+        _imageLifecycleService = imageLifecycleService;
         _dbContext = dbContext;
+        _logger = logger;
     }
 
     public async Task<AvatarFramesIndexViewModel> GetIndexAsync()
@@ -107,18 +113,35 @@ public class AvatarFrameService : IAvatarFrameService
             return (false, ex.Message);
         }
 
-        _dbContext.Images.Add(image);
-        await _dbContext.SaveChangesAsync();
-
-        await _frameRepository.AddAsync(new AvatarFrame
+        try
         {
-            Name = form.Name.Trim(),
-            Description = string.IsNullOrWhiteSpace(form.Description) ? null : form.Description.Trim(),
-            Rarity = form.Rarity,
-            PointsPrice = form.PointsPrice,
-            IsActive = form.IsActive,
-            ImageID = image.ImageID
-        });
+            await using var transaction = await _dbContext.Database.BeginTransactionAsync();
+            _dbContext.Images.Add(image);
+            await _dbContext.SaveChangesAsync();
+
+            await _frameRepository.AddAsync(new AvatarFrame
+            {
+                Name = form.Name.Trim(),
+                Description = string.IsNullOrWhiteSpace(form.Description) ? null : form.Description.Trim(),
+                Rarity = form.Rarity,
+                PointsPrice = form.PointsPrice,
+                IsActive = form.IsActive,
+                ImageID = image.ImageID
+            });
+
+            await transaction.CommitAsync();
+        }
+        catch (Exception exception)
+        {
+            _dbContext.ChangeTracker.Clear();
+            await _imageUploadService.DeleteAsync(image.ImageURL);
+            _logger.LogError(
+                exception,
+                "Avatar frame create failed; Operation=AvatarFrameCreate; AdminID={AdminID}; ExceptionType={ExceptionType}",
+                adminId,
+                exception.GetType().Name);
+            return (false, "商品新增失敗，已清理本次上傳檔案，請稍後再試。");
+        }
 
         return (true, null);
     }
@@ -131,31 +154,63 @@ public class AvatarFrameService : IAvatarFrameService
             return (false, "找不到這個商品。");
         }
 
-        frame.Name = form.Name.Trim();
-        frame.Description = string.IsNullOrWhiteSpace(form.Description) ? null : form.Description.Trim();
-        frame.Rarity = form.Rarity;
-        frame.PointsPrice = form.PointsPrice;
-        frame.IsActive = form.IsActive;
-        frame.UpdatedAt = DateTime.Now;
-
+        Image? newImage = null;
         if (form.ImageFile != null)
         {
-            Image image;
             try
             {
-                image = await _imageUploadService.SaveAsync(form.ImageFile, "AvatarFrame", adminId);
+                newImage = await _imageUploadService.SaveAsync(form.ImageFile, "AvatarFrame", adminId);
             }
             catch (InvalidOperationException ex)
             {
                 return (false, ex.Message);
             }
-
-            _dbContext.Images.Add(image);
-            await _dbContext.SaveChangesAsync();
-            frame.ImageID = image.ImageID;
         }
 
-        await _frameRepository.SaveChangesAsync();
+        var previousImageId = newImage is null ? null : frame.ImageID;
+        try
+        {
+            await using var transaction = await _dbContext.Database.BeginTransactionAsync();
+
+            frame.Name = form.Name.Trim();
+            frame.Description = string.IsNullOrWhiteSpace(form.Description) ? null : form.Description.Trim();
+            frame.Rarity = form.Rarity;
+            frame.PointsPrice = form.PointsPrice;
+            frame.IsActive = form.IsActive;
+            frame.UpdatedAt = DateTime.Now;
+
+            if (newImage is not null)
+            {
+                _dbContext.Images.Add(newImage);
+                await _dbContext.SaveChangesAsync();
+                frame.ImageID = newImage.ImageID;
+            }
+
+            await _frameRepository.SaveChangesAsync();
+            await transaction.CommitAsync();
+        }
+        catch (Exception exception)
+        {
+            _dbContext.ChangeTracker.Clear();
+            if (newImage is not null)
+            {
+                await _imageUploadService.DeleteAsync(newImage.ImageURL);
+            }
+
+            _logger.LogError(
+                exception,
+                "Avatar frame update failed; Operation=AvatarFrameUpdate; FrameID={FrameID}; AdminID={AdminID}; ExceptionType={ExceptionType}",
+                id,
+                adminId,
+                exception.GetType().Name);
+            return (false, "商品更新失敗，已回復資料並清理本次上傳檔案，請稍後再試。");
+        }
+
+        if (previousImageId.HasValue)
+        {
+            await _imageLifecycleService.CleanupIfUnreferencedAsync([previousImageId.Value], adminId);
+        }
+
         return (true, null);
     }
 

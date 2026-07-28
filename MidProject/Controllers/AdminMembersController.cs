@@ -1,19 +1,23 @@
-﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MidProject.Data;
 using MidProject.Models;
 using MidProject.Models.ViewModels;
-using System.Security.Claims;
+using MidProject.Services;
+using MidProject.Services.IServices;
 
-[Authorize(Roles = "Admin")]
+[ServiceFilter(typeof(AdminAuthorizationFilter))]
 public class AdminMembersController : Controller
 {
     private readonly AppDbContext _context;
+    private readonly ICurrentAdminAccessor _currentAdmin;
 
-    public AdminMembersController(AppDbContext context)
+    public AdminMembersController(
+        AppDbContext context,
+        ICurrentAdminAccessor currentAdmin)
     {
         _context = context;
+        _currentAdmin = currentAdmin;
     }
 
     
@@ -149,11 +153,7 @@ public class AdminMembersController : Controller
             {
                 memberInDb.IsDeleted = true;
                 memberInDb.DeletedAt = DateTime.Now;
-                var adminIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
-                if (int.TryParse(adminIdClaim, out var adminId))
-                {
-                    memberInDb.DeletedBy = adminId;
-                }
+                memberInDb.DeletedBy = _currentAdmin.MemberID;
             }
             else
             {

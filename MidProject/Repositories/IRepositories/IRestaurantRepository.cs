@@ -17,7 +17,6 @@ public interface IRestaurantRepository
     Task RemoveEnvironmentImageAsync(int restaurantId, int imageId);
     Task SoftDeleteAsync(int id, string reason, int byMemberId);
     Task RestoreAsync(int id);
-    Task<int> GetDefaultAdminMemberIdAsync();
     Task<RestaurantStats> GetStatsAsync(RestaurantFilterQuery filter);
     Task<List<string>> GetDistinctCitiesAsync();
     Task<List<string>> GetDistinctDistrictsAsync();

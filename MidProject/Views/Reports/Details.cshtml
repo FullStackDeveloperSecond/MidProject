@@ -158,17 +158,10 @@
             </div>
         </div>
 
-        @if (Model.Status != "Pending")
-        {
-            <!-- 只有已經審核完畢（核准/駁回）的檢舉才能通知檢舉會員審核結果，按下後開啟下方的通知視窗 -->
-            <button type="button" class="btn btn-outline-primary w-100 mb-4" id="notifyReopenBtn">
-                <i class="fas fa-paper-plane me-1"></i>通知紀錄
-            </button>
-        }
     </div>
 </div>
 
-<!-- 處理完成後跳出的通知視窗：檢舉成立顯示「通知檢舉者」+「通知被檢舉會員」兩張卡片，駁回檢舉只顯示「通知檢舉者」一張卡片 -->
+<!-- 送出審核前先確認通知文案：Report 決定文案，實際建立與發送仍由 Notification 模組負責 -->
 <div class="modal fade" id="notifyModal" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content">
@@ -184,14 +177,12 @@
                     <div class="card-body">
                         <div class="mb-3">
                             <label class="form-label">標題</label>
-                            <input type="text" id="reporterTitle" class="form-control" />
+                            <input type="text" id="reporterTitle" class="form-control" maxlength="100" required />
                         </div>
                         <div class="mb-3">
                             <label class="form-label">內容</label>
-                            <textarea id="reporterContent" class="form-control" rows="8"></textarea>
+                            <textarea id="reporterContent" class="form-control" rows="8" maxlength="1000" required></textarea>
                         </div>
-                        <button type="button" class="btn btn-primary btn-sm" id="saveReporterNotify">儲存</button>
-                        <span class="ms-2 text-success small d-none" id="reporterSavedMsg"><i class="fas fa-check me-1"></i>已送出</span>
                     </div>
                 </div>
 
@@ -202,19 +193,21 @@
                     <div class="card-body">
                         <div class="mb-3">
                             <label class="form-label">標題</label>
-                            <input type="text" id="reportedMemberTitle" class="form-control" />
+                            <input type="text" id="reportedMemberTitle" class="form-control" maxlength="100" />
                         </div>
                         <div class="mb-3">
                             <label class="form-label">內容</label>
-                            <textarea id="reportedMemberContent" class="form-control" rows="8"></textarea>
+                            <textarea id="reportedMemberContent" class="form-control" rows="8" maxlength="1000"></textarea>
                         </div>
-                        <button type="button" class="btn btn-primary btn-sm" id="saveReportedMemberNotify">儲存</button>
-                        <span class="ms-2 text-success small d-none" id="reportedMemberSavedMsg"><i class="fas fa-check me-1"></i>已送出</span>
                     </div>
                 </div>
+                <div class="alert alert-danger d-none mb-0" id="notifyValidationMessage" role="alert"></div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">關閉</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" id="confirmHandle">
+                    <i class="fas fa-check me-1"></i>確認處理並建立通知
+                </button>
             </div>
         </div>
     </div>
@@ -223,106 +216,90 @@
 @section Scripts {
     <script>
         (function () {
-            var reportId = @Model.ReportID;
-            var notifyReporterUrl = '@Url.Action("NotifyReporter", "Reports", new { id = Model.ReportID })';
-            var notifyReportedMemberUrl = '@Url.Action("NotifyReportedMember", "Reports", new { id = Model.ReportID })';
             var notifyModalElement = document.getElementById('notifyModal');
             var notifyModal = bootstrap.Modal.getOrCreateInstance(notifyModalElement);
+            var approvedReporterContent = @Html.Raw(Json.Serialize(Model.GetDefaultNotificationContent("Approved")));
+            var rejectedReporterContent = @Html.Raw(Json.Serialize(Model.GetDefaultNotificationContent("Rejected")));
+            var reporterTitle = @Html.Raw(Json.Serialize(Model.DefaultNotificationTitle));
+            var reportedMemberTitle = @Html.Raw(Json.Serialize(Model.DefaultReportedMemberNotificationTitle));
+            var reportedMemberContent = @Html.Raw(Json.Serialize(Model.DefaultReportedMemberNotificationContent));
 
-            function antiForgeryToken() {
-                return $('#handleForm input[name="__RequestVerificationToken"]').val();
+            function showValidationMessage(message) {
+                $('#notifyValidationMessage').text(message).removeClass('d-none');
             }
 
-            function openNotifyModal(status, reporter, reportedMember) {
-                $('#reporterTitle').val(reporter.title);
-                $('#reporterContent').val(reporter.content);
-                $('#reporterSavedMsg').addClass('d-none');
+            function openNotifyModal(status) {
+                $('#notifyValidationMessage').addClass('d-none').text('');
+                $('#reporterTitle').val(reporterTitle);
+                $('#reporterContent').val(status === 'Approved'
+                    ? approvedReporterContent
+                    : rejectedReporterContent);
 
-                if (status === 'Approved' && reportedMember) {
+                if (status === 'Approved') {
                     $('#reportedMemberNotifyCard').removeClass('d-none');
-                    $('#reportedMemberTitle').val(reportedMember.title);
-                    $('#reportedMemberContent').val(reportedMember.content);
-                    $('#reportedMemberSavedMsg').addClass('d-none');
+                    $('#reportedMemberTitle').val(reportedMemberTitle);
+                    $('#reportedMemberContent').val(reportedMemberContent);
                 } else {
                     $('#reportedMemberNotifyCard').addClass('d-none');
+                    $('#reportedMemberTitle').val('');
+                    $('#reportedMemberContent').val('');
                 }
 
                 notifyModal.show();
             }
 
-            // 送出處理改成 AJAX，成功後不整頁重新整理，直接跳出通知視窗
+            // 第一階段只打開文案確認視窗；確認後才一次送出審核結果與自訂通知內容。
             $('#handleForm').on('submit', function (e) {
                 e.preventDefault();
-                var $form = $(this);
-                var $btn = $form.find('button[type="submit"]').prop('disabled', true);
+                openNotifyModal($(this).find('[name="Status"]').val());
+            });
 
+            $('#confirmHandle').on('click', function () {
+                var status = $('#handleForm [name="Status"]').val();
+                var customReporterTitle = $('#reporterTitle').val().trim();
+                var customReporterContent = $('#reporterContent').val().trim();
+                var customReportedMemberTitle = $('#reportedMemberTitle').val().trim();
+                var customReportedMemberContent = $('#reportedMemberContent').val().trim();
+
+                if (!customReporterTitle || !customReporterContent) {
+                    showValidationMessage('請填寫通知檢舉者的標題與內容');
+                    return;
+                }
+
+                if (status === 'Approved' &&
+                    (!customReportedMemberTitle || !customReportedMemberContent)) {
+                    showValidationMessage('檢舉成立時，請填寫通知被檢舉會員的標題與內容');
+                    return;
+                }
+
+                $('#notifyValidationMessage').addClass('d-none').text('');
+                var $form = $('#handleForm');
+                var data = $form.serializeArray();
+                data.push(
+                    { name: 'ReporterNotificationTitle', value: customReporterTitle },
+                    { name: 'ReporterNotificationContent', value: customReporterContent },
+                    { name: 'ReportedMemberNotificationTitle', value: status === 'Approved' ? customReportedMemberTitle : '' },
+                    { name: 'ReportedMemberNotificationContent', value: status === 'Approved' ? customReportedMemberContent : '' }
+                );
+
+                var $btn = $(this).prop('disabled', true);
                 $.ajax({
                     url: $form.attr('action'),
                     method: 'POST',
-                    data: $form.serialize(),
+                    data: data,
                     headers: { 'X-Requested-With': 'XMLHttpRequest' }
-                }).done(function (res) {
-                    if (res.success) {
-                        openNotifyModal(res.status, res.reporter, res.reportedMember);
+                }).done(function (response) {
+                    if (response.success) {
+                        window.location.reload();
                     }
-                }).fail(function () {
-                    alert('處理失敗，請重新整理頁面後再試一次');
+                }).fail(function (xhr) {
+                    var message = xhr.responseJSON && xhr.responseJSON.message
+                        ? xhr.responseJSON.message
+                        : '處理失敗，請重新整理頁面後再試一次';
+                    showValidationMessage(message);
                 }).always(function () {
                     $btn.prop('disabled', false);
                 });
-            });
-
-            // 已處理完畢的檢舉，重新開啟通知視窗（用目前的處理狀態＋預設範本重新帶入）
-            $('#notifyReopenBtn').on('click', function () {
-                openNotifyModal('@Model.Status',
-                    { title: @Html.Raw(Json.Serialize(Model.DefaultNotificationTitle)), content: @Html.Raw(Json.Serialize(Model.DefaultNotificationContent)) },
-                    { title: @Html.Raw(Json.Serialize(Model.DefaultReportedMemberNotificationTitle)), content: @Html.Raw(Json.Serialize(Model.DefaultReportedMemberNotificationContent)) }
-                );
-            });
-
-            $('#saveReporterNotify').on('click', function () {
-                var $btn = $(this).prop('disabled', true);
-                $.ajax({
-                    url: notifyReporterUrl,
-                    method: 'POST',
-                    data: {
-                        __RequestVerificationToken: antiForgeryToken(),
-                        Title: $('#reporterTitle').val(),
-                        Content: $('#reporterContent').val()
-                    },
-                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
-                }).done(function () {
-                    $('#reporterSavedMsg').removeClass('d-none');
-                }).fail(function () {
-                    alert('通知檢舉者失敗');
-                }).always(function () {
-                    $btn.prop('disabled', false);
-                });
-            });
-
-            $('#saveReportedMemberNotify').on('click', function () {
-                var $btn = $(this).prop('disabled', true);
-                $.ajax({
-                    url: notifyReportedMemberUrl,
-                    method: 'POST',
-                    data: {
-                        __RequestVerificationToken: antiForgeryToken(),
-                        Title: $('#reportedMemberTitle').val(),
-                        Content: $('#reportedMemberContent').val()
-                    },
-                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
-                }).done(function () {
-                    $('#reportedMemberSavedMsg').removeClass('d-none');
-                }).fail(function () {
-                    alert('通知被檢舉會員失敗');
-                }).always(function () {
-                    $btn.prop('disabled', false);
-                });
-            });
-
-            // 關閉視窗後重新整理頁面，讓左側的處理狀態／處理時間等欄位同步最新結果
-            notifyModalElement.addEventListener('hidden.bs.modal', function () {
-                window.location.reload();
             });
         })();
     </script>

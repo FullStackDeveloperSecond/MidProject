@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
+using MidProject.Services;
 using MidProject.Services.IServices;
 
 namespace MidProject.Controllers;
 
+[ServiceFilter(typeof(AdminAuthorizationFilter))]
 public class TagsController : Controller
 {
     private readonly ITagService _tagService;

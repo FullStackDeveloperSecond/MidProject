@@ -8,12 +8,14 @@ namespace MidProject.Services;
 public class TagService : ITagService
 {
     private readonly ITagRepository _tagRepository;
-    private readonly IRestaurantRepository _restaurantRepository;
+    private readonly ICurrentAdminAccessor _currentAdmin;
 
-    public TagService(ITagRepository tagRepository, IRestaurantRepository restaurantRepository)
+    public TagService(
+        ITagRepository tagRepository,
+        ICurrentAdminAccessor currentAdmin)
     {
         _tagRepository = tagRepository;
-        _restaurantRepository = restaurantRepository;
+        _currentAdmin = currentAdmin;
     }
 
     public async Task<TagsIndexViewModel> GetIndexAsync()
@@ -49,8 +51,7 @@ public class TagService : ITagService
         {
             if (existing.IsDeleted)
             {
-                var adminId = await _restaurantRepository.GetDefaultAdminMemberIdAsync();
-                await _tagRepository.ToggleAsync(existing.TagID, adminId);
+                await _tagRepository.ToggleAsync(existing.TagID, _currentAdmin.MemberID);
             }
 
             return (true, null);
@@ -62,7 +63,6 @@ public class TagService : ITagService
 
     public async Task ToggleAsync(int id)
     {
-        var adminId = await _restaurantRepository.GetDefaultAdminMemberIdAsync();
-        await _tagRepository.ToggleAsync(id, adminId);
+        await _tagRepository.ToggleAsync(id, _currentAdmin.MemberID);
     }
 }

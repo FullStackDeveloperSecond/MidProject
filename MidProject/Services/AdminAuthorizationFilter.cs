@@ -1,22 +1,22 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
-using MidProject.Models.ViewModels.Notifications;
+using MidProject.Models.ViewModels;
 using MidProject.Services.IServices;
 
 namespace MidProject.Services;
 
-public sealed class NotificationAdminAuthorizationFilter : IAsyncResourceFilter
+public sealed class AdminAuthorizationFilter : IAsyncResourceFilter
 {
     private readonly ITrustedMemberIdentityAccessor _identityAccessor;
-    private readonly INotificationAdminAccessEvaluator _accessEvaluator;
+    private readonly IAdminAccessEvaluator _accessEvaluator;
     private readonly ITaipeiClock _clock;
-    private readonly ILogger<NotificationAdminAuthorizationFilter> _logger;
+    private readonly ILogger<AdminAuthorizationFilter> _logger;
 
-    public NotificationAdminAuthorizationFilter(
+    public AdminAuthorizationFilter(
         ITrustedMemberIdentityAccessor identityAccessor,
-        INotificationAdminAccessEvaluator accessEvaluator,
+        IAdminAccessEvaluator accessEvaluator,
         ITaipeiClock clock,
-        ILogger<NotificationAdminAuthorizationFilter> logger)
+        ILogger<AdminAuthorizationFilter> logger)
     {
         _identityAccessor = identityAccessor;
         _accessEvaluator = accessEvaluator;
@@ -31,49 +31,57 @@ public sealed class NotificationAdminAuthorizationFilter : IAsyncResourceFilter
 
         if (!identity.IsAuthenticated)
         {
-            LogRejected("Unauthenticated", null, context.HttpContext.TraceIdentifier);
             var request = context.HttpContext.Request;
+            LogRejected("Unauthenticated", null, request.Path, context.HttpContext.TraceIdentifier);
             var returnUrl = $"{request.PathBase}{request.Path}{request.QueryString}";
             context.Result = new RedirectToActionResult("Login", "Account", new { returnUrl });
             return;
         }
 
         var access = await _accessEvaluator.EvaluateAsync(identity.MemberID, cancellationToken);
-        if (access.Classification == NotificationAdminAccessClassification.Authorized && access.Context is not null)
+        if (access.Classification == AdminAccessClassification.Authorized && access.Context is not null)
         {
-            context.HttpContext.Items[NotificationAdminContext.HttpContextItemKey] = access.Context;
+            context.HttpContext.Items[AdminContext.HttpContextItemKey] = access.Context;
             await next();
             return;
         }
 
         var message = access.Classification switch
         {
-            NotificationAdminAccessClassification.IdentityUnmapped => "無法確認登入者身分，請重新登入。",
-            NotificationAdminAccessClassification.NotAdministrator => "您沒有權限存取通知管理功能。",
+            AdminAccessClassification.IdentityUnmapped => "無法確認登入者身分，請重新登入。",
+            AdminAccessClassification.NotAdministrator => "您沒有權限存取後台管理功能。",
             _ => "此管理員帳號目前不可使用。"
         };
 
-        LogRejected(access.Classification.ToString(), access.Context?.MemberID, context.HttpContext.TraceIdentifier);
+        LogRejected(
+            access.Classification.ToString(),
+            access.Context?.MemberID,
+            context.HttpContext.Request.Path,
+            context.HttpContext.TraceIdentifier);
 
         context.Result = new ViewResult
         {
-            ViewName = "AccessDenied",
+            ViewName = "AdminAccessDenied",
             StatusCode = StatusCodes.Status403Forbidden,
-            ViewData = new Microsoft.AspNetCore.Mvc.ViewFeatures.ViewDataDictionary<NotificationAccessDeniedViewModel>(
+            ViewData = new Microsoft.AspNetCore.Mvc.ViewFeatures.ViewDataDictionary<AdminAccessDeniedViewModel>(
                 new Microsoft.AspNetCore.Mvc.ModelBinding.EmptyModelMetadataProvider(),
                 context.ModelState)
             {
-                Model = new NotificationAccessDeniedViewModel { Message = message }
+                Model = new AdminAccessDeniedViewModel { Message = message }
             }
         };
     }
 
-    private void LogRejected(string classification, int? validatedAdminId, string correlationId)
+    private void LogRejected(
+        string classification,
+        int? validatedAdminId,
+        PathString path,
+        string correlationId)
     {
         _logger.LogWarning(
-            "Notification authorization rejected at {TaipeiTimestamp}; Operation=AuthorizeNotifications; NotificationID={NotificationID}; Result={ResultClassification}; AdminID={AdminID}; CorrelationID={CorrelationID}",
+            "Admin authorization rejected at {TaipeiTimestamp}; Operation=AuthorizeAdminArea; Path={Path}; Result={ResultClassification}; AdminID={AdminID}; CorrelationID={CorrelationID}",
             _clock.GetNow(),
-            null,
+            path,
             classification,
             validatedAdminId,
             correlationId);

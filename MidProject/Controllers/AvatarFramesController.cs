@@ -1,19 +1,22 @@
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MidProject.Models.ViewModels.PointsStore;
+using MidProject.Services;
 using MidProject.Services.IServices;
-using System.Security.Claims;
 
 namespace MidProject.Controllers;
 
-[Authorize(Roles = "Admin")]
+[ServiceFilter(typeof(AdminAuthorizationFilter))]
 public class AvatarFramesController : Controller
 {
     private readonly IAvatarFrameService _avatarFrameService;
+    private readonly ICurrentAdminAccessor _currentAdmin;
 
-    public AvatarFramesController(IAvatarFrameService avatarFrameService)
+    public AvatarFramesController(
+        IAvatarFrameService avatarFrameService,
+        ICurrentAdminAccessor currentAdmin)
     {
         _avatarFrameService = avatarFrameService;
+        _currentAdmin = currentAdmin;
     }
 
     public async Task<IActionResult> Index()
@@ -42,7 +45,7 @@ public class AvatarFramesController : Controller
             return View(model);
         }
 
-        var (success, error) = await _avatarFrameService.CreateAsync(model, GetAdminId());
+        var (success, error) = await _avatarFrameService.CreateAsync(model, _currentAdmin.MemberID);
         if (!success)
         {
             ModelState.AddModelError(string.Empty, error ?? "新增失敗，請重試。");
@@ -78,7 +81,7 @@ public class AvatarFramesController : Controller
             return View(model);
         }
 
-        var (success, error) = await _avatarFrameService.UpdateAsync(id, model, GetAdminId());
+        var (success, error) = await _avatarFrameService.UpdateAsync(id, model, _currentAdmin.MemberID);
         if (!success)
         {
             ModelState.AddModelError(string.Empty, error ?? "更新失敗，請重試。");
@@ -101,7 +104,7 @@ public class AvatarFramesController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Delete(int id)
     {
-        await _avatarFrameService.DeleteAsync(id, GetAdminId());
+        await _avatarFrameService.DeleteAsync(id, _currentAdmin.MemberID);
         TempData["Toast"] = "商品已刪除，可到「已刪除商品」頁面復原。";
         return RedirectToAction(nameof(Index));
     }
@@ -113,11 +116,5 @@ public class AvatarFramesController : Controller
         await _avatarFrameService.RestoreAsync(id);
         TempData["Toast"] = "商品已復原，狀態為下架，請視需要重新上架。";
         return RedirectToAction(nameof(Deleted));
-    }
-
-    private int GetAdminId()
-    {
-        var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        return int.TryParse(claim, out var id) ? id : 0;
     }
 }

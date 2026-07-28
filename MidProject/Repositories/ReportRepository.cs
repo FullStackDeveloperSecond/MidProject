@@ -130,11 +130,6 @@ public class ReportRepository : IReportRepository
         await _context.Reports.AddAsync(report);
     }
 
-    public async Task AddNotificationAsync(Notification notification)
-    {
-        await _context.Notifications.AddAsync(notification);
-    }
-
     public async Task SaveChangesAsync()
     {
         await _context.SaveChangesAsync();

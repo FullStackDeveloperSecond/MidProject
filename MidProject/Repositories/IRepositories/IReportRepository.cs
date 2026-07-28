@@ -8,7 +8,6 @@ public interface IReportRepository
     Task<PagedResult<Report>> GetReportsAsync(ReportQueryParams query);
     Task<Report?> GetByIdAsync(int reportId);
     Task AddAsync(Report report);
-    Task AddNotificationAsync(Notification notification);
     Task SaveChangesAsync();
 
     // Dashboard 用

@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using MidProject.Models;
+using MidProject.Services;
 using MidProject.Services.IServices;
 
 namespace MidProject.Controllers;
@@ -14,6 +15,7 @@ public class HomeController : Controller
         _dashboardService = dashboardService;
     }
 
+    [ServiceFilter(typeof(AdminAuthorizationFilter))]
     public async Task<IActionResult> Index(CancellationToken cancellationToken)
     {
         return View(await _dashboardService.GetIndexAsync(cancellationToken));

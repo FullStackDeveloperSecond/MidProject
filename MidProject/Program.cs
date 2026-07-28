@@ -5,6 +5,12 @@ using MidProject.Repositories.IRepositories;
 using MidProject.Services;
 using MidProject.Services.IServices;
 
+if (args.Contains(MigrationDriftVerifier.CommandArgument, StringComparer.Ordinal))
+{
+    Environment.ExitCode = MigrationDriftVerifier.Run();
+    return;
+}
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Local-only connection string / overrides. Matches the `appsettings.*.local.json` pattern
@@ -12,6 +18,23 @@ var builder = WebApplication.CreateBuilder(args);
 // so it behaves the same whether launched via `dotnet run` or Visual Studio's debug target.
 builder.Configuration.AddJsonFile("appsettings.Development.local.json", optional: true, reloadOnChange: true);
 builder.Configuration.AddUserSecrets<Program>(optional: true);
+
+var notificationLogDirectory = builder.Configuration["NotificationLogging:Directory"];
+if (string.IsNullOrWhiteSpace(notificationLogDirectory))
+{
+    notificationLogDirectory = Path.Combine("App_Data", "logs");
+}
+if (!Path.IsPathRooted(notificationLogDirectory))
+{
+    notificationLogDirectory = Path.Combine(
+        builder.Environment.ContentRootPath,
+        notificationLogDirectory);
+}
+builder.Logging.AddProvider(new NotificationAuditFileLoggerProvider(
+    notificationLogDirectory,
+    builder.Configuration.GetValue("NotificationLogging:RetentionDays", 14),
+    builder.Configuration.GetValue("NotificationLogging:MaxFileBytes", 20_971_520L),
+    TimeProvider.System));
 
 builder.Services.AddControllersWithViews();
 
@@ -25,6 +48,7 @@ builder.Services.AddScoped<ITagRepository, TagRepository>();
 builder.Services.AddScoped<IRestaurantService, RestaurantService>();
 builder.Services.AddScoped<ITagService, TagService>();
 builder.Services.AddScoped<IImageUploadService, ImageUploadService>();
+builder.Services.AddScoped<IImageLifecycleService, ImageLifecycleService>();
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 if (string.IsNullOrWhiteSpace(connectionString))
@@ -43,7 +67,7 @@ builder.Services.AddAuthentication(Microsoft.AspNetCore.Authentication.Cookies.C
     {
         // �p�G���n�J�ξ��ҥ��ġA�|�۰ʸ���ܦ����|
         options.LoginPath = "/Account/Login";
-        options.AccessDeniedPath = "/Home/Index";
+        options.AccessDeniedPath = "/Account/AccessDenied";
     });
 
 builder.Services.AddScoped<IReportRepository, ReportRepository>();
@@ -56,6 +80,7 @@ builder.Services.AddScoped<IReviewService, ReviewService>();
 builder.Services.AddScoped<IAvatarFrameRepository, AvatarFrameRepository>();
 builder.Services.AddScoped<IAvatarFrameService, AvatarFrameService>();
 builder.Services.AddScoped<IPointsStoreRedemptionService, PointsStoreRedemptionService>();
+builder.Services.AddHttpContextAccessor();
 if (notificationIdentityMode.Mode == NotificationIdentityMode.DevelopmentTemporary)
 {
     builder.Services.AddSingleton<DevelopmentTemporaryTrustedMemberIdentityAccessor>();
@@ -63,16 +88,19 @@ if (notificationIdentityMode.Mode == NotificationIdentityMode.DevelopmentTempora
         services.GetRequiredService<DevelopmentTemporaryTrustedMemberIdentityAccessor>());
     builder.Services.AddScoped<NotificationIdentityStartupValidator>();
 }
-// AccountLogin deliberately does not register an implementation here. The externally
-// owned Account/Login integration must supply ITrustedMemberIdentityAccessor.
+else
+{
+    builder.Services.AddScoped<ITrustedMemberIdentityAccessor, AccountLoginTrustedMemberIdentityAccessor>();
+}
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<ITaipeiClock, TaipeiClock>();
 builder.Services.AddSingleton<IMemberAudienceCatalog, MemberAudienceCatalog>();
 builder.Services.AddScoped<NotificationPresenter>();
 builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
-builder.Services.AddScoped<INotificationAdminAccessEvaluator, NotificationAdminAccessEvaluator>();
-builder.Services.AddScoped<NotificationAdminAuthorizationFilter>();
+builder.Services.AddScoped<IAdminAccessEvaluator, AdminAccessEvaluator>();
+builder.Services.AddScoped<AdminAuthorizationFilter>();
+builder.Services.AddScoped<ICurrentAdminAccessor, CurrentAdminAccessor>();
 builder.Services.AddScoped<IReportNotificationWindow, ReportNotificationWindow>();
 builder.Services.AddScoped<IDashboardNotificationWindow, DashboardNotificationWindow>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
@@ -81,7 +109,8 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment() && builder.Configuration.GetValue<bool>("SeedData:Enabled"))
 {
     await SeedData.InitializeAsync(app.Services);
-	await ReportsTestDataSeeder.SeedAsync(app.Services);
+    await PointsStoreDemoSeeder.InitializeAsync(app.Services);
+    await ReportsTestDataSeeder.SeedAsync(app.Services);
 }
 
 await using (var scope = app.Services.CreateAsyncScope())

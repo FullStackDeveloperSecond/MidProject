@@ -121,6 +121,18 @@ public class AccountController : Controller
         return RedirectToAction("Login");
     }
 
+    [HttpGet]
+    public IActionResult AccessDenied()
+    {
+        Response.StatusCode = StatusCodes.Status403Forbidden;
+        return View(
+            "~/Views/Shared/AdminAccessDenied.cshtml",
+            new AdminAccessDeniedViewModel
+            {
+                Message = "您沒有權限存取後台管理功能。"
+            });
+    }
+
     // 一般會員註冊 (GET: /Account/Register)
     [HttpGet]
     public IActionResult Register()

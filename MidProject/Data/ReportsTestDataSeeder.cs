@@ -5,9 +5,8 @@ namespace MidProject.Data;
 
 /// <summary>
 /// Reports 模組專用的測試資料種子。
-/// 獨立於 SeedData.cs，因為 SeedData.InitializeAsync 一開頭會判斷「Members 已有資料就整個跳過」，
-/// 專案跑到現在 Members 早就有資料了，如果把這段邏輯加進 SeedData.cs 裡面永遠不會被執行。
-/// 這裡改成自己查詢資料庫裡既有的 Restaurants / Reviews / Images / Members，用真實存在的 ID 建立檢舉資料。
+/// 這批大量 Dashboard 資料獨立於一般模組化 SeedData，並使用資料庫裡既有的
+/// Restaurants / Reviews / Images / Members 建立有效關聯。
 /// </summary>
 public static class ReportsTestDataSeeder
 {

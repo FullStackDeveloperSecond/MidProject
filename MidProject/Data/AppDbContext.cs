@@ -274,6 +274,8 @@ public class AppDbContext : DbContext
                 table.HasCheckConstraint("CK_PointsTransactions_Type", "[Type] IN ('Redeem', 'AdminAdjust', 'Earn')");
                 table.HasCheckConstraint("CK_PointsTransactions_RelatedFrame", "([Type] = 'Redeem' AND [RelatedFrameID] IS NOT NULL) OR ([Type] <> 'Redeem' AND [RelatedFrameID] IS NULL)");
                 table.HasCheckConstraint("CK_PointsTransactions_BalanceAfter", "[BalanceAfter] >= 0");
+                table.HasCheckConstraint("CK_PointsTransactions_AmountByType", "([Type] = 'Redeem' AND [Amount] < 0) OR ([Type] = 'Earn' AND [Amount] > 0) OR ([Type] = 'AdminAdjust' AND [Amount] <> 0)");
+                table.HasCheckConstraint("CK_PointsTransactions_CreatedByType", "([Type] = 'AdminAdjust' AND [CreatedBy] IS NOT NULL) OR ([Type] IN ('Redeem', 'Earn') AND [CreatedBy] IS NULL)");
             });
             entity.HasOne(e => e.Member).WithMany(e => e.PointsTransactions).HasForeignKey(e => e.MemberID).OnDelete(DeleteBehavior.NoAction);
             entity.HasOne(e => e.RelatedFrame).WithMany().HasForeignKey(e => e.RelatedFrameID).OnDelete(DeleteBehavior.NoAction);
@@ -286,9 +288,9 @@ public class AppDbContext : DbContext
             entity.HasIndex(e => e.NotificationType);
             entity.HasIndex(e => new { e.IsDeleted, e.ScheduledAt, e.NotificationID });
             entity.HasIndex(e => new { e.IsSent, e.IsDeleted, e.ScheduledAt, e.NotificationID });
-            entity.HasIndex(e => new { e.SourceReportID, e.SourceReportOutcome })
+            entity.HasIndex(e => new { e.SourceReportID, e.SourceReportOutcome, e.MemberID })
                 .IsUnique()
-                .HasFilter("[SourceReportID] IS NOT NULL AND [SourceReportOutcome] IS NOT NULL");
+                .HasFilter("[SourceReportID] IS NOT NULL AND [SourceReportOutcome] IS NOT NULL AND [MemberID] IS NOT NULL");
             entity.Property(e => e.NotificationType).HasMaxLength(20).IsRequired().HasDefaultValue("Personal");
             entity.Property(e => e.TargetRole).HasMaxLength(10);
             entity.Property(e => e.TargetStatus).HasMaxLength(20);

@@ -2,7 +2,7 @@ namespace MidProject.Services.IServices;
 
 public interface IReportNotificationWindow
 {
-    Task<ReportNotificationResult> CreateOutcomeNotificationAsync(
+    Task<ReportNotificationResult> CreateOutcomeNotificationsAsync(
         ReportNotificationRequest request,
         CancellationToken cancellationToken = default);
 }
@@ -10,9 +10,14 @@ public interface IReportNotificationWindow
 public sealed record ReportNotificationRequest(
     int ReportID,
     int ReporterMemberID,
+    int? ReportedMemberID,
     string Outcome,
     int HandledByAdminID,
-    DateTime HandledAt);
+    DateTime HandledAt,
+    string ReporterTitle,
+    string ReporterContent,
+    string? ReportedMemberTitle,
+    string? ReportedMemberContent);
 
 public enum ReportNotificationClassification
 {
@@ -28,6 +33,6 @@ public enum ReportNotificationClassification
 
 public sealed record ReportNotificationResult(
     ReportNotificationClassification Classification,
-    int? NotificationID,
+    IReadOnlyList<int> NotificationIDs,
     string? SafeErrorCode,
     string CorrelationID);

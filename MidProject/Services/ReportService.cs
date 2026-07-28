@@ -1,16 +1,21 @@
 using MidProject.Models.DTOs;
 using MidProject.Models;
 using MidProject.Repositories;
+using MidProject.Services.IServices;
 
 namespace MidProject.Services;
 
 public class ReportService : IReportService
 {
     private readonly IReportRepository _repository;
+    private readonly IReportNotificationWindow _notificationWindow;
 
-    public ReportService(IReportRepository repository)
+    public ReportService(
+        IReportRepository repository,
+        IReportNotificationWindow notificationWindow)
     {
         _repository = repository;
+        _notificationWindow = notificationWindow;
     }
 
     public async Task<PagedResult<ReportDto>> GetReportsAsync(ReportQueryParams query)
@@ -63,6 +68,19 @@ public class ReportService : IReportService
     {
         var report = await _repository.GetByIdAsync(reportId);
         if (report == null) return false;
+        if (dto.Status is not ("Approved" or "Rejected")) return false;
+
+        var reportedMemberId = report.Restaurant?.MemberID
+            ?? report.Review?.MemberID
+            ?? report.Image?.UploadedByMemberID;
+
+        if (dto.Status == "Approved" &&
+            (!reportedMemberId.HasValue ||
+             string.IsNullOrWhiteSpace(dto.ReportedMemberNotificationTitle) ||
+             string.IsNullOrWhiteSpace(dto.ReportedMemberNotificationContent)))
+        {
+            return false;
+        }
 
         // 規則：核准/駁回檢舉只改 Report 本身的狀態，
         // 不會自動刪除或懲處被檢舉的目標（那是另外的手動動作）
@@ -71,70 +89,30 @@ public class ReportService : IReportService
         if (!string.IsNullOrWhiteSpace(dto.Category))
             report.Category = dto.Category;
         report.AdminNote = dto.AdminNote;
-        report.HandledAt = DateTime.Now;
+        var handledAt = DateTime.Now;
+        report.HandledAt = handledAt;
         report.HandledByMemberID = adminMemberId;
 
-        await _repository.SaveChangesAsync();
-        return true;
-    }
+        var notificationResult = await _notificationWindow.CreateOutcomeNotificationsAsync(
+            new ReportNotificationRequest(
+                report.ReportID,
+                report.ReporterMemberID,
+                reportedMemberId,
+                dto.Status,
+                adminMemberId,
+                handledAt,
+                dto.ReporterNotificationTitle,
+                dto.ReporterNotificationContent,
+                dto.ReportedMemberNotificationTitle,
+                dto.ReportedMemberNotificationContent));
 
-    public async Task<bool> NotifyReporterAsync(int reportId, NotifyReporterDto dto, int adminMemberId)
-    {
-        var report = await _repository.GetByIdAsync(reportId);
-        if (report == null) return false;
-
-        // 規則：只有已經審核完畢（核准或駁回）的檢舉才能通知結果，Pending 的還沒有結果可以通知
-        if (report.Status == "Pending") return false;
-
-        var notification = new Notification
+        if (notificationResult.Classification == ReportNotificationClassification.AlreadyExists)
         {
-            MemberID = report.ReporterMemberID,
-            NotificationType = "Personal",
-            Title = dto.Title,
-            Content = dto.Content,
-            ScheduledAt = DateTime.Now,
-            SentAt = DateTime.Now,
-            IsSent = true,
-            CreatedAt = DateTime.Now,
-            CreatedBy = adminMemberId
-        };
+            await _repository.SaveChangesAsync();
+            return true;
+        }
 
-        await _repository.AddNotificationAsync(notification);
-        await _repository.SaveChangesAsync();
-
-        return true;
-    }
-
-    public async Task<bool> NotifyReportedMemberAsync(int reportId, NotifyReporterDto dto, int adminMemberId)
-    {
-        var report = await _repository.GetByIdAsync(reportId);
-        if (report == null) return false;
-
-        // 規則：只有「檢舉成立」才需要通知內容擁有者，駁回代表內容沒有違規，不需要通知
-        if (report.Status != "Approved") return false;
-
-        var reportedMemberId = report.Restaurant?.MemberID
-            ?? report.Review?.MemberID
-            ?? report.Image?.UploadedByMemberID;
-        if (reportedMemberId == null) return false;
-
-        var notification = new Notification
-        {
-            MemberID = reportedMemberId,
-            NotificationType = "Personal",
-            Title = dto.Title,
-            Content = dto.Content,
-            ScheduledAt = DateTime.Now,
-            SentAt = DateTime.Now,
-            IsSent = true,
-            CreatedAt = DateTime.Now,
-            CreatedBy = adminMemberId
-        };
-
-        await _repository.AddNotificationAsync(notification);
-        await _repository.SaveChangesAsync();
-
-        return true;
+        return notificationResult.Classification == ReportNotificationClassification.Created;
     }
 
     public async Task<ReportDashboardDto> GetDashboardAsync()

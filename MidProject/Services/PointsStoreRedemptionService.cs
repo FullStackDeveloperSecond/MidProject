@@ -1,5 +1,7 @@
+using System.Data;
 using Microsoft.EntityFrameworkCore;
 using MidProject.Data;
+using MidProject.Models;
 using MidProject.Models.ViewModels.PointsStore;
 using MidProject.Services.IServices;
 
@@ -10,10 +12,17 @@ public class PointsStoreRedemptionService : IPointsStoreRedemptionService
     private const int PageSize = 20;
 
     private readonly AppDbContext _dbContext;
+    private readonly ITaipeiClock _clock;
+    private readonly ILogger<PointsStoreRedemptionService> _logger;
 
-    public PointsStoreRedemptionService(AppDbContext dbContext)
+    public PointsStoreRedemptionService(
+        AppDbContext dbContext,
+        ITaipeiClock clock,
+        ILogger<PointsStoreRedemptionService> logger)
     {
         _dbContext = dbContext;
+        _clock = clock;
+        _logger = logger;
     }
 
     public async Task<RedemptionsIndexViewModel> GetIndexAsync(
@@ -114,5 +123,138 @@ public class PointsStoreRedemptionService : IPointsStoreRedemptionService
             TotalItems = totalItems,
             TotalPages = (int)Math.Ceiling(totalItems / (double)PageSize)
         };
+    }
+
+    public async Task<PointsStoreRedeemResult> RedeemAsync(
+        int memberId,
+        int frameId,
+        CancellationToken cancellationToken = default)
+    {
+        if (memberId <= 0)
+        {
+            return new(PointsStoreRedeemClassification.MemberNotFound);
+        }
+
+        if (frameId <= 0)
+        {
+            return new(PointsStoreRedeemClassification.FrameNotFound);
+        }
+
+        try
+        {
+            await using var transaction = await _dbContext.Database.BeginTransactionAsync(
+                IsolationLevel.Serializable,
+                cancellationToken);
+
+            var member = await _dbContext.Members
+                .FirstOrDefaultAsync(
+                    item => item.MemberID == memberId && !item.IsDeleted,
+                    cancellationToken);
+            if (member is null)
+            {
+                return new(PointsStoreRedeemClassification.MemberNotFound);
+            }
+
+            var frame = await _dbContext.AvatarFrames
+                .FirstOrDefaultAsync(item => item.FrameID == frameId, cancellationToken);
+            if (frame is null)
+            {
+                return new(PointsStoreRedeemClassification.FrameNotFound);
+            }
+
+            if (frame.IsDeleted || !frame.IsActive)
+            {
+                return new(PointsStoreRedeemClassification.FrameUnavailable);
+            }
+
+            if (frame.PointsPrice <= 0)
+            {
+                return new(PointsStoreRedeemClassification.InvalidFramePrice);
+            }
+
+            if (await _dbContext.MemberAvatarFrames.AnyAsync(
+                    item => item.MemberID == memberId && item.FrameID == frameId,
+                    cancellationToken))
+            {
+                return new(PointsStoreRedeemClassification.AlreadyOwned, member.Points);
+            }
+
+            if (member.Points < frame.PointsPrice)
+            {
+                return new(PointsStoreRedeemClassification.InsufficientPoints, member.Points);
+            }
+
+            var now = _clock.GetNow();
+            member.Points -= frame.PointsPrice;
+            member.UpdatedAt = now;
+
+            var ownership = new MemberAvatarFrame
+            {
+                MemberID = member.MemberID,
+                FrameID = frame.FrameID,
+                RedeemedAt = now
+            };
+            var pointsTransaction = new PointsTransaction
+            {
+                MemberID = member.MemberID,
+                Amount = -frame.PointsPrice,
+                BalanceAfter = member.Points,
+                Type = "Redeem",
+                RelatedFrameID = frame.FrameID,
+                Note = $"兌換外框：{frame.Name}",
+                CreatedAt = now,
+                CreatedBy = null
+            };
+
+            _dbContext.MemberAvatarFrames.Add(ownership);
+            _dbContext.PointsTransactions.Add(pointsTransaction);
+            await _dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+
+            return new(
+                PointsStoreRedeemClassification.Redeemed,
+                member.Points,
+                pointsTransaction.TransactionID);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (DbUpdateException exception)
+        {
+            _dbContext.ChangeTracker.Clear();
+            if (await _dbContext.MemberAvatarFrames
+                .AsNoTracking()
+                .AnyAsync(
+                    item => item.MemberID == memberId && item.FrameID == frameId,
+                    cancellationToken))
+            {
+                return new(PointsStoreRedeemClassification.AlreadyOwned);
+            }
+
+            LogRedeemFailure(memberId, frameId, exception);
+            return new(
+                PointsStoreRedeemClassification.Failed,
+                SafeErrorCode: "REDEEM_PERSISTENCE_FAILED");
+        }
+        catch (Exception exception)
+        {
+            _dbContext.ChangeTracker.Clear();
+            LogRedeemFailure(memberId, frameId, exception);
+            return new(
+                PointsStoreRedeemClassification.Failed,
+                SafeErrorCode: "REDEEM_UNEXPECTED_FAILED");
+        }
+    }
+
+    private void LogRedeemFailure(int memberId, int frameId, Exception exception)
+    {
+        _logger.LogError(
+            exception,
+            "Points store redemption failed at {TaipeiTimestamp}; Operation=RedeemAvatarFrame; MemberID={MemberID}; FrameID={FrameID}; ExceptionType={ExceptionType}",
+            _clock.GetNow(),
+            memberId,
+            frameId,
+            exception.GetType().Name);
     }
 }

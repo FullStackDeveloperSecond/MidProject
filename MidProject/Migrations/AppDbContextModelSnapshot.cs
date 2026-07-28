@@ -559,9 +559,9 @@ namespace MidProject.Migrations
 
                     b.HasIndex("TargetLevelID");
 
-                    b.HasIndex("SourceReportID", "SourceReportOutcome")
+                    b.HasIndex("SourceReportID", "SourceReportOutcome", "MemberID")
                         .IsUnique()
-                        .HasFilter("[SourceReportID] IS NOT NULL AND [SourceReportOutcome] IS NOT NULL");
+                        .HasFilter("[SourceReportID] IS NOT NULL AND [SourceReportOutcome] IS NOT NULL AND [MemberID] IS NOT NULL");
 
                     b.HasIndex("IsDeleted", "ScheduledAt", "NotificationID");
 
@@ -634,7 +634,11 @@ namespace MidProject.Migrations
 
                     b.ToTable("PointsTransactions", t =>
                         {
+                            t.HasCheckConstraint("CK_PointsTransactions_AmountByType", "([Type] = 'Redeem' AND [Amount] < 0) OR ([Type] = 'Earn' AND [Amount] > 0) OR ([Type] = 'AdminAdjust' AND [Amount] <> 0)");
+
                             t.HasCheckConstraint("CK_PointsTransactions_BalanceAfter", "[BalanceAfter] >= 0");
+
+                            t.HasCheckConstraint("CK_PointsTransactions_CreatedByType", "([Type] = 'AdminAdjust' AND [CreatedBy] IS NOT NULL) OR ([Type] IN ('Redeem', 'Earn') AND [CreatedBy] IS NULL)");
 
                             t.HasCheckConstraint("CK_PointsTransactions_RelatedFrame", "([Type] = 'Redeem' AND [RelatedFrameID] IS NOT NULL) OR ([Type] <> 'Redeem' AND [RelatedFrameID] IS NULL)");
 

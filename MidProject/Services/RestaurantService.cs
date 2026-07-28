@@ -1,3 +1,4 @@
+using MidProject.Data;
 using MidProject.Models;
 using MidProject.Models.ViewModels.Restaurants;
 using MidProject.Repositories.IRepositories;
@@ -12,12 +13,27 @@ public class RestaurantService : IRestaurantService
     private readonly IRestaurantRepository _restaurantRepository;
     private readonly ITagRepository _tagRepository;
     private readonly IImageUploadService _imageUploadService;
+    private readonly IImageLifecycleService _imageLifecycleService;
+    private readonly ICurrentAdminAccessor _currentAdmin;
+    private readonly AppDbContext _dbContext;
+    private readonly ILogger<RestaurantService> _logger;
 
-    public RestaurantService(IRestaurantRepository restaurantRepository, ITagRepository tagRepository, IImageUploadService imageUploadService)
+    public RestaurantService(
+        IRestaurantRepository restaurantRepository,
+        ITagRepository tagRepository,
+        IImageUploadService imageUploadService,
+        IImageLifecycleService imageLifecycleService,
+        ICurrentAdminAccessor currentAdmin,
+        AppDbContext dbContext,
+        ILogger<RestaurantService> logger)
     {
         _restaurantRepository = restaurantRepository;
         _tagRepository = tagRepository;
         _imageUploadService = imageUploadService;
+        _imageLifecycleService = imageLifecycleService;
+        _currentAdmin = currentAdmin;
+        _dbContext = dbContext;
+        _logger = logger;
     }
 
     public async Task<RestaurantIndexViewModel> GetIndexAsync(RestaurantFilterQuery filter)
@@ -155,14 +171,15 @@ public class RestaurantService : IRestaurantService
         return form;
     }
 
-    public async Task<(bool Success, int? NewId)> CreateAsync(RestaurantFormViewModel form)
+    public async Task<(bool Success, int? NewId, string? Error)> CreateAsync(RestaurantFormViewModel form)
     {
         if (form.SelectedTagIds.Count == 0)
         {
-            return (false, null);
+            return (false, null, "請至少選擇一個標籤。");
         }
 
-        var adminId = await _restaurantRepository.GetDefaultAdminMemberIdAsync();
+        var adminId = _currentAdmin.MemberID;
+        var newImageUrls = new List<string>();
 
         var restaurant = new Restaurant
         {
@@ -179,59 +196,102 @@ public class RestaurantService : IRestaurantService
             UpdatedAt = DateTime.Now
         };
 
-        await _restaurantRepository.AddAsync(restaurant);
-        await _restaurantRepository.ReplaceTagsAsync(restaurant.RestaurantID, form.SelectedTagIds);
-        await _restaurantRepository.ReplaceBusinessHoursAsync(restaurant.RestaurantID, BuildHourEntitiesFromRows(form.Hours));
+        try
+        {
+            await using var transaction = await _dbContext.Database.BeginTransactionAsync();
 
-        await ApplyImageChangesAsync(restaurant.RestaurantID, form, adminId);
+            await _restaurantRepository.AddAsync(restaurant);
+            await _restaurantRepository.ReplaceTagsAsync(restaurant.RestaurantID, form.SelectedTagIds);
+            await _restaurantRepository.ReplaceBusinessHoursAsync(restaurant.RestaurantID, BuildHourEntitiesFromRows(form.Hours));
+            await ApplyImageChangesAsync(restaurant.RestaurantID, form, adminId, newImageUrls);
 
-        return (true, restaurant.RestaurantID);
+            await transaction.CommitAsync();
+            return (true, restaurant.RestaurantID, null);
+        }
+        catch (InvalidOperationException exception)
+        {
+            await CleanupFailedUploadsAsync(newImageUrls);
+            _dbContext.ChangeTracker.Clear();
+            return (false, null, exception.Message);
+        }
+        catch (Exception exception)
+        {
+            await CleanupFailedUploadsAsync(newImageUrls);
+            _dbContext.ChangeTracker.Clear();
+            _logger.LogError(
+                exception,
+                "Restaurant create failed; Operation=RestaurantCreate; AdminID={AdminID}; ExceptionType={ExceptionType}",
+                adminId,
+                exception.GetType().Name);
+            return (false, null, "餐廳新增失敗，已清理本次上傳檔案，請稍後再試。");
+        }
     }
 
-    public async Task<bool> EditAsync(int id, RestaurantFormViewModel form)
+    public async Task<(bool Success, string? Error)> EditAsync(int id, RestaurantFormViewModel form)
     {
         if (form.SelectedTagIds.Count == 0)
         {
-            return false;
+            return (false, "請至少選擇一個標籤。");
         }
 
         var restaurant = await _restaurantRepository.GetByIdAsync(id);
         if (restaurant == null)
         {
-            return false;
+            return (false, "找不到這間餐廳。");
         }
 
-        var adminId = await _restaurantRepository.GetDefaultAdminMemberIdAsync();
+        var adminId = _currentAdmin.MemberID;
+        var newImageUrls = new List<string>();
+        var cleanupCandidateIds = GetCleanupCandidateIds(restaurant, form);
 
-        restaurant.Name = form.Name.Trim();
-        restaurant.City = form.City;
-        restaurant.District = form.District;
-        restaurant.DetailedAddress = form.DetailedAddress.Trim();
-        restaurant.Phone = string.IsNullOrWhiteSpace(form.Phone) ? null : form.Phone.Trim();
-        restaurant.Note = string.IsNullOrWhiteSpace(form.Note) ? null : form.Note.Trim();
-        restaurant.Latitude = form.Latitude;
-        restaurant.Longitude = form.Longitude;
-        restaurant.UpdatedAt = DateTime.Now;
-        await _restaurantRepository.SaveChangesAsync();
+        try
+        {
+            await using var transaction = await _dbContext.Database.BeginTransactionAsync();
 
-        await _restaurantRepository.ReplaceTagsAsync(id, form.SelectedTagIds);
-        await _restaurantRepository.ReplaceBusinessHoursAsync(id, BuildHourEntitiesFromRows(form.Hours));
+            restaurant.Name = form.Name.Trim();
+            restaurant.City = form.City;
+            restaurant.District = form.District;
+            restaurant.DetailedAddress = form.DetailedAddress.Trim();
+            restaurant.Phone = string.IsNullOrWhiteSpace(form.Phone) ? null : form.Phone.Trim();
+            restaurant.Note = string.IsNullOrWhiteSpace(form.Note) ? null : form.Note.Trim();
+            restaurant.Latitude = form.Latitude;
+            restaurant.Longitude = form.Longitude;
+            restaurant.UpdatedAt = DateTime.Now;
+            await _restaurantRepository.SaveChangesAsync();
 
-        await ApplyImageChangesAsync(id, form, adminId);
+            await _restaurantRepository.ReplaceTagsAsync(id, form.SelectedTagIds);
+            await _restaurantRepository.ReplaceBusinessHoursAsync(id, BuildHourEntitiesFromRows(form.Hours));
+            await ApplyImageChangesAsync(id, form, adminId, newImageUrls);
 
-        return true;
+            await transaction.CommitAsync();
+        }
+        catch (InvalidOperationException exception)
+        {
+            await CleanupFailedUploadsAsync(newImageUrls);
+            _dbContext.ChangeTracker.Clear();
+            return (false, exception.Message);
+        }
+        catch (Exception exception)
+        {
+            await CleanupFailedUploadsAsync(newImageUrls);
+            _dbContext.ChangeTracker.Clear();
+            _logger.LogError(
+                exception,
+                "Restaurant update failed; Operation=RestaurantUpdate; RestaurantID={RestaurantID}; AdminID={AdminID}; ExceptionType={ExceptionType}",
+                id,
+                adminId,
+                exception.GetType().Name);
+            return (false, "餐廳更新失敗，已回復資料並清理本次上傳檔案，請稍後再試。");
+        }
+
+        await _imageLifecycleService.CleanupIfUnreferencedAsync(cleanupCandidateIds, adminId);
+        return (true, null);
     }
 
-    public Task DisableAsync(int id, string reason, int? byMemberId = null)
+    public Task DisableAsync(int id, string reason)
     {
-        return DisableInternalAsync(id, reason, byMemberId);
-    }
-
-    private async Task DisableInternalAsync(int id, string reason, int? byMemberId)
-    {
-        var memberId = byMemberId ?? await _restaurantRepository.GetDefaultAdminMemberIdAsync();
         var trimmedReason = string.IsNullOrWhiteSpace(reason) ? "違規內容" : reason.Trim();
-        await _restaurantRepository.SoftDeleteAsync(id, trimmedReason, memberId);
+        return _restaurantRepository.SoftDeleteAsync(id, trimmedReason, _currentAdmin.MemberID);
     }
 
     public Task RestoreAsync(int id)
@@ -239,7 +299,11 @@ public class RestaurantService : IRestaurantService
         return _restaurantRepository.RestoreAsync(id);
     }
 
-    private async Task ApplyImageChangesAsync(int restaurantId, RestaurantFormViewModel form, int adminId)
+    private async Task ApplyImageChangesAsync(
+        int restaurantId,
+        RestaurantFormViewModel form,
+        int adminId,
+        ICollection<string> newImageUrls)
     {
         if (form.RemoveCoverImage && form.CoverImageFile == null)
         {
@@ -249,6 +313,7 @@ public class RestaurantService : IRestaurantService
         if (form.CoverImageFile != null)
         {
             var coverImage = await _imageUploadService.SaveAsync(form.CoverImageFile, "RestaurantCover", adminId);
+            newImageUrls.Add(coverImage.ImageURL);
             await _restaurantRepository.SetCoverImageAsync(restaurantId, coverImage);
         }
 
@@ -260,7 +325,41 @@ public class RestaurantService : IRestaurantService
         foreach (var file in form.EnvironmentImageFiles)
         {
             var envImage = await _imageUploadService.SaveAsync(file, "RestaurantEnvironment", adminId);
+            newImageUrls.Add(envImage.ImageURL);
             await _restaurantRepository.AddEnvironmentImageAsync(restaurantId, envImage);
+        }
+    }
+
+    private static IReadOnlyList<int> GetCleanupCandidateIds(
+        Restaurant restaurant,
+        RestaurantFormViewModel form)
+    {
+        var candidateIds = new HashSet<int>();
+        if (form.RemoveCoverImage || form.CoverImageFile is not null)
+        {
+            foreach (var link in restaurant.RestaurantImages.Where(link =>
+                         link.Image?.ImageType == "RestaurantCover"))
+            {
+                candidateIds.Add(link.ImageID);
+            }
+        }
+
+        foreach (var imageId in form.RemoveEnvironmentImageIds)
+        {
+            if (restaurant.RestaurantImages.Any(link => link.ImageID == imageId))
+            {
+                candidateIds.Add(imageId);
+            }
+        }
+
+        return candidateIds.ToList();
+    }
+
+    private async Task CleanupFailedUploadsAsync(IEnumerable<string> imageUrls)
+    {
+        foreach (var imageUrl in imageUrls.Distinct(StringComparer.Ordinal))
+        {
+            await _imageUploadService.DeleteAsync(imageUrl);
         }
     }
 
