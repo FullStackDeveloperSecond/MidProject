@@ -10,5 +10,6 @@ public class RestaurantRowViewModel
     public List<string> Tags { get; set; } = new();
     public decimal Rating { get; set; }
     public int ReviewCount { get; set; }
+    public int FavoriteCount { get; set; }
     public string? UploaderName { get; set; }
 }

@@ -200,3 +200,12 @@
   .rv-toast{ position:fixed; bottom:22px; left:50%; transform:translateX(-50%); background: var(--ink); color:#fff; font-size:12.5px; padding:10px 18px; border-radius:8px; box-shadow:0 10px 26px rgba(0,0,0,0.25); z-index:200; display:flex; align-items:center; gap:8px; animation: toastIn .22s ease both; }
   @keyframes toastIn{ from{ opacity:0; transform:translate(-50%,8px);} to{ opacity:1; transform:translate(-50%,0);} }
   .rv-toast .tk{ color:#7FDDB8; }
+
+  /* 「只顯示餐廳 #X 的評論」這種頁面內固定顯示的提示條，跟 .rv-toast（浮動、自動消失的
+     成功訊息）用途不同，故獨立一個 class，避免沿用 .rv-toast 的 position:fixed 置中位移
+     技巧（left:50% + translateX(-50%)）——那組技巧只在 position:fixed 的縮排寬度下正確，
+     若被其他地方覆寫成 position:static，寬度會變成撐滿容器，translateX(-50%) 反而把整條
+     往左移出畫面，變成一條看不到文字的全寬色塊。 */
+  .rv-filter-banner{ display:flex; align-items:center; gap:8px; background: var(--ink); color:#fff; font-size:12.5px; padding:10px 18px; border-radius:8px; margin-bottom:10px; }
+  .rv-filter-banner .tk{ color:#7FDDB8; }
+  .rv-filter-banner a{ margin-left:8px; color:#fff; text-decoration:underline; }

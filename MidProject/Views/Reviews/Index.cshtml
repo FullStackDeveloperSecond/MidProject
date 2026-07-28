@@ -77,9 +77,9 @@
 
 @if (Model.RestaurantID.HasValue)
 {
-    <div class="rv-toast" style="position:static;margin-bottom:10px">
+    <div class="rv-filter-banner">
         <span class="tk">🏪</span>只顯示餐廳 #@Model.RestaurantID 的評論
-        <a href="@Url.Action("Index", new { tab = Model.Tab, search = Model.Search, rating = Model.Rating, time = Model.Time, sortBy = Model.SortBy, sortDir = Model.SortDir })" style="margin-left:8px;text-decoration:underline">清除篩選 ✕</a>
+        <a href="@Url.Action("Index", new { tab = Model.Tab, search = Model.Search, rating = Model.Rating, time = Model.Time, sortBy = Model.SortBy, sortDir = Model.SortDir })">清除篩選 ✕</a>
     </div>
 }
 

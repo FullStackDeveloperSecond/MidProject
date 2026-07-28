@@ -66,4 +66,6 @@ public class TagService : ITagService
         await _tagRepository.ToggleAsync(id, adminId);
         return true;
     }
+
+    public Task ReorderAsync(List<int> orderedIds) => _tagRepository.ReorderAsync(orderedIds);
 }

@@ -154,6 +154,7 @@
                 <th>電話</th>
                 <th>星級</th>
                 <th>評論數</th>
+                <th>被收藏數</th>
                 <th>上傳會員</th>
                 <th>操作</th>
             </tr>
@@ -161,7 +162,7 @@
         <tbody>
             @if (!Model.Items.Any())
             {
-                <tr><td colspan="8" class="muted">目前沒有符合條件的餐廳。</td></tr>
+                <tr><td colspan="9" class="muted">目前沒有符合條件的餐廳。</td></tr>
             }
             else
             {
@@ -179,6 +180,7 @@
                         <td class="muted">@item.Phone</td>
                         <td><span class="stars">★</span>@item.Rating.ToString("0.0")</td>
                         <td>@item.ReviewCount</td>
+                        <td><i class="fas fa-heart" style="color:var(--ra-cta);font-size:12px;"></i> @item.FavoriteCount</td>
                         <td class="muted">@(item.UploaderName ?? "-")</td>
                         <td>
                             <a class="ds-icon-btn ds-icon-btn-view" title="查看" aria-label="查看" href="@Url.Action("Details", new { id = item.Id })">
@@ -227,7 +229,10 @@
                 </div>
                 <div class="ra-rc-meta">
                     <span class="muted">@(item.UploaderName ?? "-") 上傳 · @item.Phone</span>
-                    <span class="ra-rc-rating"><span class="stars">★</span> @item.Rating.ToString("0.0") <span class="muted">(@item.ReviewCount 則)</span></span>
+                    <span class="d-flex align-items-center gap-2">
+                        <span class="ra-rc-rating"><span class="stars">★</span> @item.Rating.ToString("0.0") <span class="muted">(@item.ReviewCount 則)</span></span>
+                        <span class="muted"><i class="fas fa-heart" style="color:var(--ra-cta);font-size:12px;"></i> @item.FavoriteCount</span>
+                    </span>
                 </div>
             </article>
         }

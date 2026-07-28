@@ -1,26 +1,27 @@
 @model MidProject.Models.ViewModels.Notifications.NotificationDeleteViewModel
 @{ ViewData["Title"] = "刪除通知"; }
-@section Styles { <link rel="stylesheet" href="~/css/notifications-admin.css" asp-append-version="true" /> }
+@section Styles {
+    <link rel="stylesheet" href="~/css/design-system.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/notifications-admin.css" asp-append-version="true" />
+}
 
 <div class="notification-admin">
-    <div class="mb-3"><h1 class="h2">刪除通知 #@Model.NotificationID</h1></div>
+    <div class="ds-page-header"><h1 class="ds-h2 mb-1">刪除通知 #@Model.NotificationID</h1></div>
     <div class="alert alert-warning" role="alert"><strong>請確認：</strong>此操作會軟刪除通知，刪除後不可還原。</div>
     <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
-    <div class="card">
-        <div class="card-header fw-semibold">通知摘要</div>
-        <div class="card-body">
-            <dl class="row">
-                <dt class="col-sm-3">標題</dt><dd class="col-sm-9">@Model.Title</dd>
-                <dt class="col-sm-3">類型</dt><dd class="col-sm-9">@Model.NotificationType</dd>
-                <dt class="col-sm-3">對象</dt><dd class="col-sm-9">@Model.AudienceSummary</dd>
-                <dt class="col-sm-3">排程時間</dt><dd class="col-sm-9">@Model.ScheduledAt.ToString("yyyy/MM/dd HH:mm")</dd>
-            </dl>
-            <form asp-action="DeleteConfirmed" asp-route-id="@Model.NotificationID" method="post">
+    <div class="ds-detail-card">
+        <div class="ds-detail-card-header">通知摘要</div>
+        <div class="ds-detail-card-body">
+            <div class="ds-info-row"><div class="ds-info-key">標題</div><div>@Model.Title</div></div>
+            <div class="ds-info-row"><div class="ds-info-key">類型</div><div>@Model.NotificationType</div></div>
+            <div class="ds-info-row"><div class="ds-info-key">對象</div><div>@Model.AudienceSummary</div></div>
+            <div class="ds-info-row"><div class="ds-info-key">排程時間</div><div>@Model.ScheduledAt.ToString("yyyy/MM/dd HH:mm")</div></div>
+            <form asp-action="DeleteConfirmed" asp-route-id="@Model.NotificationID" method="post" class="mt-3">
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="rowVersion" value="@Model.RowVersion" />
                 <div class="d-flex gap-2">
                     <button type="submit" class="btn btn-danger">確認刪除</button>
-                    <a asp-action="Details" asp-route-id="@Model.NotificationID" class="btn btn-secondary">返回</a>
+                    <a asp-action="Details" asp-route-id="@Model.NotificationID" class="btn btn-outline-secondary">返回</a>
                 </div>
             </form>
         </div>

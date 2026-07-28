@@ -22,6 +22,12 @@ public class RestaurantsController : Controller
         var model = await _restaurantService.GetIndexAsync(filter);
         if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
         {
+            // 這個分支回傳的是不含 _Layout（沒有 <head>/CSS）的內容片段，只給前端 fetch()
+            // 抓回來塞進 #raContent 用。若沒有 Cache-Control: no-store，瀏覽器在「上一頁/
+            // 下一頁」導覽時可能直接沿用同一個網址先前快取到的這份「片段」回應，當成完整頁面
+            // 顯示，畫面就會變成完全沒套用樣式的裸 HTML。明確關閉快取，確保之後對同一網址的
+            // 真實整頁導覽一定會重新打一次伺服器，走到下面 return View(...) 那條完整頁面路徑。
+            Response.Headers.CacheControl = "no-store";
             return PartialView("_IndexContent", model);
         }
         return View(model);
@@ -33,6 +39,7 @@ public class RestaurantsController : Controller
         var model = await _restaurantService.GetDeletedIndexAsync(filter);
         if (Request.Headers["X-Requested-With"] == "XMLHttpRequest")
         {
+            Response.Headers.CacheControl = "no-store";
             return PartialView("_DeletedContent", model);
         }
         return View(model);

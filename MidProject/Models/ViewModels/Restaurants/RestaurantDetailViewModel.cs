@@ -18,6 +18,7 @@ public class RestaurantDetailViewModel
 
     public decimal AverageRating { get; set; }
     public int ReviewCount { get; set; }
+    public int FavoriteCount { get; set; }
 
     public List<BusinessHourGroupViewModel> HoursByDay { get; set; } = new();
 

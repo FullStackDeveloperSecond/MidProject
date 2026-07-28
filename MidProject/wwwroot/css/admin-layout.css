@@ -2,6 +2,7 @@
     --admin-sidebar-width: 250px;
     --admin-sidebar-bg: #243447;
     --admin-sidebar-hover: rgba(255, 255, 255, 0.1);
+    --admin-sidebar-active: #FF6B35;
     --admin-content-bg: #FAF9F6;
 }
 
@@ -71,10 +72,16 @@
     font-size: 0.7rem;
 }
 
-.admin-nav-link:hover,
-.admin-nav-link.active {
+.admin-nav-link:hover {
     color: #fff;
     background: var(--admin-sidebar-hover);
+}
+
+/* 目前所在模組頁的側邊欄項目：底色改用品牌橘彰顯，跟一般 hover 的半透明白區隔開。 */
+.admin-nav-link.active {
+    color: #fff;
+    background: var(--admin-sidebar-active);
+    font-weight: 600;
 }
 
 .admin-nav-link.disabled {
@@ -116,10 +123,15 @@
     font-size: 0.92rem;
 }
 
-.admin-nav-sublink:hover,
-.admin-nav-sublink.active {
+.admin-nav-sublink:hover {
     color: #fff;
     background: var(--admin-sidebar-hover);
+}
+
+.admin-nav-sublink.active {
+    color: #fff;
+    background: var(--admin-sidebar-active);
+    font-weight: 600;
 }
 
 .admin-sidebar-footer {

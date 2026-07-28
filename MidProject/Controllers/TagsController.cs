@@ -42,5 +42,15 @@ public class TagsController : Controller
         return RedirectToAction(nameof(Index));
     }
 
+    // POST /Tags/Reorder — 標籤牆拖曳排序，回傳新的顯示順序（僅使用中的標籤 ID）
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Reorder(List<int> orderedIds)
+    {
+        if (orderedIds == null || orderedIds.Count == 0) return BadRequest();
+        await _tagService.ReorderAsync(orderedIds);
+        return Ok();
+    }
+
     private int GetAdminId() => int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : 0;
 }

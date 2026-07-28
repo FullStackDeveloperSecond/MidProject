@@ -382,12 +382,26 @@
     flex-direction: column;
     gap: 10px;
     box-shadow: var(--ds-shadow, 0 8px 26px rgba(65, 48, 32, .07));
-    transition: transform .12s ease, box-shadow .12s ease;
+    cursor: grab;
+    transition: transform .12s ease, box-shadow .12s ease, opacity .12s ease;
 }
 
 .tag-card:hover {
     transform: translateY(-2px);
     box-shadow: var(--ds-shadow-hover, 0 14px 34px rgba(65, 48, 32, .11));
+}
+
+.tag-card:active {
+    cursor: grabbing;
+}
+
+.tag-card.dragging {
+    opacity: .45;
+}
+
+.tag-card.drag-over {
+    border-color: var(--ra-cta);
+    box-shadow: 0 0 0 2px rgba(255, 107, 53, .28);
 }
 
 .tag-card .tag-card-top {
@@ -409,6 +423,13 @@
     flex-shrink: 0;
 }
 
+.tag-card .drag-handle {
+    color: var(--ra-line-strong);
+    font-size: 15px;
+    line-height: 1;
+    padding-top: 4px;
+}
+
 .tag-card strong {
     font-size: 15px;
 }
@@ -416,6 +437,11 @@
 .tag-card.inactive {
     opacity: .6;
     border-style: dashed;
+    cursor: default;
+}
+
+.tag-card.inactive .drag-handle {
+    visibility: hidden;
 }
 
 .divider {

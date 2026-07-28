@@ -157,6 +157,23 @@ public class RestaurantRepository : IRestaurantRepository
             x => new RestaurantReviewStats { AverageRating = x.AverageRating, ReviewCount = x.ReviewCount });
     }
 
+    public async Task<IReadOnlyDictionary<int, int>> GetFavoriteCountsAsync(IEnumerable<int> restaurantIds)
+    {
+        var ids = restaurantIds.Distinct().ToList();
+        if (ids.Count == 0)
+        {
+            return new Dictionary<int, int>();
+        }
+
+        var counts = await _db.Favorites
+            .Where(f => ids.Contains(f.RestaurantID) && !f.IsDeleted)
+            .GroupBy(f => f.RestaurantID)
+            .Select(g => new { RestaurantID = g.Key, Count = g.Count() })
+            .ToListAsync();
+
+        return counts.ToDictionary(x => x.RestaurantID, x => x.Count);
+    }
+
     public async Task AddAsync(Restaurant restaurant)
     {
         _db.Restaurants.Add(restaurant);

@@ -156,6 +156,7 @@
                     <span class="stars">@(new string('★', fullStars))@(hasHalfStar ? "½" : "")<span class="stars-empty">@(new string('☆', emptyStars))</span></span>
                 </p>
                 <p class="muted">共 @Model.ReviewCount 則評論</p>
+                <p class="muted"><i class="fas fa-heart" style="color:var(--ra-cta);"></i> 目前被收藏數：@Model.FavoriteCount</p>
                 <a class="btn" href="@Url.Action("Index", "Reviews", new { RestaurantID = Model.Id })">查看評論</a>
             </section>
 

@@ -24,6 +24,7 @@ public class RestaurantService : IRestaurantService
         var stats = await _restaurantRepository.GetStatsAsync(filter);
         var (items, total) = await _restaurantRepository.GetActivePagedAsync(filter, PageSize);
         var reviewStats = await _restaurantRepository.GetReviewStatsAsync(items.Select(item => item.RestaurantID));
+        var favoriteCounts = await _restaurantRepository.GetFavoriteCountsAsync(items.Select(item => item.RestaurantID));
         var activeTags = (await _tagRepository.GetAllAsync()).Where(t => !t.IsDeleted).ToList();
 
         return new RestaurantIndexViewModel
@@ -32,7 +33,7 @@ public class RestaurantService : IRestaurantService
             StatsAvgRating = stats.AvgRating,
             StatsReviewCount = stats.ReviewCount,
             StatsDisabledCount = stats.DisabledCount,
-            Items = items.Select(item => MapRow(item, GetReviewStats(reviewStats, item.RestaurantID))).ToList(),
+            Items = items.Select(item => MapRow(item, GetReviewStats(reviewStats, item.RestaurantID), GetFavoriteCount(favoriteCounts, item.RestaurantID))).ToList(),
             Filter = filter,
             AvailableCities = RestaurantOptions.Cities,
             AvailableDistricts = RestaurantOptions.Districts,
@@ -76,7 +77,8 @@ public class RestaurantService : IRestaurantService
         }
 
         var reviewStats = await _restaurantRepository.GetReviewStatsAsync(new[] { id });
-        return MapDetail(restaurant, GetReviewStats(reviewStats, id));
+        var favoriteCounts = await _restaurantRepository.GetFavoriteCountsAsync(new[] { id });
+        return MapDetail(restaurant, GetReviewStats(reviewStats, id), GetFavoriteCount(favoriteCounts, id));
     }
 
     public async Task<RestaurantFormViewModel> GetCreateFormAsync()
@@ -247,7 +249,7 @@ public class RestaurantService : IRestaurantService
         return true;
     }
 
-    private static RestaurantRowViewModel MapRow(Restaurant r, RestaurantReviewStats reviewStats)
+    private static RestaurantRowViewModel MapRow(Restaurant r, RestaurantReviewStats reviewStats, int favoriteCount)
     {
         return new RestaurantRowViewModel
         {
@@ -256,9 +258,12 @@ public class RestaurantService : IRestaurantService
             City = r.City,
             District = r.District,
             Phone = r.Phone,
-            Tags = r.RestaurantTags.Where(rt => rt.Tag != null && !rt.Tag.IsDeleted).Select(rt => rt.Tag!.TagName).ToList(),
+            Tags = r.RestaurantTags.Where(rt => rt.Tag != null && !rt.Tag.IsDeleted)
+                .OrderBy(rt => rt.Tag!.SortOrder).ThenBy(rt => rt.Tag!.TagName)
+                .Select(rt => rt.Tag!.TagName).ToList(),
             Rating = reviewStats.AverageRating,
             ReviewCount = reviewStats.ReviewCount,
+            FavoriteCount = favoriteCount,
             UploaderName = r.Member?.NickName ?? r.Member?.UserName
         };
     }
@@ -271,14 +276,16 @@ public class RestaurantService : IRestaurantService
             Name = r.Name,
             City = r.City,
             District = r.District,
-            Tags = r.RestaurantTags.Where(rt => rt.Tag != null && !rt.Tag.IsDeleted).Select(rt => rt.Tag!.TagName).ToList(),
+            Tags = r.RestaurantTags.Where(rt => rt.Tag != null && !rt.Tag.IsDeleted)
+                .OrderBy(rt => rt.Tag!.SortOrder).ThenBy(rt => rt.Tag!.TagName)
+                .Select(rt => rt.Tag!.TagName).ToList(),
             DeletedAt = r.DeletedAt,
             DeleteReason = r.DeleteReason,
             DeletedByName = r.DeletedByMember?.NickName ?? r.DeletedByMember?.UserName
         };
     }
 
-    private static RestaurantDetailViewModel MapDetail(Restaurant r, RestaurantReviewStats reviewStats)
+    private static RestaurantDetailViewModel MapDetail(Restaurant r, RestaurantReviewStats reviewStats, int favoriteCount)
     {
         var cover = r.RestaurantImages.FirstOrDefault(ri => ri.Image != null && ri.Image.ImageType == "RestaurantCover")?.Image;
         var environments = r.RestaurantImages
@@ -296,6 +303,7 @@ public class RestaurantService : IRestaurantService
             Phone = r.Phone,
             Note = r.Note,
             Tags = r.RestaurantTags.Where(rt => rt.Tag != null && !rt.Tag.IsDeleted)
+                .OrderBy(rt => rt.Tag!.SortOrder).ThenBy(rt => rt.Tag!.TagName)
                 .Select(rt => new TagOptionViewModel { Id = rt.Tag!.TagID, Name = rt.Tag.TagName })
                 .ToList(),
             OwnerName = r.Member?.NickName ?? r.Member?.UserName ?? "-",
@@ -304,6 +312,7 @@ public class RestaurantService : IRestaurantService
             Longitude = r.Longitude,
             AverageRating = reviewStats.AverageRating,
             ReviewCount = reviewStats.ReviewCount,
+            FavoriteCount = favoriteCount,
             HoursByDay = BuildHourGroupsFromEntities(r.BusinessHours.ToList()),
             CoverImageUrl = cover?.ImageURL,
             EnvironmentImageUrls = environments,
@@ -319,6 +328,11 @@ public class RestaurantService : IRestaurantService
         return stats.TryGetValue(restaurantId, out var reviewStats)
             ? reviewStats
             : new RestaurantReviewStats();
+    }
+
+    private static int GetFavoriteCount(IReadOnlyDictionary<int, int> counts, int restaurantId)
+    {
+        return counts.TryGetValue(restaurantId, out var count) ? count : 0;
     }
 
     private static List<BusinessHourFormRow> BuildDefaultHourRows()

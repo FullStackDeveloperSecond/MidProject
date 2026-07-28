@@ -21,6 +21,7 @@ public interface IRestaurantRepository
     Task<int> GetDefaultAdminMemberIdAsync();
     Task<RestaurantStats> GetStatsAsync(RestaurantFilterQuery filter);
     Task<IReadOnlyDictionary<int, RestaurantReviewStats>> GetReviewStatsAsync(IEnumerable<int> restaurantIds);
+    Task<IReadOnlyDictionary<int, int>> GetFavoriteCountsAsync(IEnumerable<int> restaurantIds);
     Task<List<string>> GetDistinctCitiesAsync();
     Task<List<string>> GetDistinctDistrictsAsync();
     Task<List<string>> GetDistinctDeleteReasonsAsync();
