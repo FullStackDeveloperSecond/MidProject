@@ -145,6 +145,9 @@ public class AvatarFrameService : IAvatarFrameService
         catch
         {
             await transaction.RollbackAsync();
+            // DB 交易回滾了，但圖片檔案已經實際寫到硬碟，交易救不回來，要手動清掉，
+            // 不然會留下一個資料庫裡完全沒有紀錄指向的孤兒檔案。
+            await _imageUploadService.DeleteAsync(image.ImageURL);
             return (false, "新增失敗，請重試。");
         }
 
@@ -164,46 +167,71 @@ public class AvatarFrameService : IAvatarFrameService
             return (false, "找不到這個商品。");
         }
 
-        frame.Name = form.Name.Trim();
-        frame.Description = string.IsNullOrWhiteSpace(form.Description) ? null : form.Description.Trim();
-        frame.Rarity = form.Rarity;
-        frame.PointsPrice = form.PointsPrice;
-        frame.SortOrder = form.SortOrder;
-        frame.IsActive = form.IsActive;
-        frame.UpdatedAt = _clock.GetNow();
-
-        var oldImageId = frame.ImageID;
-
+        // 圖片實際寫入硬碟這一步沒辦法被 DB 交易保護，所以先做，並記住檔案路徑，
+        // 讓下面的交易失敗時可以呼叫 DeleteAsync 手動清掉，不留孤兒檔案。
+        Image? newImage = null;
         if (form.ImageFile != null)
         {
-            Image image;
             try
             {
-                image = await _imageUploadService.SaveAsync(form.ImageFile, "AvatarFrame", adminId);
+                newImage = await _imageUploadService.SaveAsync(form.ImageFile, "AvatarFrame", adminId);
             }
             catch (InvalidOperationException ex)
             {
                 return (false, ex.Message);
             }
-
-            _dbContext.Images.Add(image);
-            await _dbContext.SaveChangesAsync();
-            frame.ImageID = image.ImageID;
         }
 
-        await _frameRepository.SaveChangesAsync();
+        var oldImageId = frame.ImageID;
+        var now = _clock.GetNow();
 
-        if (form.ImageFile != null && oldImageId.HasValue)
+        // 商品欄位更新、新圖片寫入 DB、舊圖片軟刪除，三步驟包在同一個交易裡：
+        // 要嘛全部成功，要嘛全部回滾，不會出現「Frame 已經指向新圖但舊圖沒被標記刪除」
+        // 或「新圖片資料寫進去了但 Frame 欄位沒更新」這種中間狀態。
+        await using var transaction = await _dbContext.Database.BeginTransactionAsync();
+        try
         {
-            var oldImage = await _dbContext.Images.FindAsync(oldImageId.Value);
-            if (oldImage != null)
+            frame.Name = form.Name.Trim();
+            frame.Description = string.IsNullOrWhiteSpace(form.Description) ? null : form.Description.Trim();
+            frame.Rarity = form.Rarity;
+            frame.PointsPrice = form.PointsPrice;
+            frame.SortOrder = form.SortOrder;
+            frame.IsActive = form.IsActive;
+            frame.UpdatedAt = now;
+
+            if (newImage != null)
             {
-                oldImage.IsDeleted = true;
-                oldImage.DeletedAt = _clock.GetNow();
-                oldImage.DeletedBy = adminId;
+                _dbContext.Images.Add(newImage);
                 await _dbContext.SaveChangesAsync();
+                frame.ImageID = newImage.ImageID;
             }
+
+            await _frameRepository.SaveChangesAsync();
+
+            if (newImage != null && oldImageId.HasValue)
+            {
+                var oldImage = await _dbContext.Images.FindAsync(oldImageId.Value);
+                if (oldImage != null)
+                {
+                    oldImage.IsDeleted = true;
+                    oldImage.DeletedAt = now;
+                    oldImage.DeletedBy = adminId;
+                    await _dbContext.SaveChangesAsync();
+                }
+            }
+
+            await transaction.CommitAsync();
         }
+        catch
+        {
+            await transaction.RollbackAsync();
+            if (newImage != null)
+            {
+                await _imageUploadService.DeleteAsync(newImage.ImageURL);
+            }
+            return (false, "更新失敗，請重試。");
+        }
+
         return (true, null);
     }
 
