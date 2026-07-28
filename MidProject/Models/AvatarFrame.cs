@@ -35,4 +35,5 @@ public class AvatarFrame
     public Member? DeletedByMember { get; set; }
 
     public ICollection<MemberAvatarFrame> MemberAvatarFrames { get; set; } = new List<MemberAvatarFrame>();
+    public ICollection<PointsTransaction> PointsTransactions { get; set; } = new List<PointsTransaction>();
 }

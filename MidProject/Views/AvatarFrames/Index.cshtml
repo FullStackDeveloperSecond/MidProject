@@ -105,7 +105,7 @@
                         @Html.AntiForgeryToken()
                         <button type="submit" class="btn btn-sm @(f.IsActive ? "btn-outline-secondary" : "btn-outline-success")">@(f.IsActive ? "下架" : "上架")</button>
                     </form>
-                    <form method="post" asp-action="Delete" asp-route-id="@f.FrameID" class="d-inline" onsubmit="return confirm('確定要刪除「@f.Name」嗎？此動作無法復原。');">
+                    <form method="post" asp-action="Delete" asp-route-id="@f.FrameID" class="d-inline" onsubmit="return confirm('確定要刪除「@f.Name」嗎？刪除後可到「已刪除商品」頁面復原。');">
                         @Html.AntiForgeryToken()
                         <button type="submit" class="btn btn-sm btn-outline-danger">刪除</button>
                     </form>

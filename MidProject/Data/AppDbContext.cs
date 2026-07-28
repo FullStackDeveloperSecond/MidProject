@@ -279,7 +279,7 @@ public class AppDbContext : DbContext
                 table.HasCheckConstraint("CK_PointsTransactions_BalanceAfter", "[BalanceAfter] >= 0");
             });
             entity.HasOne(e => e.Member).WithMany(e => e.PointsTransactions).HasForeignKey(e => e.MemberID).OnDelete(DeleteBehavior.NoAction);
-            entity.HasOne(e => e.RelatedFrame).WithMany().HasForeignKey(e => e.RelatedFrameID).OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne(e => e.RelatedFrame).WithMany(e => e.PointsTransactions).HasForeignKey(e => e.RelatedFrameID).OnDelete(DeleteBehavior.NoAction);
             entity.HasOne(e => e.CreatedByMember).WithMany().HasForeignKey(e => e.CreatedBy).OnDelete(DeleteBehavior.NoAction);
         });
 
@@ -317,6 +317,5 @@ public class AppDbContext : DbContext
             entity.HasOne(e => e.DeletedByMember).WithMany().HasForeignKey(e => e.DeletedBy).OnDelete(DeleteBehavior.NoAction);
             entity.HasOne(e => e.SourceReport).WithMany(e => e.Notifications).HasForeignKey(e => e.SourceReportID).OnDelete(DeleteBehavior.NoAction);
         });
-
     }
 }

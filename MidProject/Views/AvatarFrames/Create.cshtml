@@ -10,7 +10,7 @@
 
 <form method="post" asp-action="Create" enctype="multipart/form-data">
     @Html.AntiForgeryToken()
-    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+    <div asp-validation-summary="All" class="text-danger"></div>
 
     <div class="row">
         <div class="col-md-4">
@@ -35,12 +35,20 @@
                     <option value="Rare">稀有</option>
                     <option value="Limited">限定</option>
                 </select>
+                <span asp-validation-for="Rarity" class="text-danger"></span>
             </div>
 
             <div class="mb-3">
                 <label class="form-label">點數售價</label>
                 <input asp-for="PointsPrice" type="number" min="0" class="form-control" />
                 <span asp-validation-for="PointsPrice" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">排序值</label>
+                <input asp-for="SortOrder" type="number" min="0" class="form-control" />
+                <span asp-validation-for="SortOrder" class="text-danger"></span>
+                <div class="form-text">數字越小排越前面，商品列表依此排序。</div>
             </div>
 
             <div class="mb-3">

@@ -1,14 +1,20 @@
 @model MidProject.Models.ViewModels.ReviewDetailViewModel
 @using MidProject.Helpers
+@using MidProject.Services.IServices
+@inject ITaipeiClock Clock
 @{
     ViewData["Title"] = $"評論 #{Model.Review.ReviewID} 詳情";
-    var restaurantDisabled = Model.Review.Restaurant.IsDeleted;
+    var now = Clock.GetNow();
+    var restaurantDisabled = Model.Review.Restaurant?.IsDeleted ?? false;
     var effectivelyDeleted = Model.Review.IsDeleted || restaurantDisabled;
     var (label, cls) = ReviewDisplayHelpers.GetStatusPill(effectivelyDeleted, Model.Review.Status);
     var activeImages = Model.Review.ReviewImages?.Where(ri => ri.Image != null && !ri.Image.IsDeleted).ToList()
                         ?? new List<MidProject.Models.ReviewImage>();
     var hasAnyImages = Model.Review.ReviewImages != null && Model.Review.ReviewImages.Any();
-    var memberName = ReviewDisplayHelpers.DisplayName(Model.Review.Member.NickName, Model.Review.Member.UserName);
+    var memberName = Model.Review.Member != null
+        ? ReviewDisplayHelpers.DisplayName(Model.Review.Member.NickName, Model.Review.Member.UserName)
+        : "未知會員";
+    var restaurantName = Model.Review.Restaurant?.Name ?? "未知餐廳";
     var previewContent = Model.Review.Content != null && Model.Review.Content.Length > 60
         ? Model.Review.Content.Substring(0, 60) + "…"
         : Model.Review.Content;
@@ -41,8 +47,7 @@
             <div class="review-box">
                 <div class="rv-meta">
                     <div class="rv-author">
-                        @* TODO：換成你們會員模組實際的路由，這裡先假設是 /Members/Details/{id} *@
-                        <a href="/Members/Details/@Model.Review.MemberID" class="rv-avatar-link" title="查看會員 @memberName 的後台資料">
+                        <a asp-controller="AdminMembers" asp-action="Edit" asp-route-id="@Model.Review.MemberID" class="rv-avatar-link" title="查看會員 @memberName 的後台資料">
                             <div class="av" style="@(ReviewDisplayHelpers.AvatarStyle(memberName));width:34px;height:34px;font-size:13px">
                                 @memberName.Substring(0, 1)
                             </div>
@@ -90,7 +95,7 @@
                 <div class="rv-info">
                     <div class="rv-info-item">
                         📍 餐廳：
-                        <b><a asp-controller="Restaurants" asp-action="Details" asp-route-id="@Model.Review.RestaurantID">@Model.Review.Restaurant.Name</a></b>
+                        <b><a asp-controller="Restaurants" asp-action="Details" asp-route-id="@Model.Review.RestaurantID">@restaurantName</a></b>
                     </div>
                     <div class="rv-info-item">🚩 ReportCount：<b style="color:var(--danger)">@Model.Review.ReportCount</b></div>
                     <div class="rv-info-item">📅 CreatedAt：<b>@ReviewDisplayHelpers.FormatFull(Model.Review.CreatedAt)</b></div>
@@ -114,7 +119,7 @@
         @if (restaurantDisabled)
         {
             <div class="notice" style="background:var(--muted-bg);color:var(--text)">
-                🏪 這則評論所屬的餐廳「@Model.Review.Restaurant.Name」已被停用，因此顯示為「已刪除」，跟評論本身有沒有被單獨刪除無關。
+                🏪 這則評論所屬的餐廳「@restaurantName」已被停用，因此顯示為「已刪除」，跟評論本身有沒有被單獨刪除無關。
                 @if (!Model.Review.IsDeleted)
                 {
                     <text>如果要讓這則評論恢復顯示，需要先請餐廳管理那邊重新啟用這間餐廳。</text>
@@ -162,7 +167,7 @@
                             <div class="av" style="@(ReviewDisplayHelpers.AvatarStyle(reporterName));width:22px;height:22px;font-size:9.5px">@reporterName.Substring(0, 1)</div>
                             <span class="name">@reporterName</span>
                             <span class="report-status @rCls">@rLabel</span>
-                            <span class="time">@ReviewDisplayHelpers.FormatRelative(rp.CreatedAt)</span>
+                            <span class="time">@ReviewDisplayHelpers.FormatRelative(rp.CreatedAt, now)</span>
                         </div>
                         <div class="report-reason">@rp.Reason</div>
                         @if (!string.IsNullOrWhiteSpace(rp.AdminNote))
@@ -190,7 +195,7 @@
         <div class="rv-modal-text">評論將標記為「已刪除」，不會出現在一般列表中，之後仍可還原。</div>
         <div class="rv-modal-preview">
             「@previewContent」
-            <span class="src">— @memberName 對 @Model.Review.Restaurant.Name 的 @Model.Review.Rating 星評論</span>
+            <span class="src">— @memberName 對 @restaurantName 的 @Model.Review.Rating 星評論</span>
         </div>
         <div class="rv-modal-btns">
             <button type="button" class="rv-modal-btn cancel" onclick="document.getElementById('delete-modal').style.display='none'">取消</button>
@@ -211,7 +216,7 @@
         <div class="rv-modal-text">評論將恢復顯示，前台用戶會重新看到這則評論。</div>
         <div class="rv-modal-preview">
             「@previewContent」
-            <span class="src">— @memberName 對 @Model.Review.Restaurant.Name 的 @Model.Review.Rating 星評論</span>
+            <span class="src">— @memberName 對 @restaurantName 的 @Model.Review.Rating 星評論</span>
         </div>
         <div class="rv-modal-btns">
             <button type="button" class="rv-modal-btn cancel" onclick="document.getElementById('restore-modal').style.display='none'">取消</button>
