@@ -58,7 +58,8 @@ public class ReportsController : Controller
             return View("Details", report);
         }
 
-        var adminMemberId = GetCurrentAdminMemberId();
+        if (!TryGetCurrentAdminMemberId(out var adminMemberId))
+            return AdminIdentityFailure();
 
         // 直接處理（非 AJAX 後備路徑）：實際流程改由通知視窗按「儲存」時定案，此處僅作後備。
         var outcome = await _reportService.HandleReportAsync(id, dto, adminMemberId);
@@ -84,7 +85,10 @@ public class ReportsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> NotifyReporter(int id, NotifyReporterDto dto)
     {
-        var result = await _reportService.NotifyReporterAsync(id, dto, GetCurrentAdminMemberId());
+        if (!TryGetCurrentAdminMemberId(out var adminMemberId))
+            return AdminIdentityFailure();
+
+        var result = await _reportService.NotifyReporterAsync(id, dto, adminMemberId);
         if (IsAjaxRequest())
             return Json(new { success = result.Success, alreadyNotified = result.AlreadyNotified, recipientUnavailable = result.RecipientUnavailable, message = result.Message });
 
@@ -97,7 +101,10 @@ public class ReportsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> NotifyReportedMember(int id, NotifyReporterDto dto)
     {
-        var result = await _reportService.NotifyReportedMemberAsync(id, dto, GetCurrentAdminMemberId());
+        if (!TryGetCurrentAdminMemberId(out var adminMemberId))
+            return AdminIdentityFailure();
+
+        var result = await _reportService.NotifyReportedMemberAsync(id, dto, adminMemberId);
         if (IsAjaxRequest())
             return Json(new { success = result.Success, alreadyNotified = result.AlreadyNotified, recipientUnavailable = result.RecipientUnavailable, message = result.Message });
 
@@ -114,11 +121,24 @@ public class ReportsController : Controller
         return Json(new { success = true, records });
     }
 
-    // 從登入憑證取得目前管理員的 MemberID（登入時寫入 ClaimTypes.NameIdentifier）
-    private int GetCurrentAdminMemberId()
+    // 從登入憑證取得目前管理員的 MemberID（登入時寫入 ClaimTypes.NameIdentifier）。
+    // [Authorize(Roles="Admin")] 只保證「已登入且具 Admin 角色」，不保證 claim 一定帶有可解析的 MemberID，
+    // 故解析失敗時回傳 false 讓呼叫端擋下，避免把 0 當成管理員 ID 流入 service 造成 FK 例外 / 500 / 稽核錯亂。
+    private bool TryGetCurrentAdminMemberId(out int memberId)
     {
         var idValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        return int.TryParse(idValue, out var memberId) ? memberId : 0;
+        return int.TryParse(idValue, out memberId) && memberId > 0;
+    }
+
+    // 身分解析失敗的統一回應：AJAX 回 JSON 錯誤、一般請求回 403。
+    private IActionResult AdminIdentityFailure()
+    {
+        const string message = "無法識別管理員身分，請重新登入後再試。";
+        if (IsAjaxRequest())
+            return Json(new { success = false, message });
+
+        TempData["Message"] = message;
+        return Forbid();
     }
 
     private bool IsAjaxRequest() => Request.Headers["X-Requested-With"] == "XMLHttpRequest";
