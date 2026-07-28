@@ -25,7 +25,6 @@ builder.Services.AddScoped<IRestaurantRepository, RestaurantRepository>();
 builder.Services.AddScoped<ITagRepository, TagRepository>();
 builder.Services.AddScoped<IRestaurantService, RestaurantService>();
 builder.Services.AddScoped<ITagService, TagService>();
-builder.Services.AddScoped<IImageUploadService, ImageUploadService>();
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 if (string.IsNullOrWhiteSpace(connectionString))
@@ -60,6 +59,7 @@ builder.Services.AddScoped<IReviewService, ReviewService>();
 builder.Services.AddScoped<IAvatarFrameRepository, AvatarFrameRepository>();
 builder.Services.AddScoped<IAvatarFrameService, AvatarFrameService>();
 builder.Services.AddScoped<IPointsStoreRedemptionService, PointsStoreRedemptionService>();
+builder.Services.AddScoped<IImageUploadService, ImageUploadService>();
 if (notificationIdentityMode.Mode == NotificationIdentityMode.DevelopmentTemporary)
 {
     builder.Services.AddSingleton<DevelopmentTemporaryTrustedMemberIdentityAccessor>();

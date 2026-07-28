@@ -16,7 +16,7 @@ public class TagRepository : ITagRepository
 
     public async Task<List<Tag>> GetAllAsync()
     {
-        return await _db.Tags.OrderBy(t => t.TagName).ToListAsync();
+        return await _db.Tags.OrderBy(t => t.SortOrder).ThenBy(t => t.TagName).ToListAsync();
     }
 
     public Task<Tag?> FindByNameAsync(string name)
@@ -31,6 +31,8 @@ public class TagRepository : ITagRepository
 
     public async Task AddAsync(Tag tag)
     {
+        var maxSortOrder = await _db.Tags.Select(t => (int?)t.SortOrder).MaxAsync() ?? -1;
+        tag.SortOrder = maxSortOrder + 1;
         _db.Tags.Add(tag);
         await _db.SaveChangesAsync();
     }
@@ -56,6 +58,34 @@ public class TagRepository : ITagRepository
             .GroupBy(rt => rt.TagID)
             .Select(g => new { TagId = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.TagId, x => x.Count);
+    }
+
+    public async Task<bool> ReorderAsync(IReadOnlyList<int> orderedIds)
+    {
+        if (orderedIds.Count == 0 || orderedIds.Distinct().Count() != orderedIds.Count)
+        {
+            return false;
+        }
+
+        var activeTags = await _db.Tags.Where(t => !t.IsDeleted).ToListAsync();
+        if (activeTags.Count != orderedIds.Count)
+        {
+            return false;
+        }
+
+        var tagsById = activeTags.ToDictionary(t => t.TagID);
+        if (orderedIds.Any(id => !tagsById.ContainsKey(id)))
+        {
+            return false;
+        }
+
+        for (var i = 0; i < orderedIds.Count; i++)
+        {
+            tagsById[orderedIds[i]].SortOrder = i;
+        }
+
+        await _db.SaveChangesAsync();
+        return true;
     }
 
     public Task SaveChangesAsync() => _db.SaveChangesAsync();

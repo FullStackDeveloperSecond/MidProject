@@ -9,6 +9,7 @@ namespace MidProject.Services;
 
 public class AvatarFrameService : IAvatarFrameService
 {
+    private const int PageSize = 10;
     private static readonly HashSet<string> AllowedRarities = new() { "Common", "Rare", "Limited" };
 
     private readonly IAvatarFrameRepository _frameRepository;
@@ -28,9 +29,36 @@ public class AvatarFrameService : IAvatarFrameService
         _clock = clock;
     }
 
-    public async Task<AvatarFramesIndexViewModel> GetIndexAsync()
+    public async Task<AvatarFramesIndexViewModel> GetIndexAsync(
+        string? keyword, string? rarity, bool? isActive, string? sortBy, int page)
     {
-        var frames = await _frameRepository.GetAllAsync();
+        var framesQuery = _dbContext.AvatarFrames
+            .Include(f => f.Image)
+            .Where(f => !f.IsDeleted);
+
+        if (!string.IsNullOrWhiteSpace(keyword))
+            framesQuery = framesQuery.Where(f => f.Name.Contains(keyword));
+        if (!string.IsNullOrWhiteSpace(rarity))
+            framesQuery = framesQuery.Where(f => f.Rarity == rarity);
+        if (isActive.HasValue)
+            framesQuery = framesQuery.Where(f => f.IsActive == isActive.Value);
+
+        var resolvedSort = sortBy is "priceAsc" or "priceDesc" or "name" ? sortBy : "newest";
+        framesQuery = resolvedSort switch
+        {
+            "priceAsc" => framesQuery.OrderBy(f => f.PointsPrice).ThenBy(f => f.FrameID),
+            "priceDesc" => framesQuery.OrderByDescending(f => f.PointsPrice).ThenBy(f => f.FrameID),
+            "name" => framesQuery.OrderBy(f => f.Name).ThenBy(f => f.FrameID),
+            _ => framesQuery.OrderByDescending(f => f.CreatedAt).ThenBy(f => f.FrameID)
+        };
+
+        var totalItems = await framesQuery.CountAsync();
+        var totalPages = Math.Max(1, (int)Math.Ceiling(totalItems / (double)PageSize));
+        var currentPage = Math.Clamp(page, 1, totalPages);
+        var frames = await framesQuery
+            .Skip((currentPage - 1) * PageSize)
+            .Take(PageSize)
+            .ToListAsync();
         var redemptionCounts = await _frameRepository.GetRedemptionCountsAsync();
 
         var now = _clock.GetNow();
@@ -42,9 +70,9 @@ public class AvatarFrameService : IAvatarFrameService
 
         return new AvatarFramesIndexViewModel
         {
-            TotalCount = frames.Count,
-            ActiveCount = frames.Count(f => f.IsActive),
-            AveragePointsPrice = frames.Count > 0 ? frames.Average(f => f.PointsPrice) : 0,
+            TotalCount = await _dbContext.AvatarFrames.CountAsync(f => !f.IsDeleted),
+            ActiveCount = await _dbContext.AvatarFrames.CountAsync(f => !f.IsDeleted && f.IsActive),
+            AveragePointsPrice = await _dbContext.AvatarFrames.Where(f => !f.IsDeleted).Select(f => (double?)f.PointsPrice).AverageAsync() ?? 0,
             MonthlyRedemptionCount = monthlyRedemptionCount,
             MonthlyPointsSpent = monthlyPointsSpent,
             Frames = frames.Select(f => new AvatarFrameRowViewModel
@@ -56,24 +84,64 @@ public class AvatarFrameService : IAvatarFrameService
                 IsActive = f.IsActive,
                 ImageUrl = f.Image?.ImageURL,
                 RedeemedCount = redemptionCounts.TryGetValue(f.FrameID, out var count) ? count : 0
-            }).ToList()
+            }).ToList(),
+            Keyword = keyword,
+            Rarity = rarity,
+            IsActive = isActive,
+            SortBy = resolvedSort,
+            CurrentPage = currentPage,
+            TotalItems = totalItems,
+            PageSize = PageSize
         };
     }
 
-    public async Task<List<AvatarFrameDeletedRowViewModel>> GetDeletedIndexAsync()
+    public async Task<AvatarFramesDeletedIndexViewModel> GetDeletedIndexAsync(
+        string? keyword, string? rarity, string? sortBy, int page)
     {
-        var frames = await _frameRepository.GetDeletedAsync();
+        var framesQuery = _dbContext.AvatarFrames
+            .Include(f => f.Image)
+            .Include(f => f.DeletedByMember)
+            .Where(f => f.IsDeleted);
 
-        return frames.Select(f => new AvatarFrameDeletedRowViewModel
+        if (!string.IsNullOrWhiteSpace(keyword))
+            framesQuery = framesQuery.Where(f => f.Name.Contains(keyword));
+        if (!string.IsNullOrWhiteSpace(rarity))
+            framesQuery = framesQuery.Where(f => f.Rarity == rarity);
+
+        var resolvedSort = sortBy is "name" or "price" ? sortBy : "deletedAt";
+        framesQuery = resolvedSort switch
         {
-            FrameID = f.FrameID,
-            Name = f.Name,
-            Rarity = f.Rarity,
-            PointsPrice = f.PointsPrice,
-            ImageUrl = f.Image?.ImageURL,
-            DeletedAt = f.DeletedAt,
-            DeletedByName = f.DeletedByMember?.NickName ?? f.DeletedByMember?.UserName
-        }).ToList();
+            "name" => framesQuery.OrderBy(f => f.Name).ThenBy(f => f.FrameID),
+            "price" => framesQuery.OrderByDescending(f => f.PointsPrice).ThenBy(f => f.FrameID),
+            _ => framesQuery.OrderByDescending(f => f.DeletedAt).ThenBy(f => f.FrameID)
+        };
+
+        var totalItems = await framesQuery.CountAsync();
+        var totalPages = Math.Max(1, (int)Math.Ceiling(totalItems / (double)PageSize));
+        var currentPage = Math.Clamp(page, 1, totalPages);
+        var frames = await framesQuery.Skip((currentPage - 1) * PageSize).Take(PageSize).ToListAsync();
+
+        return new AvatarFramesDeletedIndexViewModel
+        {
+            TotalDeletedCount = await _dbContext.AvatarFrames.CountAsync(f => f.IsDeleted),
+            MostRecentDeletedAt = await _dbContext.AvatarFrames.Where(f => f.IsDeleted).MaxAsync(f => f.DeletedAt),
+            Frames = frames.Select(f => new AvatarFrameDeletedRowViewModel
+            {
+                FrameID = f.FrameID,
+                Name = f.Name,
+                Rarity = f.Rarity,
+                PointsPrice = f.PointsPrice,
+                ImageUrl = f.Image?.ImageURL,
+                DeletedAt = f.DeletedAt,
+                DeletedByName = f.DeletedByMember?.NickName ?? f.DeletedByMember?.UserName
+            }).ToList(),
+            Keyword = keyword,
+            Rarity = rarity,
+            SortBy = resolvedSort,
+            CurrentPage = currentPage,
+            TotalItems = totalItems,
+            PageSize = PageSize
+        };
     }
 
     public async Task<AvatarFrameFormViewModel?> GetForEditAsync(int id)

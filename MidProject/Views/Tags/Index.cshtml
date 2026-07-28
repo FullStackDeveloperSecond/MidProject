@@ -1,15 +1,18 @@
 @model MidProject.Models.ViewModels.Tags.TagsIndexViewModel
+@using MidProject.Models.ViewModels.Restaurants
 @{
     ViewData["Title"] = "餐廳標籤一覽";
 }
 
 @section Styles {
+    <link rel="stylesheet" href="~/css/design-system.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/restaurant-admin.css" asp-append-version="true" />
 }
 
 <div class="ra-page">
-    <div class="ra-topbar">
-        <h1>餐廳標籤一覽</h1>
+    <div class="ds-page-header">
+        <h1 class="ds-h2 mb-1">餐廳標籤一覽</h1>
+        <p>管理餐廳分類標籤，停用後不會出現在餐廳詳情與篩選中</p>
     </div>
 
     @if (TempData["Toast"] != null)
@@ -23,12 +26,16 @@
         <button type="submit" class="btn">+ 新增標籤</button>
     </form>
 
-    <p class="hint">點擊停用後標籤將執行軟刪除（IsDeleted = 1），並自動移至下方停用區。</p>
+    <p class="hint">拖曳卡片可調整顯示順序（餐廳列表的標籤顯示順序會同步更新）；點擊停用後標籤將執行軟刪除（IsDeleted = 1），並自動移至下方停用區。</p>
 
-    <div class="tag-grid">
+    <div class="tag-grid" data-reorderable>
         @foreach (var tag in Model.ActiveTags)
         {
-            <article class="tag-card">
+            <article class="tag-card" data-tag-id="@tag.Id">
+                <div class="tag-card-top">
+                    <span class="tag-swatch @TagColorPalette.GetColorClass(tag.Name)">@tag.Name.Substring(0, 1)</span>
+                    <span class="drag-handle" aria-hidden="true" title="拖曳排序">⠿</span>
+                </div>
                 <div>
                     <strong>@tag.Name</strong>
                     <p class="muted">使用中 @tag.UsageCount 間餐廳</p>
@@ -46,7 +53,10 @@
     <div class="tag-grid">
         @foreach (var tag in Model.InactiveTags)
         {
-            <article class="tag-card inactive">
+            <article class="tag-card inactive" data-tag-id="@tag.Id">
+                <div class="tag-card-top">
+                    <span class="tag-swatch @TagColorPalette.GetColorClass(tag.Name)">@tag.Name.Substring(0, 1)</span>
+                </div>
                 <div>
                     <strong>@tag.Name</strong>
                     <p class="muted">已停用，原 @tag.UsageCount 間餐廳使用</p>
@@ -59,3 +69,14 @@
         }
     </div>
 </div>
+
+<div id="modalRoot" class="modal-root" aria-hidden="true"></div>
+<div id="toast" class="toast" role="status"></div>
+
+@section Scripts {
+    <script src="~/js/restaurant-admin.js" asp-append-version="true"></script>
+    <script>
+        var reorderToken = document.querySelector('.tag-page-row input[name="__RequestVerificationToken"]').value;
+        RestaurantAdmin.initTagReorder('@Url.Action("Reorder")', reorderToken);
+    </script>
+}

@@ -6,21 +6,23 @@
 }
 
 @section Styles {
+    <link rel="stylesheet" href="~/css/design-system.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/notifications-admin.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/shared-pagination.css" asp-append-version="true" />
 }
 
 <div class="notification-admin">
-    <div class="d-flex justify-content-between align-items-center mb-3">
+    <div class="ds-page-header d-flex justify-content-between align-items-center">
         <div>
-            <h1 class="h2 mb-1">通知管理</h1>
-            <p class="text-muted mb-0">建立、查詢與手動處理站內通知</p>
+            <h1 class="ds-h2 mb-1">通知管理</h1>
+            <p class="mb-0">建立、查詢與手動處理站內通知</p>
         </div>
         <div class="d-flex gap-2">
             <form asp-action="SendDue" method="post">
                 @Html.AntiForgeryToken()
-                <button type="submit" class="btn btn-success"><i class="fa-solid fa-paper-plane me-1"></i>批次發送到期通知</button>
+                <button type="submit" class="btn btn-success"><i class="fas fa-paper-plane me-1"></i>批次發送到期通知</button>
             </form>
-            <a asp-action="Create" class="btn btn-primary"><i class="fa-solid fa-plus me-1"></i>新增通知</a>
+            <a asp-action="Create" class="btn btn-primary"><i class="fas fa-plus me-1"></i>新增通知</a>
         </div>
     </div>
 
@@ -41,74 +43,78 @@
         <div class="alert alert-danger" role="alert">@Model.QueryError</div>
     }
 
-    <div class="card mb-4">
-        <div class="card-header fw-semibold">搜尋與篩選</div>
-        <div class="card-body">
-            <form asp-action="Index" method="get" class="row g-3 align-items-end">
-                <div class="col-lg-3">
-                    <label class="form-label" for="Keyword">關鍵字</label>
-                    <input class="form-control" id="Keyword" name="Keyword" value="@query.Keyword" placeholder="搜尋標題或內容" />
-                </div>
-                <div class="col-lg-2">
-                    <label class="form-label" for="NotificationType">類型</label>
-                    <select class="form-select" id="NotificationType" name="NotificationType">
-                        <option value="">全部</option>
-                        <option value="Personal" selected="@(query.NotificationType == "Personal")">Personal</option>
-                        <option value="Condition" selected="@(query.NotificationType == "Condition")">Condition</option>
-                    </select>
-                </div>
-                <div class="col-lg-2">
-                    <label class="form-label" for="IsSent">發送狀態</label>
-                    <select class="form-select" id="IsSent" name="IsSent">
-                        <option value="">全部</option>
-                        <option value="false" selected="@(query.IsSent == false)">未發送</option>
-                        <option value="true" selected="@(query.IsSent == true)">已發送</option>
-                    </select>
-                </div>
-                <div class="col-lg-3">
-                    <label class="form-label" for="ScheduledAtMinute">排程分鐘</label>
-                    <input class="form-control" type="datetime-local" id="ScheduledAtMinute" name="ScheduledAtMinute" value="@query.ScheduledAtMinute?.ToString("yyyy-MM-ddTHH:mm")" />
-                </div>
-                <div class="col-lg-2">
-                    <label class="form-label" for="DeletionScope">刪除狀態</label>
-                    <select class="form-select" id="DeletionScope" name="DeletionScope">
-                        <option value="Active" selected="@(query.DeletionScope == NotificationDeletionScope.Active)">未刪除</option>
-                        <option value="Deleted" selected="@(query.DeletionScope == NotificationDeletionScope.Deleted)">已刪除</option>
-                        <option value="All" selected="@(query.DeletionScope == NotificationDeletionScope.All)">全部</option>
-                    </select>
-                </div>
-                <div class="col-lg-3">
-                    <label class="form-label" for="SortField">排序欄位</label>
-                    <select class="form-select" id="SortField" name="SortField">
-                        <option value="ScheduledAt" selected="@(query.SortField == NotificationSortField.ScheduledAt)">ScheduledAt</option>
-                        <option value="CreatedAt" selected="@(query.SortField == NotificationSortField.CreatedAt)">CreatedAt</option>
-                    </select>
-                </div>
-                <div class="col-lg-3">
-                    <label class="form-label" for="SortDirection">排序方向</label>
-                    <select class="form-select" id="SortDirection" name="SortDirection">
-                        <option value="Ascending" selected="@(query.SortDirection == NotificationSortDirection.Ascending)">升冪</option>
-                        <option value="Descending" selected="@(query.SortDirection == NotificationSortDirection.Descending)">降冪</option>
-                    </select>
-                </div>
-                <div class="col-lg-3 d-flex gap-2">
-                    <button type="submit" class="btn btn-primary"><i class="fa-solid fa-magnifying-glass me-1"></i>搜尋</button>
-                    <a asp-action="Index" class="btn btn-secondary">清除</a>
+    <div class="ds-toolbar mb-4">
+        <h6 class="ds-block-label">篩選條件</h6>
+        <div>
+            <form asp-action="Index" method="get">
+                <div class="ds-filter-row">
+                    <div class="ds-filter-search-group">
+                        <div class="ds-filter-field">
+                            <label for="Keyword">關鍵字</label>
+                            <input class="form-control ds-search-input-fill" id="Keyword" name="Keyword" value="@query.Keyword" placeholder="搜尋標題或內容" />
+                        </div>
+                        <div class="ds-filter-actions">
+                            <button type="submit" class="btn ds-btn-query"><i class="fas fa-search"></i> 查詢</button>
+                            <a asp-action="Index" class="btn ds-btn-clear">清除</a>
+                        </div>
+                    </div>
+                    <div class="ds-filter-field">
+                        <label for="NotificationType">類型</label>
+                        <select class="form-select" id="NotificationType" name="NotificationType">
+                            <option value="">全部</option>
+                            <option value="Personal" selected="@(query.NotificationType == "Personal")">Personal</option>
+                            <option value="Condition" selected="@(query.NotificationType == "Condition")">Condition</option>
+                        </select>
+                    </div>
+                    <div class="ds-filter-field">
+                        <label for="IsSent">發送狀態</label>
+                        <select class="form-select" id="IsSent" name="IsSent">
+                            <option value="">全部</option>
+                            <option value="false" selected="@(query.IsSent == false)">未發送</option>
+                            <option value="true" selected="@(query.IsSent == true)">已發送</option>
+                        </select>
+                    </div>
+                    <div class="ds-filter-field">
+                        <label for="ScheduledAtMinute">排程分鐘</label>
+                        <input class="form-control" type="datetime-local" id="ScheduledAtMinute" name="ScheduledAtMinute" value="@query.ScheduledAtMinute?.ToString("yyyy-MM-ddTHH:mm")" />
+                    </div>
+                    <div class="ds-filter-field">
+                        <label for="DeletionScope">刪除狀態</label>
+                        <select class="form-select" id="DeletionScope" name="DeletionScope">
+                            <option value="Active" selected="@(query.DeletionScope == NotificationDeletionScope.Active)">未刪除</option>
+                            <option value="Deleted" selected="@(query.DeletionScope == NotificationDeletionScope.Deleted)">已刪除</option>
+                            <option value="All" selected="@(query.DeletionScope == NotificationDeletionScope.All)">全部</option>
+                        </select>
+                    </div>
+                    <div class="ds-filter-field">
+                        <label for="SortField">排序欄位</label>
+                        <select class="form-select" id="SortField" name="SortField">
+                            <option value="ScheduledAt" selected="@(query.SortField == NotificationSortField.ScheduledAt)">ScheduledAt</option>
+                            <option value="CreatedAt" selected="@(query.SortField == NotificationSortField.CreatedAt)">CreatedAt</option>
+                        </select>
+                    </div>
+                    <div class="ds-filter-field">
+                        <label for="SortDirection">排序方向</label>
+                        <select class="form-select" id="SortDirection" name="SortDirection">
+                            <option value="Ascending" selected="@(query.SortDirection == NotificationSortDirection.Ascending)">升冪</option>
+                            <option value="Descending" selected="@(query.SortDirection == NotificationSortDirection.Descending)">降冪</option>
+                        </select>
+                    </div>
                 </div>
             </form>
         </div>
     </div>
 
-    <div class="card">
-        <div class="card-header d-flex justify-content-between">
-            <span class="fw-semibold">通知列表</span><span class="text-muted">共 @Model.TotalCount 筆</span>
-        </div>
-        <div class="card-body p-0">
+    <div class="ds-block-title-row">
+        <h6>通知列表</h6>
+        <span class="ds-muted small">共 @Model.TotalCount 筆</span>
+    </div>
+    <div class="ds-table-wrap">
             <div class="table-responsive">
-                <table class="table table-bordered table-hover align-middle mb-0">
-                    <thead class="table-light">
+                <table class="ds-table mb-0">
+                    <thead>
                         <tr>
-                            <th>ID</th><th>類型</th><th>標題</th><th>對象</th><th>排程時間</th><th>狀態</th><th>發送時間</th><th>建立時間</th><th>建立者</th><th>操作</th>
+                            <th style="width:70px;">ID</th><th>類型</th><th>標題</th><th>對象</th><th>排程時間</th><th>狀態</th><th>發送時間</th><th>建立時間</th><th>建立者</th><th>操作</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -129,15 +135,15 @@
                                 <td>
                                     @if (item.IsDeleted)
                                     {
-                                        <span class="badge bg-danger">已刪除</span>
+                                        <span class="ds-badge ds-badge-danger">已刪除</span>
                                     }
                                     else if (item.IsSent)
                                     {
-                                        <span class="badge bg-success">已發送</span>
+                                        <span class="ds-badge ds-badge-success">已發送</span>
                                     }
                                     else
                                     {
-                                        <span class="badge bg-warning text-dark">未發送</span>
+                                        <span class="ds-badge ds-badge-warning">未發送</span>
                                     }
                                 </td>
                                 <td>@(item.SentAt?.ToString("yyyy/MM/dd HH:mm") ?? "—")</td>
@@ -160,19 +166,32 @@
                     </tbody>
                 </table>
             </div>
-        </div>
     </div>
 
-    <nav class="mt-3" aria-label="通知列表分頁">
-        <ul class="pagination justify-content-center">
-        @for (var pageNumber = 1; pageNumber <= Model.TotalPages; pageNumber++)
-        {
-            <li class="page-item @(pageNumber == query.Page ? "active" : null)">
-                <a class="page-link" href="@Url.Action("Index", new { query.Keyword, query.NotificationType, query.IsSent, query.ScheduledAtMinute, query.DeletionScope, query.SortField, query.SortDirection, Page = pageNumber })">@pageNumber</a>
-            </li>
-        }
-        </ul>
-    </nav>
+    @if (Model.TotalCount > 0)
+    {
+        var showStart = (query.Page - 1) * Model.PageSize + 1;
+        var showEnd = Math.Min(query.Page * Model.PageSize, Model.TotalCount);
+        <div class="sp-pagination">
+            <div class="sp-summary">目前顯示 @showStart–@showEnd 筆，共 @Model.TotalCount 筆</div>
+            <nav aria-label="通知列表分頁">
+                <ul class="pagination">
+                    <li class="page-item @(query.Page <= 1 ? "disabled" : "")">
+                        <a class="page-link" href="@Url.Action("Index", new { query.Keyword, query.NotificationType, query.IsSent, query.ScheduledAtMinute, query.DeletionScope, query.SortField, query.SortDirection, Page = Math.Max(1, query.Page - 1) })">上一頁</a>
+                    </li>
+                    @for (var pageNumber = 1; pageNumber <= Model.TotalPages; pageNumber++)
+                    {
+                        <li class="page-item @(pageNumber == query.Page ? "active" : null)">
+                            <a class="page-link" href="@Url.Action("Index", new { query.Keyword, query.NotificationType, query.IsSent, query.ScheduledAtMinute, query.DeletionScope, query.SortField, query.SortDirection, Page = pageNumber })">@pageNumber</a>
+                        </li>
+                    }
+                    <li class="page-item @(query.Page >= Model.TotalPages ? "disabled" : "")">
+                        <a class="page-link" href="@Url.Action("Index", new { query.Keyword, query.NotificationType, query.IsSent, query.ScheduledAtMinute, query.DeletionScope, query.SortField, query.SortDirection, Page = Math.Min(Model.TotalPages, query.Page + 1) })">下一頁</a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+    }
 </div>
 
 @section Scripts {

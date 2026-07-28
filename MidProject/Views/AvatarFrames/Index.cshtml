@@ -1,27 +1,22 @@
 @model MidProject.Models.ViewModels.PointsStore.AvatarFramesIndexViewModel
 @{
-    ViewData["Title"] = "頭像外框商品管理";
-
-    string RarityLabel(string rarity) => rarity switch
-    {
-        "Rare" => "稀有",
-        "Limited" => "限定",
-        _ => "一般"
-    };
-
-    string RarityBadgeClass(string rarity) => rarity switch
-    {
-        "Rare" => "bg-info text-dark",
-        "Limited" => "bg-warning text-dark",
-        _ => "bg-light text-dark border"
-    };
+    ViewData["Title"] = "外框商品管理";
+    string RarityLabel(string rarity) => rarity switch { "Rare" => "稀有", "Limited" => "限定", _ => "一般" };
+    string RarityClass(string rarity) => rarity switch { "Rare" => "ds-badge-primary", "Limited" => "ds-badge-purple", _ => "ds-badge-gray" };
 }
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h2>頭像外框商品管理</h2>
+@section Styles {
+    <link rel="stylesheet" href="~/css/design-system.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/shared-pagination.css" asp-append-version="true" />
+}
+
+<div class="ds-page-header d-flex justify-content-between align-items-center">
+    <div>
+        <h1 class="ds-h2 mb-1">外框商品管理</h1>
+        <p>建立、管理與上下架點數商店中的頭像外框商品。</p>
+    </div>
     <div class="d-flex gap-2">
-        <a asp-action="Deleted" class="btn btn-outline-secondary">🗑 已刪除商品</a>
-        <a asp-action="Create" class="btn btn-primary">➕ 新增商品</a>
+        <a asp-action="Create" class="btn btn-primary"><i class="fas fa-plus me-1"></i>新增商品</a>
     </div>
 </div>
 
@@ -30,93 +25,51 @@
     <div class="alert alert-success">@TempData["Toast"]</div>
 }
 
-<div class="row mb-3 g-3">
-    <div class="col-md-3">
-        <div class="card bg-light p-3 h-100">
-            <h6 class="text-muted mb-1">商品總數</h6>
-            <h4 class="mb-0">@Model.TotalCount</h4>
-            <small class="text-muted">@Model.ActiveCount 項上架中</small>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card bg-light p-3 h-100">
-            <h6 class="text-muted mb-1">本月兌換次數</h6>
-            <h4 class="mb-0">@Model.MonthlyRedemptionCount</h4>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card bg-light p-3 h-100">
-            <h6 class="text-muted mb-1">本月消耗點數</h6>
-            <h4 class="mb-0">@Model.MonthlyPointsSpent.ToString("N0")</h4>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card bg-light p-3 h-100">
-            <h6 class="text-muted mb-1">平均點數售價</h6>
-            <h4 class="mb-0">@Model.AveragePointsPrice.ToString("N0")</h4>
-        </div>
-    </div>
+<div class="row g-3 mb-4">
+    <div class="col-md-6 col-xl-3"><div class="ds-stat-card ds-stat-card-sm h-100"><div class="d-flex justify-content-between"><span class="ds-stat-label ds-accent-primary">商品總數</span><span class="ds-stat-icon ds-icon-primary"><i class="fas fa-images"></i></span></div><div class="ds-stat-value">@Model.TotalCount</div><div class="ds-stat-caption">目前未刪除的商品</div></div></div>
+    <div class="col-md-6 col-xl-3"><div class="ds-stat-card ds-stat-card-sm h-100"><div class="d-flex justify-content-between"><span class="ds-stat-label ds-accent-success">上架中</span><span class="ds-stat-icon ds-icon-success"><i class="fas fa-store"></i></span></div><div class="ds-stat-value">@Model.ActiveCount</div><div class="ds-stat-caption">可供會員兌換</div></div></div>
+    <div class="col-md-6 col-xl-3"><div class="ds-stat-card ds-stat-card-sm h-100"><div class="d-flex justify-content-between"><span class="ds-stat-label ds-accent-warning">本月兌換</span><span class="ds-stat-icon ds-icon-warning"><i class="fas fa-gift"></i></span></div><div class="ds-stat-value">@Model.MonthlyRedemptionCount</div><div class="ds-stat-caption">筆兌換紀錄</div></div></div>
+    <div class="col-md-6 col-xl-3"><div class="ds-stat-card ds-stat-card-sm h-100"><div class="d-flex justify-content-between"><span class="ds-stat-label ds-accent-purple">平均售價</span><span class="ds-stat-icon ds-icon-purple"><i class="fas fa-coins"></i></span></div><div class="ds-stat-value">@Model.AveragePointsPrice.ToString("N0")</div><div class="ds-stat-caption">點數／商品</div></div></div>
 </div>
 
-<table class="table table-hover align-middle">
-    <thead>
-        <tr>
-            <th>商品</th>
-            <th>分類</th>
-            <th>點數售價</th>
-            <th>累計兌換</th>
-            <th>狀態</th>
-            <th class="text-end">操作</th>
-        </tr>
-    </thead>
-    <tbody>
-        @foreach (var f in Model.Frames)
-        {
-            <tr>
-                <td>
-                    <div class="d-flex align-items-center gap-2">
-                        @if (!string.IsNullOrEmpty(f.ImageUrl))
-                        {
-                            <img src="@f.ImageUrl" width="36" height="36" class="rounded-circle" />
-                        }
-                        else
-                        {
-                            <span class="d-inline-flex align-items-center justify-content-center rounded-circle bg-secondary text-white" style="width:36px;height:36px;">🖼</span>
-                        }
-                        <span>@f.Name</span>
-                    </div>
-                </td>
-                <td><span class="badge @RarityBadgeClass(f.Rarity)">@RarityLabel(f.Rarity)</span></td>
-                <td>@f.PointsPrice.ToString("N0")</td>
-                <td>@f.RedeemedCount 次</td>
-                <td>
-                    @if (f.IsActive)
-                    {
-                        <span class="badge bg-success">上架中</span>
-                    }
-                    else
-                    {
-                        <span class="badge bg-secondary">已下架</span>
-                    }
-                </td>
-                <td class="text-end">
-                    <a asp-action="Edit" asp-route-id="@f.FrameID" class="btn btn-sm btn-outline-secondary">編輯</a>
-                    <form method="post" asp-action="ToggleActive" asp-route-id="@f.FrameID" class="d-inline">
-                        @Html.AntiForgeryToken()
-                        <button type="submit" class="btn btn-sm @(f.IsActive ? "btn-outline-secondary" : "btn-outline-success")">@(f.IsActive ? "下架" : "上架")</button>
-                    </form>
-                    <form method="post" asp-action="Delete" asp-route-id="@f.FrameID" class="d-inline" onsubmit="return confirm('確定要刪除「@f.Name」嗎？刪除後可到「已刪除商品」頁面復原。');">
-                        @Html.AntiForgeryToken()
-                        <button type="submit" class="btn btn-sm btn-outline-danger">刪除</button>
-                    </form>
-                </td>
-            </tr>
-        }
-        @if (!Model.Frames.Any())
-        {
-            <tr>
-                <td colspan="6" class="text-center text-muted py-4">尚未新增任何外框商品。</td>
-            </tr>
-        }
-    </tbody>
-</table>
+<form method="get" class="ds-toolbar">
+    <h6 class="ds-block-label">篩選條件</h6>
+    <div class="ds-filter-row">
+        <div class="ds-filter-search-group">
+            <div class="ds-filter-field"><label for="keyword">關鍵字</label><input id="keyword" name="keyword" class="form-control ds-search-input-fill" value="@Model.Keyword" placeholder="搜尋商品名稱" /></div>
+            <div class="ds-filter-actions"><button type="submit" class="btn ds-btn-query"><i class="fas fa-search"></i>查詢</button><a asp-action="Index" class="btn ds-btn-clear">清除</a></div>
+        </div>
+        <div class="ds-filter-field"><label for="rarity">分類</label><select id="rarity" name="rarity" class="form-select"><option value="">所有分類</option><option value="Common" selected="@(Model.Rarity == "Common")">一般</option><option value="Rare" selected="@(Model.Rarity == "Rare")">稀有</option><option value="Limited" selected="@(Model.Rarity == "Limited")">限定</option></select></div>
+        <div class="ds-filter-field"><label for="isActive">狀態</label><select id="isActive" name="isActive" class="form-select"><option value="">所有狀態</option><option value="true" selected="@(Model.IsActive == true)">上架中</option><option value="false" selected="@(Model.IsActive == false)">已下架</option></select></div>
+        <div class="ds-filter-field"><label for="sortBy">排序</label><select id="sortBy" name="sortBy" class="form-select"><option value="newest" selected="@(Model.SortBy == "newest")">最新建立</option><option value="priceAsc" selected="@(Model.SortBy == "priceAsc")">售價：低至高</option><option value="priceDesc" selected="@(Model.SortBy == "priceDesc")">售價：高至低</option><option value="name" selected="@(Model.SortBy == "name")">商品名稱</option></select></div>
+    </div>
+</form>
+
+<div class="ds-block-title-row"><h6>商品列表</h6><span class="ds-muted small">共 @Model.TotalItems 筆</span></div>
+<div class="ds-table-wrap"><div class="table-responsive"><table class="ds-table mb-0"><thead><tr><th>商品</th><th>分類</th><th>點數售價</th><th>兌換次數</th><th>狀態</th><th class="text-end">操作</th></tr></thead><tbody>
+@if (!Model.Frames.Any()) { <tr><td colspan="6" class="text-center ds-muted py-4">沒有符合篩選條件的商品。</td></tr> }
+else { foreach (var frame in Model.Frames) { <tr><td><div class="d-flex align-items-center gap-2">@if (!string.IsNullOrEmpty(frame.ImageUrl)) { <img src="@frame.ImageUrl" width="36" height="36" class="rounded-circle" alt="" /> } else { <span class="ds-stat-icon ds-icon-gray" style="width:36px;height:36px;"><i class="fas fa-image"></i></span> }<span>@frame.Name</span></div></td><td><span class="ds-badge @RarityClass(frame.Rarity)">@RarityLabel(frame.Rarity)</span></td><td>@frame.PointsPrice.ToString("N0")</td><td>@frame.RedeemedCount 次</td><td><span class="ds-badge @(frame.IsActive ? "ds-badge-success" : "ds-badge-gray")">@(frame.IsActive ? "上架中" : "已下架")</span></td><td class="text-end"><a asp-action="Edit" asp-route-id="@frame.FrameID" class="btn btn-sm btn-outline-secondary">編輯</a><form method="post" asp-action="ToggleActive" asp-route-id="@frame.FrameID" class="d-inline">@Html.AntiForgeryToken()<button type="submit" class="btn btn-sm @(frame.IsActive ? "btn-outline-secondary" : "btn-outline-success")">@(frame.IsActive ? "下架" : "上架")</button></form><form method="post" asp-action="Delete" asp-route-id="@frame.FrameID" class="d-inline" onsubmit="return confirm('確定要刪除「@frame.Name」嗎？刪除後可到「已刪除商品」頁面復原。');">@Html.AntiForgeryToken()<button type="submit" class="btn btn-sm btn-outline-danger">刪除</button></form></td></tr> } }
+</tbody></table></div></div>
+
+@if (Model.TotalPages > 1)
+{
+    var showStart = (Model.CurrentPage - 1) * Model.PageSize + 1;
+    var showEnd = Math.Min(Model.CurrentPage * Model.PageSize, Model.TotalItems);
+    <div class="sp-pagination">
+        <div class="sp-summary">目前顯示 @showStart–@showEnd 筆，共 @Model.TotalItems 筆</div>
+        <nav aria-label="商品列表分頁">
+            <ul class="pagination">
+                <li class="page-item @(Model.CurrentPage <= 1 ? "disabled" : "")">
+                    <a class="page-link" href="@Url.Action("Index", new { keyword = Model.Keyword, rarity = Model.Rarity, isActive = Model.IsActive, sortBy = Model.SortBy, page = Math.Max(1, Model.CurrentPage - 1) })">上一頁</a>
+                </li>
+                @for (var p = 1; p <= Model.TotalPages; p++)
+                {
+                    <li class="page-item @(p == Model.CurrentPage ? "active" : "")"><a class="page-link" href="@Url.Action("Index", new { keyword = Model.Keyword, rarity = Model.Rarity, isActive = Model.IsActive, sortBy = Model.SortBy, page = p })">@p</a></li>
+                }
+                <li class="page-item @(Model.CurrentPage >= Model.TotalPages ? "disabled" : "")">
+                    <a class="page-link" href="@Url.Action("Index", new { keyword = Model.Keyword, rarity = Model.Rarity, isActive = Model.IsActive, sortBy = Model.SortBy, page = Math.Min(Model.TotalPages, Model.CurrentPage + 1) })">下一頁</a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+}

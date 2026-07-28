@@ -3,8 +3,12 @@
     ViewData["Title"] = "編輯頭像外框商品";
 }
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h2>編輯頭像外框商品 · @Model.Name</h2>
+@section Styles {
+    <link rel="stylesheet" href="~/css/design-system.css" asp-append-version="true" />
+}
+
+<div class="ds-page-header d-flex justify-content-between align-items-center">
+    <h2 class="ds-h2">編輯頭像外框商品 · @Model.Name</h2>
     <a asp-action="Index" class="btn btn-outline-secondary">← 返回商品列表</a>
 </div>
 
@@ -15,7 +19,7 @@
 
     <div class="row">
         <div class="col-md-4">
-            <div class="card p-3 mb-3">
+            <div class="ds-card p-3 mb-3">
                 <label class="form-label">外框圖片</label>
                 @if (!string.IsNullOrEmpty(Model.ExistingImageUrl))
                 {
@@ -26,7 +30,7 @@
             </div>
         </div>
 
-        <div class="col-md-8">
+        <div class="col-md-8 ds-card p-4">
             <div class="mb-3">
                 <label class="form-label">商品名稱</label>
                 <input asp-for="Name" class="form-control" />

@@ -28,6 +28,7 @@ public class RestaurantRepository : IRestaurantRepository
     private IQueryable<Restaurant> ListQuery()
     {
         return _db.Restaurants
+            .Include(r => r.Member)
             .Include(r => r.DeletedByMember)
             .Include(r => r.RestaurantTags).ThenInclude(rt => rt.Tag);
     }
@@ -55,7 +56,8 @@ public class RestaurantRepository : IRestaurantRepository
             query = query.Where(r =>
                 r.Name.Contains(keyword) ||
                 r.DetailedAddress.Contains(keyword) ||
-                (r.Note != null && r.Note.Contains(keyword)));
+                (r.Note != null && r.Note.Contains(keyword)) ||
+                (r.Member != null && (r.Member.UserName.Contains(keyword) || (r.Member.NickName != null && r.Member.NickName.Contains(keyword)))));
         }
 
         if (!string.IsNullOrWhiteSpace(city))
@@ -82,9 +84,9 @@ public class RestaurantRepository : IRestaurantRepository
 
         query = filter.Sort switch
         {
-            "rating" => query.OrderByDescending(r => r.AverageRating),
-            "review" => query.OrderByDescending(r => r.ReviewCount),
-            _ => query.OrderByDescending(r => r.CreatedAt)
+            "rating" => query.OrderByDescending(r => r.AverageRating).ThenBy(r => r.RestaurantID),
+            "review" => query.OrderByDescending(r => r.ReviewCount).ThenBy(r => r.RestaurantID),
+            _ => query.OrderByDescending(r => r.CreatedAt).ThenBy(r => r.RestaurantID)
         };
 
         var totalCount = await query.CountAsync();
@@ -94,7 +96,7 @@ public class RestaurantRepository : IRestaurantRepository
         return (items, totalCount);
     }
 
-    public async Task<List<Restaurant>> GetDeletedAsync(RestaurantDeletedFilterQuery filter)
+    private IQueryable<Restaurant> ApplyDeletedFilters(RestaurantDeletedFilterQuery filter)
     {
         var query = ApplyCommonFilters(ListQuery().Where(r => r.IsDeleted), filter.Search, filter.City, null, null);
 
@@ -103,12 +105,76 @@ public class RestaurantRepository : IRestaurantRepository
             query = query.Where(r => r.DeleteReason == filter.Reason);
         }
 
-        return await query.OrderByDescending(r => r.DeletedAt ?? r.CreatedAt).ToListAsync();
+        return query;
+    }
+
+    public async Task<(List<Restaurant> Items, int TotalCount)> GetDeletedPagedAsync(RestaurantDeletedFilterQuery filter, int pageSize)
+    {
+        var query = ApplyDeletedFilters(filter)
+            .OrderByDescending(r => r.DeletedAt ?? r.CreatedAt)
+            .ThenBy(r => r.RestaurantID);
+
+        var totalCount = await query.CountAsync();
+        var page = Math.Max(1, filter.Page);
+        var items = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
+
+        return (items, totalCount);
+    }
+
+    // 「最近停用」統計卡片要反映目前篩選條件下真正最新的一筆，跟目前瀏覽第幾頁無關，
+    // 所以獨立查一次（不受 Skip/Take 影響），而不是直接拿分頁後那批資料的第一筆。
+    public async Task<Restaurant?> GetMostRecentlyDeletedAsync(RestaurantDeletedFilterQuery filter)
+    {
+        return await ApplyDeletedFilters(filter)
+            .OrderByDescending(r => r.DeletedAt ?? r.CreatedAt)
+            .ThenBy(r => r.RestaurantID)
+            .FirstOrDefaultAsync();
     }
 
     public async Task<Restaurant?> GetByIdAsync(int id)
     {
         return await DetailQuery().FirstOrDefaultAsync(r => r.RestaurantID == id);
+    }
+
+    public async Task<IReadOnlyDictionary<int, RestaurantReviewStats>> GetReviewStatsAsync(IEnumerable<int> restaurantIds)
+    {
+        var ids = restaurantIds.Distinct().ToList();
+        if (ids.Count == 0)
+        {
+            return new Dictionary<int, RestaurantReviewStats>();
+        }
+
+        var stats = await _db.Reviews
+            .Where(r => ids.Contains(r.RestaurantID) && !r.IsDeleted && r.Status == "Active")
+            .GroupBy(r => r.RestaurantID)
+            .Select(g => new
+            {
+                RestaurantID = g.Key,
+                AverageRating = Math.Round(g.Average(r => (decimal)r.Rating), 2),
+                ReviewCount = g.Count()
+            })
+            .ToListAsync();
+
+        return stats.ToDictionary(
+            x => x.RestaurantID,
+            x => new RestaurantReviewStats { AverageRating = x.AverageRating, ReviewCount = x.ReviewCount });
+    }
+
+    public async Task<IReadOnlyDictionary<int, int>> GetFavoriteCountsAsync(IEnumerable<int> restaurantIds)
+    {
+        var ids = restaurantIds.Distinct().ToList();
+        if (ids.Count == 0)
+        {
+            return new Dictionary<int, int>();
+        }
+
+        var counts = await _db.Favorites
+            .Where(f => ids.Contains(f.RestaurantID) && !f.IsDeleted)
+            .GroupBy(f => f.RestaurantID)
+            .Select(g => new { RestaurantID = g.Key, Count = g.Count() })
+            .ToListAsync();
+
+        return counts.ToDictionary(x => x.RestaurantID, x => x.Count);
     }
 
     public async Task AddAsync(Restaurant restaurant)
@@ -237,11 +303,22 @@ public class RestaurantRepository : IRestaurantRepository
         var active = ApplyCommonFilters(_db.Restaurants.Where(r => !r.IsDeleted), filter.Search, filter.City, filter.District, filter.TagId);
         var disabled = ApplyCommonFilters(_db.Restaurants.Where(r => r.IsDeleted), filter.Search, filter.City, filter.District, filter.TagId);
 
+        var activeRestaurantIds = active.Select(r => r.RestaurantID);
+        var reviewAggregate = await _db.Reviews
+            .Where(r => activeRestaurantIds.Contains(r.RestaurantID) && !r.IsDeleted && r.Status == "Active")
+            .GroupBy(_ => 1)
+            .Select(g => new
+            {
+                ReviewCount = g.Count(),
+                AverageRating = g.Average(r => (decimal)r.Rating)
+            })
+            .FirstOrDefaultAsync();
+
         return new RestaurantStats
         {
             Total = await active.CountAsync(),
-            AvgRating = await active.AnyAsync() ? Math.Round(await active.AverageAsync(r => r.AverageRating), 1) : 0m,
-            ReviewCount = await active.SumAsync(r => r.ReviewCount),
+            AvgRating = reviewAggregate == null ? 0m : Math.Round(reviewAggregate.AverageRating, 1),
+            ReviewCount = reviewAggregate?.ReviewCount ?? 0,
             DisabledCount = await disabled.CountAsync()
         };
     }

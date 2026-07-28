@@ -6,7 +6,8 @@ namespace MidProject.Repositories.IRepositories;
 public interface IRestaurantRepository
 {
     Task<(List<Restaurant> Items, int TotalCount)> GetActivePagedAsync(RestaurantFilterQuery filter, int pageSize);
-    Task<List<Restaurant>> GetDeletedAsync(RestaurantDeletedFilterQuery filter);
+    Task<(List<Restaurant> Items, int TotalCount)> GetDeletedPagedAsync(RestaurantDeletedFilterQuery filter, int pageSize);
+    Task<Restaurant?> GetMostRecentlyDeletedAsync(RestaurantDeletedFilterQuery filter);
     Task<Restaurant?> GetByIdAsync(int id);
     Task AddAsync(Restaurant restaurant);
     Task ReplaceBusinessHoursAsync(int restaurantId, List<BusinessHour> hours);
@@ -19,6 +20,8 @@ public interface IRestaurantRepository
     Task RestoreAsync(int id);
     Task<int> GetDefaultAdminMemberIdAsync();
     Task<RestaurantStats> GetStatsAsync(RestaurantFilterQuery filter);
+    Task<IReadOnlyDictionary<int, RestaurantReviewStats>> GetReviewStatsAsync(IEnumerable<int> restaurantIds);
+    Task<IReadOnlyDictionary<int, int>> GetFavoriteCountsAsync(IEnumerable<int> restaurantIds);
     Task<List<string>> GetDistinctCitiesAsync();
     Task<List<string>> GetDistinctDistrictsAsync();
     Task<List<string>> GetDistinctDeleteReasonsAsync();

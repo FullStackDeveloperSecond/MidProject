@@ -20,15 +20,27 @@ public sealed class DashboardService : IDashboardService
 
     public async Task<DashboardIndexViewModel> GetIndexAsync(CancellationToken cancellationToken = default)
     {
+        var today = DateTime.Today;
+        var startOfMonth = new DateTime(today.Year, today.Month, 1);
+
         var memberCount = await _dbContext.Members
             .AsNoTracking()
             .CountAsync(item => !item.IsDeleted, cancellationToken);
+        var membersToday = await _dbContext.Members
+            .AsNoTracking()
+            .CountAsync(item => !item.IsDeleted && item.CreatedAt.Date == today, cancellationToken);
         var restaurantCount = await _dbContext.Restaurants
             .AsNoTracking()
             .CountAsync(item => !item.IsDeleted, cancellationToken);
+        var restaurantsThisMonth = await _dbContext.Restaurants
+            .AsNoTracking()
+            .CountAsync(item => !item.IsDeleted && item.CreatedAt >= startOfMonth, cancellationToken);
         var reviewCount = await _dbContext.Reviews
             .AsNoTracking()
             .CountAsync(item => !item.IsDeleted, cancellationToken);
+        var reviewsToday = await _dbContext.Reviews
+            .AsNoTracking()
+            .CountAsync(item => !item.IsDeleted && item.CreatedAt.Date == today, cancellationToken);
         var pendingReportCount = await _dbContext.Reports
             .AsNoTracking()
             .CountAsync(item => !item.IsDeleted && item.Status == "Pending", cancellationToken);
@@ -36,6 +48,7 @@ public sealed class DashboardService : IDashboardService
 
         return new DashboardIndexViewModel
         {
+            PendingReportCount = pendingReportCount,
             Cards =
             [
                 new(
@@ -45,7 +58,8 @@ public sealed class DashboardService : IDashboardService
                     "fas fa-users",
                     "primary",
                     true,
-                    "/AdminMembers"),
+                    "/AdminMembers",
+                    Trend: $"↑ +{membersToday} 今日"),
                 new(
                     "餐廳總數",
                     restaurantCount,
@@ -53,21 +67,23 @@ public sealed class DashboardService : IDashboardService
                     "fas fa-store",
                     "success",
                     true,
-                    "/Restaurants"),
+                    "/Restaurants",
+                    Trend: $"本月新增 {restaurantsThisMonth}"),
                 new(
                     "評論總數",
                     reviewCount,
                     "目前未刪除的評論",
                     "fas fa-comments",
-                    "info",
+                    "warning",
                     true,
-                    "/Reviews"),
+                    "/Reviews",
+                    Trend: $"↑ +{reviewsToday} 今日"),
                 new(
                     "待處理檢舉數",
                     pendingReportCount,
                     "等待管理員審核",
                     "fas fa-flag",
-                    "warning",
+                    "danger",
                     true,
                     "/Reports?Status=Pending"),
                 notificationResult.Classification == DashboardNotificationClassification.Success
@@ -76,7 +92,7 @@ public sealed class DashboardService : IDashboardService
                         notificationResult.PendingCount,
                         "尚未發送且未刪除",
                         "fas fa-bell",
-                        "danger",
+                        "purple",
                         true,
                         "/Notifications?isSent=false")
                     : new(
@@ -84,7 +100,7 @@ public sealed class DashboardService : IDashboardService
                         null,
                         "通知統計查詢失敗",
                         "fas fa-bell",
-                        "danger",
+                        "purple",
                         false,
                         null,
                         $"查詢失敗，錯誤代碼：{notificationResult.SafeErrorCode ?? "UNKNOWN"}")

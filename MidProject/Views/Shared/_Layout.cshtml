@@ -72,12 +72,34 @@
                     <i class="fas fa-bell"></i><span>通知管理</span>
                 </a>
             </nav>
+
+            <div class="admin-sidebar-footer">
+                @if (User.Identity?.IsAuthenticated == true)
+                {
+                    <div class="admin-sidebar-user">
+                        <i class="fas fa-user-circle"></i>
+                        <span>@User.Identity.Name</span>
+                    </div>
+                    <form asp-controller="Account" asp-action="Logout" method="post">
+                        <button type="submit" class="admin-sidebar-logout">
+                            <i class="fas fa-sign-out-alt"></i><span>登出</span>
+                        </button>
+                    </form>
+                }
+                else
+                {
+                    <a asp-controller="Account" asp-action="Login" class="admin-sidebar-logout">
+                        <i class="fas fa-sign-in-alt"></i><span>管理員登入</span>
+                    </a>
+                }
+            </div>
         </aside>
 
         <div class="admin-main">
-            <header class="admin-topbar navbar navbar-expand bg-white border-bottom shadow-sm">
-                <div class="container-fluid px-3 px-lg-4">
-                    <button class="btn btn-outline-secondary d-lg-none" type="button" data-bs-toggle="collapse"
+            <div class="admin-topbar-accent"></div>
+            <header class="admin-topbar navbar navbar-expand bg-white border-bottom shadow-sm d-lg-none">
+                <div class="container-fluid px-3">
+                    <button class="btn btn-outline-secondary" type="button" data-bs-toggle="collapse"
                             data-bs-target="#adminSidebar" aria-controls="adminSidebar" aria-expanded="false" aria-label="切換導覽列">
                         <i class="fas fa-bars"></i>
                     </button>
@@ -105,13 +127,13 @@
             </header>
 
             <main class="admin-content" role="main">
-                <div class="container-fluid px-3 px-lg-4 py-4">
+                <div class="container-fluid px-3 px-lg-4 py-3">
                     @RenderBody()
                 </div>
             </main>
 
             <footer class="admin-footer border-top bg-white text-muted">
-                <div class="container-fluid px-3 px-lg-4 py-3 text-center">
+                <div class="container-fluid px-3 px-lg-4 py-2 text-center small">
                     &copy; @DateTime.Now.Year 美食地圖管理系統
                 </div>
             </footer>

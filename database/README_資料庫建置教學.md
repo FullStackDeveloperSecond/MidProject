@@ -88,6 +88,26 @@ FROM Members;
 既有會員的初始值為 `0`。未來執行警告動作時，應在同一個資料庫交易中將
 `WarningCount` 增加 1。
 
+### 已有資料庫的組員：新增 Tags.SortOrder
+
+拉到包含 `20260728070110_AddTagSortOrder` 的版本後，建議執行：
+
+```bash
+dotnet restore MidProject.sln
+dotnet tool restore
+dotnet ef database update --project MidProject/MidProject.csproj --startup-project MidProject/MidProject.csproj
+```
+
+Migration 會新增 `Tags.SortOrder int NOT NULL DEFAULT 0`，供後台標籤拖曳排序使用。
+
+無法使用 EF CLI 時，請在既有的 `MidProjectDb` 執行：
+
+```text
+database/20260728070110_AddTagSortOrder.sql
+```
+
+EF CLI 和這份 SQL 二選一即可，不要重複執行。
+
 ---
 
 ## 2. 替代方式：SQL 腳本
