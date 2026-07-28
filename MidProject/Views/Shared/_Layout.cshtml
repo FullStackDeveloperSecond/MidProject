@@ -65,7 +65,7 @@
                 <a class="admin-nav-link @NavActive("Reviews")" asp-controller="Reviews" asp-action="Index">
                     <i class="fas fa-comments"></i><span>評論管理</span>
                 </a>
-                <a class="admin-nav-link @NavActive("Reports")" asp-controller="Reports" asp-action="Index">
+                <a class="admin-nav-link @NavActive("Reports")" asp-controller="Reports" asp-action="Dashboard">
                     <i class="fas fa-flag"></i><span>檢舉管理</span>
                 </a>
                 <a class="admin-nav-link @NavActive("Notifications")" asp-controller="Notifications" asp-action="Index">
@@ -80,9 +80,11 @@
                         <i class="fas fa-user-circle"></i>
                         <span>@User.Identity.Name</span>
                     </div>
-                    <a asp-controller="Account" asp-action="Logout" class="admin-sidebar-logout">
-                        <i class="fas fa-sign-out-alt"></i><span>登出</span>
-                    </a>
+                    <form asp-controller="Account" asp-action="Logout" method="post">
+                        <button type="submit" class="admin-sidebar-logout">
+                            <i class="fas fa-sign-out-alt"></i><span>登出</span>
+                        </button>
+                    </form>
                 }
                 else
                 {
@@ -101,6 +103,26 @@
                             data-bs-target="#adminSidebar" aria-controls="adminSidebar" aria-expanded="false" aria-label="切換導覽列">
                         <i class="fas fa-bars"></i>
                     </button>
+                    <div class="ms-auto d-flex align-items-center gap-3">
+                        @if (User.Identity?.IsAuthenticated == true)
+                        {
+                            <span class="navbar-text d-flex align-items-center gap-2">
+                                <i class="fas fa-user-circle text-secondary"></i>
+                                <span>@User.Identity.Name</span>
+                            </span>
+                            <form asp-controller="Account" asp-action="Logout" method="post" class="d-inline">
+                                <button type="submit" class="btn btn-outline-secondary btn-sm">
+                                    <i class="fas fa-sign-out-alt me-1"></i>登出
+                                </button>
+                            </form>
+                        }
+                        else
+                        {
+                            <a asp-controller="Account" asp-action="Login" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-sign-in-alt me-1"></i>管理員登入
+                            </a>
+                        }
+                    </div>
                 </div>
             </header>
 

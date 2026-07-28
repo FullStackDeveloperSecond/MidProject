@@ -12,7 +12,7 @@ namespace MidProject.Repositories.IRepositories
         /// <summary>依 Tab / 搜尋 / 星等 / 時間篩選並分頁，回傳這一頁的資料、總筆數，以及夾在合法範圍內的頁碼。
         /// sortBy 傳 "time" / "rating" / "report"，sortDir 傳 "asc" 或 "desc"。</summary>
         Task<(List<Review> Items, int TotalCount, int Page)> GetFilteredReviewsAsync(
-            string tab, string? search, int? rating, string time, string sortBy, string sortDir, int? restaurantId, int page, int pageSize);
+            string tab, string? search, int? rating, string time, string sortBy, string sortDir, int page, int pageSize, int? restaurantId = null);
 
         /// <summary>依狀態算數量。isDeleted=true 時忽略 status，直接算所有已刪除的。</summary>
         Task<int> CountByStatusAsync(bool isDeleted, string? status);
@@ -26,7 +26,8 @@ namespace MidProject.Repositories.IRepositories
         /// <summary>撈某則評論底下所有未刪除的檢舉紀錄。</summary>
         Task<List<Report>> GetReportsForReviewAsync(int reviewId);
 
-        Task<Image?> GetImageByIdAsync(int imageId);
+        /// <summary>取得確實隸屬指定評論的評論圖片；不允許跨評論或跨模組操作圖片。</summary>
+        Task<Image?> GetImageForReviewAsync(int imageId, int reviewId);
 
         Task<Restaurant?> GetRestaurantByIdAsync(int restaurantId);
 

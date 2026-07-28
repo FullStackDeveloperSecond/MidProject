@@ -12,13 +12,25 @@
     <a asp-action="Index" class="btn btn-outline-secondary">← 返回商品列表</a>
 </div>
 
-<form method="post" asp-action="Edit" asp-route-id="@Model.FrameID">
+<form method="post" asp-action="Edit" asp-route-id="@Model.FrameID" enctype="multipart/form-data">
     @Html.AntiForgeryToken()
     <input type="hidden" asp-for="FrameID" />
-    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+    <div asp-validation-summary="All" class="text-danger"></div>
 
     <div class="row">
-        <div class="col-12 ds-card p-4">
+        <div class="col-md-4">
+            <div class="ds-card p-3 mb-3">
+                <label class="form-label">外框圖片</label>
+                @if (!string.IsNullOrEmpty(Model.ExistingImageUrl))
+                {
+                    <img src="@Model.ExistingImageUrl" width="100" height="100" class="rounded-circle mb-2" />
+                }
+                <input type="file" name="ImageFile" accept="image/jpeg,image/png,image/webp" class="form-control" />
+                <div class="form-text">要更換圖片才需要重新上傳，僅接受 JPG / PNG / WebP 格式，檔案大小不可超過 5MB。</div>
+            </div>
+        </div>
+
+        <div class="col-md-8 ds-card p-4">
             <div class="mb-3">
                 <label class="form-label">商品名稱</label>
                 <input asp-for="Name" class="form-control" />
@@ -32,12 +44,20 @@
                     <option value="Rare">稀有</option>
                     <option value="Limited">限定</option>
                 </select>
+                <span asp-validation-for="Rarity" class="text-danger"></span>
             </div>
 
             <div class="mb-3">
                 <label class="form-label">點數售價</label>
                 <input asp-for="PointsPrice" type="number" min="0" class="form-control" />
                 <span asp-validation-for="PointsPrice" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">排序值</label>
+                <input asp-for="SortOrder" type="number" min="0" class="form-control" />
+                <span asp-validation-for="SortOrder" class="text-danger"></span>
+                <div class="form-text">數字越小排越前面，商品列表依此排序。</div>
             </div>
 
             <div class="mb-3">
@@ -65,9 +85,9 @@
 <div class="d-flex justify-content-between align-items-center border border-danger-subtle rounded p-3 bg-danger-subtle bg-opacity-10">
     <div>
         <strong class="text-danger d-block">刪除此商品</strong>
-        <span class="text-muted small">刪除後不會影響已兌換會員的使用權，但商城將永久移除此商品。</span>
+        <span class="text-muted small">刪除後不會影響已兌換會員的使用權，商城會馬上下架此商品；可到「已刪除商品」頁面隨時復原。</span>
     </div>
-    <form method="post" asp-action="Delete" asp-route-id="@Model.FrameID" onsubmit="return confirm('確定要刪除「@Model.Name」嗎？此動作無法復原。');">
+    <form method="post" asp-action="Delete" asp-route-id="@Model.FrameID" onsubmit="return confirm('確定要刪除「@Model.Name」嗎？刪除後可到「已刪除商品」頁面復原。');">
         @Html.AntiForgeryToken()
         <button type="submit" class="btn btn-outline-danger">刪除商品</button>
     </form>

@@ -142,11 +142,16 @@
     align-items: center;
     gap: 0.5rem;
     min-height: 36px;
+    width: 100%;
     padding: 0.5rem 0.5rem;
+    border: none;
     border-radius: 0.5rem;
+    background: transparent;
     color: rgba(255, 255, 255, 0.78);
     text-decoration: none;
     font-size: 0.85rem;
+    font-family: inherit;
+    cursor: pointer;
 }
 
 .admin-sidebar-logout:hover {

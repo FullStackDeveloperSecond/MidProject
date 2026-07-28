@@ -59,16 +59,19 @@ public class AppDbContext : DbContext
             entity.Property(e => e.IsDeleted).HasDefaultValue(false);
             entity.Property(e => e.Status).HasMaxLength(20).IsRequired().HasDefaultValue("Normal");
             entity.Property(e => e.WarningCount).HasDefaultValue(0);
+            entity.Property(e => e.FailedLoginCount).HasDefaultValue(0);
             entity.Property(e => e.LevelID).HasDefaultValue(1);
             entity.Property(e => e.Experience).HasDefaultValue(0);
             entity.Property(e => e.Points).HasDefaultValue(0);
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETDATE()");
             entity.Property(e => e.UpdatedAt).HasDefaultValueSql("GETDATE()");
+            entity.Property(e => e.RowVersion).IsRowVersion();
             entity.ToTable(table =>
             {
                 table.HasCheckConstraint("CK_Members_Role", "[Role] IN ('User', 'Admin')");
                 table.HasCheckConstraint("CK_Members_Status", "[Status] IN ('Normal', 'Warning', 'Muted', 'Suspended', 'Deleted')");
                 table.HasCheckConstraint("CK_Members_WarningCount", "[WarningCount] >= 0");
+                table.HasCheckConstraint("CK_Members_FailedLoginCount", "[FailedLoginCount] >= 0");
                 table.HasCheckConstraint("CK_Members_Experience", "[Experience] >= 0");
                 table.HasCheckConstraint("CK_Members_Points", "[Points] >= 0");
             });
@@ -276,7 +279,7 @@ public class AppDbContext : DbContext
                 table.HasCheckConstraint("CK_PointsTransactions_BalanceAfter", "[BalanceAfter] >= 0");
             });
             entity.HasOne(e => e.Member).WithMany(e => e.PointsTransactions).HasForeignKey(e => e.MemberID).OnDelete(DeleteBehavior.NoAction);
-            entity.HasOne(e => e.RelatedFrame).WithMany().HasForeignKey(e => e.RelatedFrameID).OnDelete(DeleteBehavior.NoAction);
+            entity.HasOne(e => e.RelatedFrame).WithMany(e => e.PointsTransactions).HasForeignKey(e => e.RelatedFrameID).OnDelete(DeleteBehavior.NoAction);
             entity.HasOne(e => e.CreatedByMember).WithMany().HasForeignKey(e => e.CreatedBy).OnDelete(DeleteBehavior.NoAction);
         });
 
@@ -286,7 +289,10 @@ public class AppDbContext : DbContext
             entity.HasIndex(e => e.NotificationType);
             entity.HasIndex(e => new { e.IsDeleted, e.ScheduledAt, e.NotificationID });
             entity.HasIndex(e => new { e.IsSent, e.IsDeleted, e.ScheduledAt, e.NotificationID });
-            entity.HasIndex(e => new { e.SourceReportID, e.SourceReportOutcome })
+            // 2026/07: 去重粒度改為（來源檢舉＋結果＋收件會員）複合唯一——
+            // 同一檢舉＋同一結果對同一位收件人只會有一筆通知（避免重複通知），
+            // 但「通知檢舉者」與「通知被檢舉會員」因 MemberID 不同仍可各存一筆。
+            entity.HasIndex(e => new { e.SourceReportID, e.SourceReportOutcome, e.MemberID })
                 .IsUnique()
                 .HasFilter("[SourceReportID] IS NOT NULL AND [SourceReportOutcome] IS NOT NULL");
             entity.Property(e => e.NotificationType).HasMaxLength(20).IsRequired().HasDefaultValue("Personal");
@@ -314,6 +320,5 @@ public class AppDbContext : DbContext
             entity.HasOne(e => e.DeletedByMember).WithMany().HasForeignKey(e => e.DeletedBy).OnDelete(DeleteBehavior.NoAction);
             entity.HasOne(e => e.SourceReport).WithMany(e => e.Notifications).HasForeignKey(e => e.SourceReportID).OnDelete(DeleteBehavior.NoAction);
         });
-
     }
 }

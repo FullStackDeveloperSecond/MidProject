@@ -42,7 +42,12 @@ public class AvatarFramesController : Controller
             return View(model);
         }
 
-        var (success, error) = await _avatarFrameService.CreateAsync(model, GetAdminId());
+        if (!TryGetAdminId(out var adminId))
+        {
+            return Forbid();
+        }
+
+        var (success, error) = await _avatarFrameService.CreateAsync(model, adminId);
         if (!success)
         {
             ModelState.AddModelError(string.Empty, error ?? "新增失敗，請重試。");
@@ -78,7 +83,12 @@ public class AvatarFramesController : Controller
             return View(model);
         }
 
-        var (success, error) = await _avatarFrameService.UpdateAsync(id, model, GetAdminId());
+        if (!TryGetAdminId(out var adminId))
+        {
+            return Forbid();
+        }
+
+        var (success, error) = await _avatarFrameService.UpdateAsync(id, model, adminId);
         if (!success)
         {
             ModelState.AddModelError(string.Empty, error ?? "更新失敗，請重試。");
@@ -93,7 +103,12 @@ public class AvatarFramesController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> ToggleActive(int id)
     {
-        await _avatarFrameService.ToggleActiveAsync(id);
+        var success = await _avatarFrameService.ToggleActiveAsync(id);
+        if (!success)
+        {
+            return NotFound();
+        }
+
         return RedirectToAction(nameof(Index));
     }
 
@@ -101,7 +116,17 @@ public class AvatarFramesController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Delete(int id)
     {
-        await _avatarFrameService.DeleteAsync(id, GetAdminId());
+        if (!TryGetAdminId(out var adminId))
+        {
+            return Forbid();
+        }
+
+        var success = await _avatarFrameService.DeleteAsync(id, adminId);
+        if (!success)
+        {
+            return NotFound();
+        }
+
         TempData["Toast"] = "商品已刪除，可到「已刪除商品」頁面復原。";
         return RedirectToAction(nameof(Index));
     }
@@ -110,14 +135,19 @@ public class AvatarFramesController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Restore(int id)
     {
-        await _avatarFrameService.RestoreAsync(id);
+        var success = await _avatarFrameService.RestoreAsync(id);
+        if (!success)
+        {
+            return NotFound();
+        }
+
         TempData["Toast"] = "商品已復原，狀態為下架，請視需要重新上架。";
         return RedirectToAction(nameof(Deleted));
     }
 
-    private int GetAdminId()
+    private bool TryGetAdminId(out int adminId)
     {
         var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        return int.TryParse(claim, out var id) ? id : 0;
+        return int.TryParse(claim, out adminId) && adminId > 0;
     }
 }

@@ -25,6 +25,14 @@
     <p>管理會員帳號、等級、點數與狀態</p>
 </div>
 
+@if (TempData["EscalationResult"] != null)
+{
+    <div class="alert alert-info alert-dismissible fade show">
+        @TempData["EscalationResult"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
 <div class="row g-2 mb-3">
     <div class="col-md-4">
         <a href="@Url.Action("Index")"
@@ -76,7 +84,7 @@
             </div>
             <div class="ds-filter-field">
                 <label>狀態</label>
-                <select name="statusFilter" class="form-select">
+                <select name="statusFilter" class="form-select" onchange="this.form.submit()">
                     <option value="" selected="@(string.IsNullOrEmpty((string)ViewBag.StatusFilter))">所有狀態</option>
                     <option value="Normal" selected="@(ViewBag.StatusFilter == "Normal")">正常</option>
                     <option value="Warning" selected="@(ViewBag.StatusFilter == "Warning")">警告</option>
@@ -86,7 +94,7 @@
             </div>
             <div class="ds-filter-field">
                 <label>等級</label>
-                <select name="levelFilter" class="form-select">
+                <select name="levelFilter" class="form-select" onchange="this.form.submit()">
                     <option value="">所有等級</option>
                     @foreach (var lv in levelsSorted)
                     {
@@ -154,6 +162,10 @@
                 <td>@m.Points</td>
                 <td>
                     <span class="ds-badge @status.BadgeClass" style="@status.Style">@status.Emoji @status.Label</span>
+                    @if (m.IsLocked)
+                    {
+                        <span class="ms-1" title="帳號已鎖定">🔒</span>
+                    }
                 </td>
                 <td>@m.CreatedAt.ToString("yyyy-MM-dd")</td>
             </tr>

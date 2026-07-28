@@ -75,9 +75,18 @@
 
 <a class="btn btn-outline-secondary js-back-btn-conditional d-none mb-2" data-referrer-pattern="/Restaurants/Details" href="#">← 返回</a>
 
-<div class="ds-page-header">
-    <h1 class="ds-h2 mb-1">檢舉管理</h1>
-    <p class="mb-0">查詢並處理會員提交的檢舉案件</p>
+<div class="ds-page-header d-flex flex-wrap align-items-center justify-content-between gap-3">
+    <div>
+        <h1 class="ds-h2 mb-1">檢舉管理</h1>
+        <p class="mb-0">查詢並處理會員提交的檢舉案件</p>
+    </div>
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb bg-transparent mb-0 p-0">
+            <li class="breadcrumb-item"><a asp-controller="Home" asp-action="Index">Dashboard</a></li>
+            <li class="breadcrumb-item"><a asp-action="Dashboard">檢舉統計</a></li>
+            <li class="breadcrumb-item active">檢舉查詢</li>
+        </ol>
+    </nav>
 </div>
 
 <!-- 搜尋條件工具列 -->
@@ -166,7 +175,11 @@
                                 檢舉日期 <i class="@SortIcon("CreatedAt")"></i>
                             </a>
                         </th>
-                        <th>處理天數</th>
+                        <th>
+                            <a href="@SortUrl("ProcessingDays")" class="text-dark text-decoration-none">
+                                處理天數 <i class="@SortIcon("ProcessingDays")"></i>
+                            </a>
+                        </th>
                         <th>處理管理員</th>
                         <th></th>
                     </tr>
@@ -195,7 +208,18 @@
                                     @report.ReporterUserName
                                 </a>
                             </td>
-                            <td>@(report.ReportedMemberUserName ?? "—")</td>
+                            <td>
+                                @if (report.ReportedMemberID.HasValue && report.ReportedMemberUserName != null)
+                                {
+                                    <a asp-controller="AdminMembers" asp-action="Edit" asp-route-id="@report.ReportedMemberID">
+                                        @report.ReportedMemberUserName
+                                    </a>
+                                }
+                                else
+                                {
+                                    @(report.ReportedMemberUserName ?? "—")
+                                }
+                            </td>
                             <td>@report.CreatedAt.ToString("yyyy-MM-dd")</td>
                             <td class="@(report.ProcessingDays < 0 ? "text-danger" : "")">@report.ProcessingDays</td>
                             <td>@(report.HandledByUserName ?? "—")</td>

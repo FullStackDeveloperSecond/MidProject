@@ -91,6 +91,14 @@ dotnet ef migrations has-pending-model-changes \
   --startup-project MidProject/MidProject.csproj
 ```
 
+## 模組範圍說明
+
+### 收藏（Favorites）— 僅提供資料，不實作頁面（out of scope）
+
+- 收藏屬於 **out of scope**：本專案**只提供 `Favorite` / `FavoriteFolder` Entity 與 SeedData 假資料**，用來支援資料模型與 Dashboard／Demo 的資料存在性。
+- **不提供收藏功能的 Controller、Service 或 CRUD 頁面**。側邊欄的「收藏」連結目前沒有對應頁面，屬預留。
+- SeedData 已建立少量收藏資料（多個會員、資料夾與收藏餐廳），足以支援 Demo 展示；若後續要正式開發收藏功能，再另行擴充規格與頁面。
+
 ## 開發邊界
 
 - Entity、`AppDbContext`、Migration、`Program.cs` 與共用 Layout 由愷／Alex 統一控管。

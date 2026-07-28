@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Http;
 
 namespace MidProject.Models.ViewModels.PointsStore;
 
@@ -13,12 +14,20 @@ public class AvatarFrameFormViewModel
     public string? Description { get; set; }
 
     [Required(ErrorMessage = "請選擇分類")]
+    [RegularExpression("^(Common|Rare|Limited)$", ErrorMessage = "分類只能是 Common、Rare 或 Limited")]
     public string Rarity { get; set; } = "Common";
 
     [Range(0, int.MaxValue, ErrorMessage = "點數售價不可為負數")]
     public int PointsPrice { get; set; }
 
+    [Range(0, int.MaxValue, ErrorMessage = "排序值不可為負數")]
+    public int SortOrder { get; set; }
+
     public bool IsActive { get; set; } = true;
+
+    public int? ExistingImageId { get; set; }
+    public string? ExistingImageUrl { get; set; }
+    public IFormFile? ImageFile { get; set; }
 
     public bool IsEdit => FrameID.HasValue;
 }

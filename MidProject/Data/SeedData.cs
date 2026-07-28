@@ -187,13 +187,20 @@ public static class SeedData
 
         var reports = new List<Report>
         {
-            CreateReport(members[1].MemberID, reviewId: reviews[3].ReviewID, reason: "使用不雅言論", status: "Pending", createdAt: now.AddHours(-6)),
-            CreateReport(members[2].MemberID, reviewId: reviews[4].ReviewID, reason: "評論含有廣告內容", status: "Pending", createdAt: now.AddHours(-5)),
-            CreateReport(members[6].MemberID, restaurantId: restaurants[8].RestaurantID, reason: "餐廳資訊與實際地址不符，疑似假店家。", status: "Pending", createdAt: now.AddHours(-4)),
-            CreateReport(members[7].MemberID, imageId: images.First(i => i.ImageURL.Contains("restaurant-env-01")).ImageID, reason: "圖片與餐廳實際環境不符，疑似盜用網路照片。", status: "Approved", createdAt: now.AddDays(-8), handledAt: now.AddDays(-7), handledBy: admin.MemberID, adminNote: "檢舉成立，已通知上傳者。"),
-            CreateReport(members[3].MemberID, reportedMemberId: members[5].MemberID, reason: "多次發布無關內容。", status: "Approved", createdAt: now.AddDays(-6), handledAt: now.AddDays(-5), handledBy: admin.MemberID, adminNote: "檢舉成立，已列入會員狀態處理參考。"),
-            CreateReport(members[4].MemberID, reviewId: reviews[2].ReviewID, reason: "內容不實", status: "Rejected", createdAt: now.AddDays(-5), handledAt: now.AddDays(-4), handledBy: admin.MemberID, adminNote: "查無明確違規，駁回檢舉。"),
-            CreateReport(members[2].MemberID, restaurantId: restaurants[1].RestaurantID, reason: "餐廳電話疑似錯誤。", status: "Rejected", createdAt: now.AddDays(-4), handledAt: now.AddDays(-3), handledBy: admin.MemberID, adminNote: "資料已人工確認，維持原資料。")
+            // 檢舉一律針對「餐廳／評論／圖片」目標；被檢舉會員由目標內容擁有者回推（與 app 契約一致，不直接檢舉會員）。
+            // Category 一律填合法的「違規分類」，與目標類型分開。
+            CreateReport(members[1].MemberID, reviewId: reviews[3].ReviewID, reportedMemberId: members[4].MemberID, category: "人身攻擊", reason: "使用不雅言論", status: "Pending", createdAt: now.AddHours(-6)),
+            CreateReport(members[2].MemberID, reviewId: reviews[4].ReviewID, reportedMemberId: members[5].MemberID, category: "廣告洗版", reason: "評論含有廣告內容", status: "Pending", createdAt: now.AddHours(-5)),
+            CreateReport(members[6].MemberID, restaurantId: restaurants[8].RestaurantID, category: "不實資訊", reason: "餐廳資訊與實際地址不符，疑似假店家。", status: "Pending", createdAt: now.AddHours(-4)),
+            CreateReport(members[7].MemberID, imageId: images.First(i => i.ImageURL.Contains("restaurant-env-01")).ImageID, category: "不實資訊", reason: "圖片與餐廳實際環境不符，疑似盜用網路照片。", status: "Approved", createdAt: now.AddDays(-8), handledAt: now.AddDays(-7), handledBy: admin.MemberID, adminNote: "檢舉成立，已通知上傳者。"),
+            // 以下三筆針對 members[4] 擁有的評論 reviews[3]（原為直接檢舉會員，已改為鎖定其評論內容），累積受理達禁言門檻
+            CreateReport(members[1].MemberID, reviewId: reviews[3].ReviewID, reportedMemberId: members[4].MemberID, category: "廣告洗版", reason: "多次發布無關廣告內容。", status: "Approved", createdAt: now.AddDays(-20), handledAt: now.AddDays(-19), handledBy: admin.MemberID, adminNote: "檢舉成立，第一次廣告留言警告。"),
+            CreateReport(members[2].MemberID, reviewId: reviews[3].ReviewID, reportedMemberId: members[4].MemberID, category: "廣告洗版", reason: "重複張貼推銷連結，疑似機器人帳號。", status: "Approved", createdAt: now.AddDays(-10), handledAt: now.AddDays(-9), handledBy: admin.MemberID, adminNote: "檢舉成立，累積達禁言門檻。"),
+            CreateReport(members[7].MemberID, reviewId: reviews[3].ReviewID, reportedMemberId: members[4].MemberID, category: "垃圾訊息", reason: "留言內容與討論主題無關，疑似洗版。", status: "Approved", createdAt: now.AddDays(-3), handledAt: now.AddDays(-2), handledBy: admin.MemberID, adminNote: "檢舉成立，持續觀察後續行為。"),
+            // members[5] 擁有的評論 reviews[4]（原為直接檢舉會員，已改為鎖定其評論內容）
+            CreateReport(members[3].MemberID, reviewId: reviews[4].ReviewID, reportedMemberId: members[5].MemberID, category: "垃圾訊息", reason: "多次發布無關內容。", status: "Approved", createdAt: now.AddDays(-6), handledAt: now.AddDays(-5), handledBy: admin.MemberID, adminNote: "檢舉成立，列入狀態處理參考。"),
+            CreateReport(members[4].MemberID, reviewId: reviews[2].ReviewID, category: "不實資訊", reason: "內容不實", status: "Rejected", createdAt: now.AddDays(-5), handledAt: now.AddDays(-4), handledBy: admin.MemberID, adminNote: "查無明確違規，駁回檢舉。"),
+            CreateReport(members[2].MemberID, restaurantId: restaurants[1].RestaurantID, category: "不實資訊", reason: "餐廳電話疑似錯誤。", status: "Rejected", createdAt: now.AddDays(-4), handledAt: now.AddDays(-3), handledBy: admin.MemberID, adminNote: "資料已人工確認，維持原資料。")
         };
         context.Reports.AddRange(reports);
         await context.SaveChangesAsync();
@@ -288,11 +295,10 @@ public static class SeedData
 
     private static Report CreateReport(int reporterId, int? reportedMemberId = null, int? restaurantId = null, int? reviewId = null, int? imageId = null, string reason = "", string status = "Pending", DateTime? createdAt = null, DateTime? handledAt = null, int? handledBy = null, string? adminNote = null, string? category = null)
     {
-        var resolvedCategory = category ?? (reportedMemberId.HasValue ? "會員"
-            : reviewId.HasValue ? "評論"
-            : restaurantId.HasValue ? "餐廳"
-            : imageId.HasValue ? "圖片"
-            : "其他");
+        // Category 是「違規分類」（不實資訊／廣告洗版／人身攻擊／仇恨言論／色情內容／垃圾訊息），
+        // 與「檢舉目標類型」（餐廳／評論／圖片，由 RestaurantID／ReviewID／ImageID 表示）是不同欄位、各自獨立。
+        // 不可再把目標類型塞進 Category；未指定時給一個合法的違規分類作為預設。
+        var resolvedCategory = category ?? "垃圾訊息";
 
         return new Report
         {

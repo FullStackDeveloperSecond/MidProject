@@ -14,7 +14,7 @@ public class ReportRepository : IReportRepository
         _context = context;
     }
 
-    public async Task<PagedResult<Report>> GetReportsAsync(ReportQueryParams query)
+    public async Task<PagedResult<Report>> GetReportsAsync(ReportQueryParams query, DateTime today)
     {
         var q = _context.Reports
             .Include(r => r.ReporterMember)
@@ -32,15 +32,7 @@ public class ReportRepository : IReportRepository
             q = q.Where(r => r.Category == query.Category);
 
         if (query.RestaurantID.HasValue)
-        {
-            var restaurantId = query.RestaurantID.Value;
-            q = q.Where(r =>
-                r.RestaurantID == restaurantId ||
-                (r.Review != null && r.Review.RestaurantID == restaurantId) ||
-                (r.Image != null &&
-                    (r.Image.RestaurantImages.Any(ri => ri.RestaurantID == restaurantId) ||
-                     r.Image.ReviewImages.Any(ri => ri.Review != null && ri.Review.RestaurantID == restaurantId))));
-        }
+            q = q.Where(r => r.RestaurantID == query.RestaurantID.Value);
 
         if (query.ReviewID.HasValue)
             q = q.Where(r => r.ReviewID == query.ReviewID.Value);
@@ -90,6 +82,10 @@ public class ReportRepository : IReportRepository
 
         var totalCount = await q.CountAsync();
 
+        // 處理天數：已處理＝處理日－檢舉日（正數）；待處理＝檢舉日－今天（負數，越久未處理越小）。
+        // 與 ReportDto.ProcessingDays 的計算一致，在資料庫端算出來才能正確排序＋分頁。
+        var currentDate = today.Date;
+
         // 依指定欄位排序，預設依檢舉日期新到舊
         q = (query.SortBy, query.SortDirection?.ToLower()) switch
         {
@@ -97,6 +93,12 @@ public class ReportRepository : IReportRepository
             ("ReportID", "desc") => q.OrderByDescending(r => r.ReportID),
             ("Status", "asc") => q.OrderBy(r => r.Status),
             ("Status", "desc") => q.OrderByDescending(r => r.Status),
+            ("ProcessingDays", "asc") => q.OrderBy(r => r.Status == "Pending"
+                ? EF.Functions.DateDiffDay(currentDate, r.CreatedAt.Date)
+                : (r.HandledAt.HasValue ? EF.Functions.DateDiffDay(r.CreatedAt.Date, r.HandledAt.Value.Date) : 0)),
+            ("ProcessingDays", "desc") => q.OrderByDescending(r => r.Status == "Pending"
+                ? EF.Functions.DateDiffDay(currentDate, r.CreatedAt.Date)
+                : (r.HandledAt.HasValue ? EF.Functions.DateDiffDay(r.CreatedAt.Date, r.HandledAt.Value.Date) : 0)),
             ("CreatedAt", "asc") => q.OrderBy(r => r.CreatedAt),
             _ => q.OrderByDescending(r => r.CreatedAt)
         };
@@ -120,7 +122,10 @@ public class ReportRepository : IReportRepository
 
     public async Task<Report?> GetByIdAsync(int reportId)
     {
+        // AsNoTracking：處理檢舉改用 ExecuteUpdate 原子更新後，需重新從資料庫讀取最新狀態，
+        // 不能拿到 EF 身分對應快取中的舊實體（否則會誤判仍為待處理）
         return await _context.Reports
+            .AsNoTracking()
             .Include(r => r.ReporterMember)
             .Include(r => r.Restaurant).ThenInclude(rest => rest!.Member)
             .Include(r => r.Review).ThenInclude(rev => rev!.Member)
@@ -138,10 +143,47 @@ public class ReportRepository : IReportRepository
         await _context.Reports.AddAsync(report);
     }
 
-    public async Task AddNotificationAsync(Notification notification)
+    public async Task<int?> GetTargetOwnerMemberIdAsync(int? restaurantId, int? reviewId, int? imageId)
     {
-        await _context.Notifications.AddAsync(notification);
+        int? ownerId = null;
+        if (restaurantId.HasValue)
+            ownerId = await _context.Restaurants.Where(r => r.RestaurantID == restaurantId).Select(r => (int?)r.MemberID).FirstOrDefaultAsync();
+        else if (reviewId.HasValue)
+            ownerId = await _context.Reviews.Where(r => r.ReviewID == reviewId).Select(r => (int?)r.MemberID).FirstOrDefaultAsync();
+        else if (imageId.HasValue)
+            ownerId = await _context.Images.Where(i => i.ImageID == imageId).Select(i => i.UploadedByMemberID).FirstOrDefaultAsync();
+
+        if (ownerId == null) return null;
+
+        // 排除 Admin：管理員不列為被檢舉會員（與 HandleReportAsync 一致）
+        var isAdmin = await _context.Members.AnyAsync(m => m.MemberID == ownerId && m.Role == "Admin");
+        return isAdmin ? null : ownerId;
     }
+
+    public async Task<int> TryHandleAsync(int reportId, string status, string category, string adminNote, int? reportedMemberId, int adminMemberId, DateTime handledAt)
+    {
+        // 條件式原子更新：WHERE Status='Pending'，資料庫層保證只有一人能把待處理改為已處理
+        return await _context.Reports
+            .Where(r => r.ReportID == reportId && r.Status == "Pending" && !r.IsDeleted)
+            .ExecuteUpdateAsync(s => s
+                .SetProperty(r => r.Status, status)
+                .SetProperty(r => r.Category, category)
+                .SetProperty(r => r.AdminNote, adminNote)
+                .SetProperty(r => r.ReportedMemberID, reportedMemberId)
+                .SetProperty(r => r.HandledByMemberID, adminMemberId)
+                .SetProperty(r => r.HandledAt, handledAt));
+    }
+
+    public async Task<List<Notification>> GetNotificationsByReportAsync(int reportId)
+    {
+        // 撈該檢舉的通知紀錄（含尚未發送的），供詳情頁「通知紀錄」顯示；
+        // 通知改由通知模組發送，建立當下為未發送，故不再以 IsSent 過濾
+        return await _context.Notifications
+            .Where(n => n.SourceReportID == reportId && !n.IsDeleted)
+            .OrderByDescending(n => n.NotificationID)
+            .ToListAsync();
+    }
+
 
     public async Task SaveChangesAsync()
     {

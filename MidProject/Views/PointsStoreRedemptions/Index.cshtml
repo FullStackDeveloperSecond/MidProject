@@ -41,6 +41,11 @@
     </div>
 </div>
 
+@if (!string.IsNullOrEmpty(Model.DateRangeError))
+{
+    <div class="alert alert-danger">@Model.DateRangeError</div>
+}
+
 <form method="get" class="ds-toolbar">
     <h6 class="ds-block-label">篩選條件</h6>
     <div class="ds-filter-row">
