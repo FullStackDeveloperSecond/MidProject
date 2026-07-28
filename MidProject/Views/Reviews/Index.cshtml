@@ -1,18 +1,22 @@
 @model MidProject.Models.ViewModels.ReviewListViewModel
 @using MidProject.Helpers
+@using MidProject.Services.IServices
+@inject ITaipeiClock Clock
 @{
     ViewData["Title"] = "評論管理";
+    var now = Clock.GetNow();
 
     // 排序連結小工具：col 是 "time" / "rating" / "report"
     // 點還沒排序的欄位 → 用該欄位、預設 desc；點已經在排序的欄位 → 方向反過來
+    // 排序/換頁都要保留 restaurantId，不然從餐廳詳細頁點過來的精確篩選會在排序/換頁時被洗掉
     string SortHref(string col)
     {
         var nextDir = (Model.SortBy == col && Model.SortDir == "desc") ? "asc" : "desc";
-        return Url.Action("Index", new { tab = Model.Tab, search = Model.Search, rating = Model.Rating, time = Model.Time, sortBy = col, sortDir = nextDir, page = 1 })!;
+        return Url.Action("Index", new { tab = Model.Tab, search = Model.Search, rating = Model.Rating, time = Model.Time, sortBy = col, sortDir = nextDir, page = 1, restaurantId = Model.RestaurantID })!;
     }
     string SortArrow(string col) => Model.SortBy != col ? "" : (Model.SortDir == "asc" ? "▲" : "▼");
 
-    // 點會員/餐廳名字 → 用他的名字重新搜尋，看他所有的評論（不限目前的 Tab/星等/時間）
+    // 點會員/餐廳名字 → 用他的名字重新搜尋，看他所有的評論（不限目前的 Tab/星等/時間，也不限 restaurantId）
     string SearchByNameHref(string name)
         => Url.Action("Index", new { tab = "all", search = name, sortBy = "time", sortDir = "desc", page = 1 })!;
 }
@@ -21,9 +25,16 @@
    這裡只放 <main> 裡面要顯示的內容。第一次先自己測試的話，可以把下面這行取消註解： *@
 @* Layout = null; *@
 
-<link rel="stylesheet" href="~/css/reviews-admin.css" />
+<link rel="stylesheet" href="~/css/design-system.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/reviews-admin.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/shared-pagination.css" asp-append-version="true" />
 
-<h1 class="page-title">評論管理</h1>
+<a class="btn btn-outline-secondary js-back-btn-conditional d-none mb-2" data-referrer-pattern="/Restaurants/Details" href="#">← 返回</a>
+
+<div class="ds-page-header">
+    <h1 class="page-title mb-1">評論管理</h1>
+    <p>審核與管理會員評論，處理檢舉與違規內容</p>
+</div>
 
 @if (TempData["Toast"] != null)
 {
@@ -58,37 +69,73 @@
     @foreach (var t in tabs)
     {
         <a class="tab-btn @(Model.Tab == t.Key ? "active" : "")"
-           href="@Url.Action("Index", new { tab = t.Key, search = Model.Search, rating = Model.Rating, time = Model.Time, sortBy = Model.SortBy, sortDir = Model.SortDir })">
+           href="@Url.Action("Index", new { tab = t.Key, search = Model.Search, rating = Model.Rating, time = Model.Time, sortBy = Model.SortBy, sortDir = Model.SortDir, restaurantId = Model.RestaurantID })">
             @t.Label <span class="tab-count">@t.Count</span>
         </a>
     }
 </div>
 
-<form method="get" asp-action="Index" class="filter-row">
-    @* 保留目前的 tab / 排序，換頁篩選條件時不要跳回「全部」或重排 *@
-    <input type="hidden" name="tab" value="@Model.Tab" />
-    <input type="hidden" name="sortBy" value="@Model.SortBy" />
-    <input type="hidden" name="sortDir" value="@Model.SortDir" />
-    <input class="search-box" type="text" name="search" placeholder="🔍 搜尋評論內容、會員、餐廳..." value="@Model.Search" />
-    <select class="f-select" name="rating" onchange="this.form.submit()">
-        <option value="">所有星等</option>
-        @for (int i = 5; i >= 1; i--)
-        {
-            <option value="@i" selected="@(Model.Rating == i)">@i 星</option>
-        }
-    </select>
-    <select class="f-select" name="time" onchange="this.form.submit()">
-        <option value="all" selected="@(Model.Time == "all")">所有時間</option>
-        <option value="7" selected="@(Model.Time == "7")">近 7 天</option>
-        <option value="30" selected="@(Model.Time == "30")">近 30 天</option>
-    </select>
-</form>
+@if (Model.RestaurantID.HasValue)
+{
+    <div class="rv-filter-banner">
+        <span class="tk">🏪</span>只顯示餐廳 #@Model.RestaurantID 的評論
+        <a href="@Url.Action("Index", new { tab = Model.Tab, search = Model.Search, rating = Model.Rating, time = Model.Time, sortBy = Model.SortBy, sortDir = Model.SortDir })">清除篩選 ✕</a>
+    </div>
+}
 
+<div class="ds-toolbar">
+    <h6 class="ds-block-label">篩選條件</h6>
+    <form method="get" asp-action="Index">
+        @* 保留目前的 tab / 排序 / 餐廳精確篩選，換頁篩選條件時不要跳回「全部」或重排 *@
+        <input type="hidden" name="tab" value="@Model.Tab" />
+        <input type="hidden" name="sortBy" value="@Model.SortBy" />
+        <input type="hidden" name="sortDir" value="@Model.SortDir" />
+        @if (Model.RestaurantID.HasValue)
+        {
+            <input type="hidden" name="restaurantId" value="@Model.RestaurantID" />
+        }
+        <div class="ds-filter-row">
+            <div class="ds-filter-search-group">
+                <div class="ds-filter-field">
+                    <label>關鍵字</label>
+                    <input class="search-box ds-search-input-fill" type="text" name="search" placeholder="搜尋評論內容、會員、餐廳..." value="@Model.Search" />
+                </div>
+                <div class="ds-filter-actions">
+                    <button type="submit" class="btn ds-btn-query"><i class="fas fa-search"></i> 查詢</button>
+                    <a class="btn ds-btn-clear" href="@Url.Action("Index")">清除</a>
+                </div>
+            </div>
+            <div class="ds-filter-field">
+                <label>星等</label>
+                <select class="f-select" name="rating" onchange="this.form.submit()">
+                    <option value="">所有星等</option>
+                    @for (int i = 5; i >= 1; i--)
+                    {
+                        <option value="@i" selected="@(Model.Rating == i)">@i 星</option>
+                    }
+                </select>
+            </div>
+            <div class="ds-filter-field">
+                <label>時間範圍</label>
+                <select class="f-select" name="time" onchange="this.form.submit()">
+                    <option value="all" selected="@(Model.Time == "all")">所有時間</option>
+                    <option value="7" selected="@(Model.Time == "7")">近 7 天</option>
+                    <option value="30" selected="@(Model.Time == "30")">近 30 天</option>
+                </select>
+            </div>
+        </div>
+    </form>
+</div>
+
+<div class="ds-block-title-row">
+    <h6>評論列表</h6>
+    <span class="ds-muted small">共 @Model.TotalCount 筆</span>
+</div>
 <div class="panel">
     <table>
         <thead>
             <tr>
-                <th>ID</th><th>會員</th><th>餐廳</th>
+                <th style="width:70px;">ID</th><th>會員</th><th>餐廳</th>
                 <th><a class="rv-sort-link" href="@SortHref("rating")" title="點擊依星等排序">星等 @SortArrow("rating")</a></th>
                 <th>內容</th>
                 <th>狀態</th>
@@ -105,10 +152,11 @@
         {
             @foreach (var r in Model.Items)
             {
-                var effectivelyDeleted = r.IsDeleted || r.Restaurant.IsDeleted;
+                var effectivelyDeleted = r.IsDeleted || (r.Restaurant?.IsDeleted ?? false);
                 var (label, cls) = ReviewDisplayHelpers.GetStatusPill(effectivelyDeleted, r.Status);
                 var rowClass = effectivelyDeleted ? "row-deleted" : (r.Status == "PendingReview" ? "row-pending" : "");
-                var memberName = ReviewDisplayHelpers.DisplayName(r.Member.NickName, r.Member.UserName);
+                var memberName = r.Member != null ? ReviewDisplayHelpers.DisplayName(r.Member.NickName, r.Member.UserName) : "未知會員";
+                var restaurantName = r.Restaurant?.Name ?? "未知餐廳";
                 <tr class="row-click @rowClass" onclick="location.href='@Url.Action("Details", new { id = r.ReviewID })'">
                     <td style="color:var(--text-faint)">@r.ReviewID</td>
                     <td>
@@ -118,7 +166,7 @@
                         </div>
                     </td>
                     <td>
-                        <a class="rv-name-link" onclick="event.stopPropagation()" href="@SearchByNameHref(r.Restaurant.Name)" title="查看這間餐廳的所有評論">@r.Restaurant.Name</a>
+                        <a class="rv-name-link" onclick="event.stopPropagation()" href="@SearchByNameHref(restaurantName)" title="查看這間餐廳的所有評論">@restaurantName</a>
                     </td>
                     <td><span class="stars">@(new string('★', r.Rating))</span> @r.Rating</td>
                     <td><span class="content-line">@r.Content</span></td>
@@ -133,7 +181,7 @@
                             <span class="report-chip zero">—</span>
                         }
                     </td>
-                    <td style="color:var(--text-faint);font-size:11.5px;white-space:nowrap">@ReviewDisplayHelpers.FormatRelative(r.CreatedAt)</td>
+                    <td style="color:var(--text-faint);font-size:11.5px;white-space:nowrap">@ReviewDisplayHelpers.FormatRelative(r.CreatedAt, now)</td>
                 </tr>
             }
         }
@@ -145,18 +193,23 @@
 {
     var showStart = (Model.Page - 1) * Model.PageSize + 1;
     var showEnd = Math.Min(Model.Page * Model.PageSize, Model.TotalCount);
-    <div class="rv-pagination">
-        <span>顯示 @showStart–@showEnd 筆，共 @Model.TotalCount 筆</span>
-        <div class="page-btns">
-            <a class="page-btn @(Model.Page <= 1 ? "disabled" : "")"
-               href="@Url.Action("Index", new { tab = Model.Tab, search = Model.Search, rating = Model.Rating, time = Model.Time, sortBy = Model.SortBy, sortDir = Model.SortDir, page = Math.Max(1, Model.Page - 1) })">‹</a>
-            @for (int p = 1; p <= Model.TotalPages; p++)
-            {
-                <a class="page-btn @(p == Model.Page ? "on" : "")"
-                   href="@Url.Action("Index", new { tab = Model.Tab, search = Model.Search, rating = Model.Rating, time = Model.Time, sortBy = Model.SortBy, sortDir = Model.SortDir, page = p })">@p</a>
-            }
-            <a class="page-btn @(Model.Page >= Model.TotalPages ? "disabled" : "")"
-               href="@Url.Action("Index", new { tab = Model.Tab, search = Model.Search, rating = Model.Rating, time = Model.Time, sortBy = Model.SortBy, sortDir = Model.SortDir, page = Math.Min(Model.TotalPages, Model.Page + 1) })">›</a>
-        </div>
+    <div class="sp-pagination">
+        <div class="sp-summary">目前顯示 @showStart–@showEnd 筆，共 @Model.TotalCount 筆</div>
+        <nav aria-label="分頁導覽">
+            <ul class="pagination">
+                <li class="page-item @(Model.Page <= 1 ? "disabled" : "")">
+                    <a class="page-link" href="@Url.Action("Index", new { tab = Model.Tab, search = Model.Search, rating = Model.Rating, time = Model.Time, sortBy = Model.SortBy, sortDir = Model.SortDir, page = Math.Max(1, Model.Page - 1), restaurantId = Model.RestaurantID })">上一頁</a>
+                </li>
+                @for (int p = 1; p <= Model.TotalPages; p++)
+                {
+                    <li class="page-item @(p == Model.Page ? "active" : "")">
+                        <a class="page-link" href="@Url.Action("Index", new { tab = Model.Tab, search = Model.Search, rating = Model.Rating, time = Model.Time, sortBy = Model.SortBy, sortDir = Model.SortDir, page = p, restaurantId = Model.RestaurantID })">@p</a>
+                    </li>
+                }
+                <li class="page-item @(Model.Page >= Model.TotalPages ? "disabled" : "")">
+                    <a class="page-link" href="@Url.Action("Index", new { tab = Model.Tab, search = Model.Search, rating = Model.Rating, time = Model.Time, sortBy = Model.SortBy, sortDir = Model.SortDir, page = Math.Min(Model.TotalPages, Model.Page + 1), restaurantId = Model.RestaurantID })">下一頁</a>
+                </li>
+            </ul>
+        </nav>
     </div>
 }

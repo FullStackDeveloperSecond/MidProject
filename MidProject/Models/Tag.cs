@@ -9,6 +9,8 @@ public class Tag
     [Required, StringLength(50)]
     public string TagName { get; set; } = string.Empty;
 
+    public int SortOrder { get; set; }
+
     public bool IsDeleted { get; set; }
     public DateTime? DeletedAt { get; set; }
     public int? DeletedBy { get; set; }

@@ -104,11 +104,14 @@ public static class SeedData
         var existingTags = await context.Tags
             .Where(tag => tagNames.Contains(tag.TagName))
             .ToDictionaryAsync(tag => tag.TagName);
+        var nextSortOrder = (await context.Tags
+            .Select(tag => (int?)tag.SortOrder)
+            .MaxAsync() ?? -1) + 1;
         foreach (var name in tagNames)
         {
             if (!existingTags.ContainsKey(name))
             {
-                var tag = new Tag { TagName = name };
+                var tag = new Tag { TagName = name, SortOrder = nextSortOrder++ };
                 context.Tags.Add(tag);
                 existingTags[name] = tag;
             }

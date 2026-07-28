@@ -1,0 +1,12 @@
+/*
+  會員管理頁頂部統計卡片的作用中狀態外框，疊加在共用的 .ds-stat-card 之上。
+  只影響外觀，不影響篩選/排序邏輯。
+*/
+.member-stat-card-active {
+    box-shadow: 0 0 0 1px var(--ds-cta, #FF6B35);
+}
+
+.member-stat-card-danger {
+    box-shadow: 0 0 0 1px var(--ds-danger, #D55245);
+    background: rgba(213, 82, 69, 0.05);
+}

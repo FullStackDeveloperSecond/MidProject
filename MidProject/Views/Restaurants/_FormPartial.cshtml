@@ -104,12 +104,12 @@
 
             <section class="form-section">
                 <h3>餐廳圖片</h3>
-                <p class="hint">陽春版檔案上傳，先不做裁切/壓縮，正式圖片介面之後由愷/Alex 提供。</p>
+                <p class="hint">支援 JPG、PNG、WebP，單檔 5MB 以內。</p>
                 <div class="image-manager">
                     <article class="image-uploader">
                         <div>
                             <strong>餐廳封面圖</strong>
-                            <p>JPG / PNG / WebP，5MB 以內</p>
+                            <p>選擇新圖片會取代目前封面。</p>
                         </div>
                         <label class="btn">選擇圖片
                             <input type="file" id="coverImageInput" name="CoverImageFile" accept="image/jpeg,image/png,image/webp" hidden>
@@ -118,7 +118,7 @@
                     <article class="image-uploader">
                         <div>
                             <strong>餐廳環境圖</strong>
-                            <p>JPG / PNG / WebP，5MB 以內，可多張</p>
+                            <p>可一次選擇多張圖片。</p>
                         </div>
                         <label class="btn">選擇圖片
                             <input type="file" id="envImageInput" name="EnvironmentImageFiles" accept="image/jpeg,image/png,image/webp" multiple hidden>
@@ -130,7 +130,7 @@
                     @if (!string.IsNullOrEmpty(Model.ExistingCoverImageUrl))
                     {
                         <article class="image-preview-card">
-                            <img src="@Model.ExistingCoverImageUrl" alt="封面圖">
+                            <img src="@Model.ExistingCoverImageUrl" alt="目前封面圖">
                             <div>
                                 <strong>目前封面圖</strong>
                                 <label><input type="checkbox" name="RemoveCoverImage" value="true"> 移除封面圖</label>
@@ -140,19 +140,20 @@
                 </div>
 
                 <div id="envPreview" class="image-preview-list">
-                    @foreach (var img in Model.ExistingEnvironmentImages)
+                    @foreach (var image in Model.ExistingEnvironmentImages)
                     {
                         <article class="image-preview-card">
-                            <img src="@img.Url" alt="環境圖">
+                            <img src="@image.Url" alt="既有環境圖">
                             <div>
                                 <strong>既有環境圖</strong>
-                                <label><input type="checkbox" name="RemoveEnvironmentImageIds" value="@img.ImageId"> 移除這張</label>
+                                <label><input type="checkbox" name="RemoveEnvironmentImageIds" value="@image.ImageId"> 移除這張</label>
                             </div>
                         </article>
                     }
                 </div>
                 <div id="newImagePreview" class="image-preview-list"></div>
             </section>
+
         </div>
         <div class="modal-foot">
             <button type="button" class="btn" data-action="close-modal">取消</button>

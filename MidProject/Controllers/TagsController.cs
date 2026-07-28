@@ -8,10 +8,14 @@ namespace MidProject.Controllers;
 public class TagsController : Controller
 {
     private readonly ITagService _tagService;
+    private readonly ICurrentAdminAccessor _currentAdmin;
 
-    public TagsController(ITagService tagService)
+    public TagsController(
+        ITagService tagService,
+        ICurrentAdminAccessor currentAdmin)
     {
         _tagService = tagService;
+        _currentAdmin = currentAdmin;
     }
 
     // GET /Tags
@@ -26,7 +30,7 @@ public class TagsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(string name)
     {
-        var (success, error) = await _tagService.CreateAsync(name);
+        var (success, error) = await _tagService.CreateAsync(name, _currentAdmin.MemberID);
         TempData["Toast"] = success ? "標籤已新增。" : error;
         return RedirectToAction(nameof(Index));
     }
@@ -36,7 +40,17 @@ public class TagsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Toggle(int id)
     {
-        await _tagService.ToggleAsync(id);
+        var success = await _tagService.ToggleAsync(id, _currentAdmin.MemberID);
+        if (!success) return NotFound();
         return RedirectToAction(nameof(Index));
+    }
+
+    // POST /Tags/Reorder — 標籤牆拖曳排序，回傳新的顯示順序（僅使用中的標籤 ID）
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Reorder(List<int> orderedIds)
+    {
+        if (orderedIds == null || orderedIds.Count == 0) return BadRequest();
+        return await _tagService.ReorderAsync(orderedIds) ? Ok() : BadRequest();
     }
 }

@@ -1,0 +1,54 @@
+/*
+  跨模組共用的分頁列樣式。統一各頁「目前顯示 X~Y 筆，共 Z 筆」與頁碼列的外觀，
+  只覆蓋分頁 UI 的視覺呈現，不影響任何頁面各自的查詢/分頁邏輯。
+*/
+.sp-pagination {
+    margin-top: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.sp-pagination .sp-summary {
+    text-align: left;
+    color: #6c757d;
+    font-size: 0.875rem;
+    margin-bottom: 0;
+    white-space: nowrap;
+}
+
+.sp-pagination nav {
+    display: flex;
+    justify-content: center;
+    flex: 1 1 auto;
+}
+
+.sp-pagination .pagination {
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 0;
+}
+
+.sp-pagination .page-item {
+    margin: 0;
+}
+
+.sp-pagination .page-link {
+    border-radius: 6px;
+    min-width: 38px;
+    text-align: center;
+}
+
+.sp-pagination .page-item.active .page-link {
+    background-color: #FF6B35;
+    border-color: #FF6B35;
+    color: #fff;
+}
+
+.sp-pagination .page-item.disabled .page-link {
+    color: #C7C1B8;
+    background-color: #fff;
+    border-color: #EFEAE4;
+}

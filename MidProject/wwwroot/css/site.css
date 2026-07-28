@@ -20,3 +20,29 @@ html {
 body {
   margin-bottom: 60px;
 }
+
+/* 各模組詳情頁共用的頂部列：左上角「返回」按鈕、右上角路徑麵包屑 */
+.detail-header-bar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.detail-crumb {
+  font-size: 0.875rem;
+  color: #6c757d;
+  white-space: nowrap;
+  padding-top: 0.4rem;
+}
+
+.detail-crumb a {
+  color: #0d6efd;
+  text-decoration: none;
+}
+
+.detail-crumb a:hover {
+  text-decoration: underline;
+}

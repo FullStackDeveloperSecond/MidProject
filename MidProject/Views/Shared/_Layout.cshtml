@@ -29,66 +29,87 @@
     <div class="admin-shell">
         @if (showAdminNavigation)
         {
-            <aside class="admin-sidebar collapse d-lg-flex" id="adminSidebar">
-                <a class="admin-brand" asp-controller="Home" asp-action="Index">
-                    <i class="fas fa-utensils"></i>
-                    <span>美食地圖後台</span>
-                </a>
+        <aside class="admin-sidebar collapse d-lg-flex" id="adminSidebar">
+            <a class="admin-brand" asp-controller="Home" asp-action="Index">
+                <i class="fas fa-utensils"></i>
+                <span>美食地圖後台</span>
+            </a>
 
-                <nav class="admin-nav" aria-label="後台主要導覽">
-                    <a class="admin-nav-link @dashboardActive" asp-controller="Home" asp-action="Index">
-                        <i class="fas fa-tachometer-alt"></i><span>Dashboard</span>
-                    </a>
-                    <a class="admin-nav-link @NavActive("AdminMembers")" asp-controller="AdminMembers" asp-action="Index">
-                        <i class="fas fa-users"></i><span>會員管理</span>
-                    </a>
-                    <div class="admin-nav-group">
-                        <button class="admin-nav-link admin-nav-group-toggle @(restaurantsGroupActive ? "active" : "")" type="button"
-                                data-bs-toggle="collapse" data-bs-target="#navRestaurantsGroup"
-                                aria-expanded="@(restaurantsGroupActive ? "true" : "false")" aria-controls="navRestaurantsGroup">
-                            <i class="fas fa-store"></i><span>餐廳管理</span><i class="fas fa-chevron-down admin-nav-chevron"></i>
-                        </button>
-                        <div class="collapse admin-nav-subgroup @(restaurantsGroupActive ? "show" : "")" id="navRestaurantsGroup">
-                            <a class="admin-nav-sublink @(IsCurrent("Restaurants", "Index") ? "active" : "")" asp-controller="Restaurants" asp-action="Index">餐廳一覽</a>
-                            <a class="admin-nav-sublink @(IsCurrent("Restaurants", "Deleted") ? "active" : "")" asp-controller="Restaurants" asp-action="Deleted">停用餐廳一覽</a>
-                            <a class="admin-nav-sublink @(IsCurrent("Tags", "Index") ? "active" : "")" asp-controller="Tags" asp-action="Index">餐廳標籤一覽</a>
-                        </div>
+            <nav class="admin-nav" aria-label="後台主要導覽">
+                <a class="admin-nav-link @dashboardActive" asp-controller="Home" asp-action="Index">
+                    <i class="fas fa-tachometer-alt"></i><span>Dashboard</span>
+                </a>
+                <a class="admin-nav-link @NavActive("AdminMembers")" asp-controller="AdminMembers" asp-action="Index">
+                    <i class="fas fa-users"></i><span>會員管理</span>
+                </a>
+                <div class="admin-nav-group">
+                    <button class="admin-nav-link admin-nav-group-toggle @(restaurantsGroupActive ? "active" : "")" type="button"
+                            data-bs-toggle="collapse" data-bs-target="#navRestaurantsGroup"
+                            aria-expanded="@(restaurantsGroupActive ? "true" : "false")" aria-controls="navRestaurantsGroup">
+                        <i class="fas fa-store"></i><span>餐廳管理</span><i class="fas fa-chevron-down admin-nav-chevron"></i>
+                    </button>
+                    <div class="collapse admin-nav-subgroup @(restaurantsGroupActive ? "show" : "")" id="navRestaurantsGroup">
+                        <a class="admin-nav-sublink @(IsCurrent("Restaurants", "Index") ? "active" : "")" asp-controller="Restaurants" asp-action="Index">餐廳一覽</a>
+                        <a class="admin-nav-sublink @(IsCurrent("Restaurants", "Deleted") ? "active" : "")" asp-controller="Restaurants" asp-action="Deleted">停用餐廳一覽</a>
+                        <a class="admin-nav-sublink @(IsCurrent("Tags", "Index") ? "active" : "")" asp-controller="Tags" asp-action="Index">餐廳標籤一覽</a>
                     </div>
-                    <div class="admin-nav-group">
-                        <button class="admin-nav-link admin-nav-group-toggle @(pointsStoreGroupActive ? "active" : "")" type="button"
-                                data-bs-toggle="collapse" data-bs-target="#navPointsStoreGroup"
-                                aria-expanded="@(pointsStoreGroupActive ? "true" : "false")" aria-controls="navPointsStoreGroup">
-                            <i class="fas fa-coins"></i><span>點數商城</span><i class="fas fa-chevron-down admin-nav-chevron"></i>
-                        </button>
-                        <div class="collapse admin-nav-subgroup @(pointsStoreGroupActive ? "show" : "")" id="navPointsStoreGroup">
-                            <a class="admin-nav-sublink @(IsCurrent("AvatarFrames", "Index") ? "active" : "")" asp-controller="AvatarFrames" asp-action="Index">外框商品管理</a>
-                            <a class="admin-nav-sublink @(IsCurrent("AvatarFrames", "Deleted") ? "active" : "")" asp-controller="AvatarFrames" asp-action="Deleted">已刪除商品</a>
-                            <a class="admin-nav-sublink @(IsCurrent("PointsStoreRedemptions", "Index") ? "active" : "")" asp-controller="PointsStoreRedemptions" asp-action="Index">兌換紀錄</a>
-                        </div>
+                </div>
+                <div class="admin-nav-group">
+                    <button class="admin-nav-link admin-nav-group-toggle @(pointsStoreGroupActive ? "active" : "")" type="button"
+                            data-bs-toggle="collapse" data-bs-target="#navPointsStoreGroup"
+                            aria-expanded="@(pointsStoreGroupActive ? "true" : "false")" aria-controls="navPointsStoreGroup">
+                        <i class="fas fa-coins"></i><span>點數商城</span><i class="fas fa-chevron-down admin-nav-chevron"></i>
+                    </button>
+                    <div class="collapse admin-nav-subgroup @(pointsStoreGroupActive ? "show" : "")" id="navPointsStoreGroup">
+                        <a class="admin-nav-sublink @(IsCurrent("AvatarFrames", "Index") ? "active" : "")" asp-controller="AvatarFrames" asp-action="Index">外框商品管理</a>
+                        <a class="admin-nav-sublink @(IsCurrent("AvatarFrames", "Deleted") ? "active" : "")" asp-controller="AvatarFrames" asp-action="Deleted">已刪除商品</a>
+                        <a class="admin-nav-sublink @(IsCurrent("PointsStoreRedemptions", "Index") ? "active" : "")" asp-controller="PointsStoreRedemptions" asp-action="Index">兌換紀錄</a>
                     </div>
-                    <a class="admin-nav-link @NavActive("Reviews")" asp-controller="Reviews" asp-action="Index">
-                        <i class="fas fa-comments"></i><span>評論管理</span>
+                </div>
+                <a class="admin-nav-link @NavActive("Reviews")" asp-controller="Reviews" asp-action="Index">
+                    <i class="fas fa-comments"></i><span>評論管理</span>
+                </a>
+                <a class="admin-nav-link @NavActive("Reports")" asp-controller="Reports" asp-action="Dashboard">
+                    <i class="fas fa-flag"></i><span>檢舉管理</span>
+                </a>
+                <a class="admin-nav-link @NavActive("Notifications")" asp-controller="Notifications" asp-action="Index">
+                    <i class="fas fa-bell"></i><span>通知管理</span>
+                </a>
+            </nav>
+
+            <div class="admin-sidebar-footer">
+                @if (User.Identity?.IsAuthenticated == true)
+                {
+                    <div class="admin-sidebar-user">
+                        <i class="fas fa-user-circle"></i>
+                        <span>@User.Identity.Name</span>
+                    </div>
+                    <form asp-controller="Account" asp-action="Logout" method="post">
+                        <button type="submit" class="admin-sidebar-logout">
+                            <i class="fas fa-sign-out-alt"></i><span>登出</span>
+                        </button>
+                    </form>
+                }
+                else
+                {
+                    <a asp-controller="Account" asp-action="Login" class="admin-sidebar-logout">
+                        <i class="fas fa-sign-in-alt"></i><span>管理員登入</span>
                     </a>
-                    <a class="admin-nav-link @NavActive("Reports")" asp-controller="Reports" asp-action="Index">
-                        <i class="fas fa-flag"></i><span>檢舉管理</span>
-                    </a>
-                    <a class="admin-nav-link @NavActive("Notifications")" asp-controller="Notifications" asp-action="Index">
-                        <i class="fas fa-bell"></i><span>通知管理</span>
-                    </a>
-                </nav>
-            </aside>
+                }
+            </div>
+        </aside>
         }
 
         <div class="admin-main">
-            <header class="admin-topbar navbar navbar-expand bg-white border-bottom shadow-sm">
-                <div class="container-fluid px-3 px-lg-4">
-                    @if (showAdminNavigation)
-                    {
-                        <button class="btn btn-outline-secondary d-lg-none" type="button" data-bs-toggle="collapse"
-                                data-bs-target="#adminSidebar" aria-controls="adminSidebar" aria-expanded="false" aria-label="切換導覽列">
-                            <i class="fas fa-bars"></i>
-                        </button>
-                    }
+            <div class="admin-topbar-accent"></div>
+            @if (showAdminNavigation)
+            {
+            <header class="admin-topbar navbar navbar-expand bg-white border-bottom shadow-sm d-lg-none">
+                <div class="container-fluid px-3">
+                    <button class="btn btn-outline-secondary" type="button" data-bs-toggle="collapse"
+                            data-bs-target="#adminSidebar" aria-controls="adminSidebar" aria-expanded="false" aria-label="切換導覽列">
+                        <i class="fas fa-bars"></i>
+                    </button>
                     <div class="ms-auto d-flex align-items-center gap-3">
                         @if (User.Identity?.IsAuthenticated == true)
                         {
@@ -96,9 +117,11 @@
                                 <i class="fas fa-user-circle text-secondary"></i>
                                 <span>@User.Identity.Name</span>
                             </span>
-                            <a asp-controller="Account" asp-action="Logout" class="btn btn-outline-secondary btn-sm">
-                                <i class="fas fa-sign-out-alt me-1"></i>登出
-                            </a>
+                            <form asp-controller="Account" asp-action="Logout" method="post" class="d-inline">
+                                <button type="submit" class="btn btn-outline-secondary btn-sm">
+                                    <i class="fas fa-sign-out-alt me-1"></i>登出
+                                </button>
+                            </form>
                         }
                         else
                         {
@@ -109,15 +132,16 @@
                     </div>
                 </div>
             </header>
+            }
 
             <main class="admin-content" role="main">
-                <div class="container-fluid px-3 px-lg-4 py-4">
+                <div class="container-fluid px-3 px-lg-4 py-3">
                     @RenderBody()
                 </div>
             </main>
 
             <footer class="admin-footer border-top bg-white text-muted">
-                <div class="container-fluid px-3 px-lg-4 py-3 text-center">
+                <div class="container-fluid px-3 px-lg-4 py-2 text-center small">
                     &copy; @DateTime.Now.Year 美食地圖管理系統
                 </div>
             </footer>

@@ -30,63 +30,67 @@ public sealed class DashboardService : IDashboardService
 
     public async Task<DashboardIndexViewModel> GetIndexAsync(CancellationToken cancellationToken = default)
     {
-        var memberCount = await TryCountAsync(
-            "Members",
-            () => _dbContext.Members
-                .AsNoTracking()
-                .CountAsync(item => !item.IsDeleted, cancellationToken),
-            cancellationToken);
-        var restaurantCount = await TryCountAsync(
-            "Restaurants",
-            () => _dbContext.Restaurants
-                .AsNoTracking()
-                .CountAsync(item => !item.IsDeleted, cancellationToken),
-            cancellationToken);
-        var reviewCount = await TryCountAsync(
-            "Reviews",
-            () => _dbContext.Reviews
-                .AsNoTracking()
-                .CountAsync(item => !item.IsDeleted, cancellationToken),
-            cancellationToken);
-        var pendingReportCount = await TryCountAsync(
-            "Reports",
-            () => _dbContext.Reports
-                .AsNoTracking()
-                .CountAsync(item => !item.IsDeleted && item.Status == "Pending", cancellationToken),
-            cancellationToken);
+        var today = DateTime.Today;
+        var startOfMonth = new DateTime(today.Year, today.Month, 1);
+
+        var memberCount = await TryCountAsync("Members", () => _dbContext.Members
+            .AsNoTracking()
+            .CountAsync(item => !item.IsDeleted, cancellationToken), cancellationToken);
+        var membersToday = await TryCountAsync("MembersToday", () => _dbContext.Members
+            .AsNoTracking()
+            .CountAsync(item => !item.IsDeleted && item.CreatedAt.Date == today, cancellationToken), cancellationToken);
+        var restaurantCount = await TryCountAsync("Restaurants", () => _dbContext.Restaurants
+            .AsNoTracking()
+            .CountAsync(item => !item.IsDeleted, cancellationToken), cancellationToken);
+        var restaurantsThisMonth = await TryCountAsync("RestaurantsThisMonth", () => _dbContext.Restaurants
+            .AsNoTracking()
+            .CountAsync(item => !item.IsDeleted && item.CreatedAt >= startOfMonth, cancellationToken), cancellationToken);
+        var reviewCount = await TryCountAsync("Reviews", () => _dbContext.Reviews
+            .AsNoTracking()
+            .CountAsync(item => !item.IsDeleted, cancellationToken), cancellationToken);
+        var reviewsToday = await TryCountAsync("ReviewsToday", () => _dbContext.Reviews
+            .AsNoTracking()
+            .CountAsync(item => !item.IsDeleted && item.CreatedAt.Date == today, cancellationToken), cancellationToken);
+        var pendingReportCount = await TryCountAsync("Reports", () => _dbContext.Reports
+            .AsNoTracking()
+            .CountAsync(item => !item.IsDeleted && item.Status == "Pending", cancellationToken), cancellationToken);
         var notificationResult = await _notificationWindow.GetPendingSummaryAsync(cancellationToken);
 
         return new DashboardIndexViewModel
         {
+            PendingReportCount = pendingReportCount.Count ?? 0,
             Cards =
             [
                 BuildMetricCard(
-                    memberCount,
                     "會員總數",
+                    memberCount,
                     "目前未刪除的會員",
                     "fas fa-users",
                     "primary",
-                    GetPath("Index", "AdminMembers")),
+                    GetPath("Index", "AdminMembers"),
+                    membersToday.IsSuccess ? $"↑ +{membersToday.Count} 今日" : "今日趨勢暫時無法取得"),
                 BuildMetricCard(
-                    restaurantCount,
                     "餐廳總數",
+                    restaurantCount,
                     "目前啟用中的餐廳",
                     "fas fa-store",
                     "success",
-                    GetPath("Index", "Restaurants")),
+                    GetPath("Index", "Restaurants"),
+                    restaurantsThisMonth.IsSuccess ? $"本月新增 {restaurantsThisMonth.Count}" : "本月趨勢暫時無法取得"),
                 BuildMetricCard(
-                    reviewCount,
                     "評論總數",
+                    reviewCount,
                     "目前未刪除的評論",
                     "fas fa-comments",
-                    "info",
-                    GetPath("Index", "Reviews")),
+                    "warning",
+                    GetPath("Index", "Reviews"),
+                    reviewsToday.IsSuccess ? $"↑ +{reviewsToday.Count} 今日" : "今日趨勢暫時無法取得"),
                 BuildMetricCard(
-                    pendingReportCount,
                     "待處理檢舉數",
+                    pendingReportCount,
                     "等待管理員審核",
                     "fas fa-flag",
-                    "warning",
+                    "danger",
                     GetPath("Index", "Reports", new { Status = "Pending" })),
                 notificationResult.Classification == DashboardNotificationClassification.Success
                     ? new(
@@ -94,7 +98,7 @@ public sealed class DashboardService : IDashboardService
                         notificationResult.PendingCount,
                         "尚未發送且未刪除",
                         "fas fa-bell",
-                        "danger",
+                        "purple",
                         true,
                         GetPath("Index", "Notifications", new { isSent = false }))
                     : new(
@@ -102,7 +106,7 @@ public sealed class DashboardService : IDashboardService
                         null,
                         "通知統計查詢失敗",
                         "fas fa-bell",
-                        "danger",
+                        "purple",
                         false,
                         null,
                         $"查詢失敗，錯誤代碼：{notificationResult.SafeErrorCode ?? "UNKNOWN"}")
@@ -125,7 +129,7 @@ public sealed class DashboardService : IDashboardService
         var correlationId = Guid.NewGuid().ToString("N");
         try
         {
-            return new(true, await query(), null, correlationId);
+            return new(true, await query(), null);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -141,26 +145,20 @@ public sealed class DashboardService : IDashboardService
                 metricName,
                 correlationId,
                 exception.GetType().Name);
-            return new(false, null, safeErrorCode, correlationId);
+            return new(false, null, safeErrorCode);
         }
     }
 
     private static DashboardCardViewModel BuildMetricCard(
-        DashboardMetricResult result,
         string title,
+        DashboardMetricResult result,
         string description,
         string iconClass,
         string accentClass,
-        string targetUrl) =>
+        string targetUrl,
+        string? trend = null) =>
         result.IsSuccess
-            ? new(
-                title,
-                result.Count,
-                description,
-                iconClass,
-                accentClass,
-                true,
-                targetUrl)
+            ? new(title, result.Count, description, iconClass, accentClass, true, targetUrl, Trend: trend)
             : new(
                 title,
                 null,
@@ -174,6 +172,5 @@ public sealed class DashboardService : IDashboardService
     private sealed record DashboardMetricResult(
         bool IsSuccess,
         int? Count,
-        string? SafeErrorCode,
-        string CorrelationID);
+        string? SafeErrorCode);
 }

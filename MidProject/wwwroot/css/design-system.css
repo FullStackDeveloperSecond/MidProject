@@ -1,0 +1,582 @@
+/*
+  跨模組共用的視覺設計系統（Design Tokens + 共用元件樣式）。
+  目的：讓側邊欄/頂欄以外的所有頁面內容統一成同一套「Modern Minimal Admin
+  Dashboard」風格（色彩、卡片、表格、徽章、工具列、圖示按鈕、間距、字級），
+  不再是各模組各自拼湊的 Bootstrap 預設樣式。只影響外觀，不影響任何頁面的
+  資料/查詢/表單邏輯。不修改 _Layout.cshtml，僅擴充既有的 admin-layout.css
+  所建立的殼層 class（.admin-content）。
+*/
+
+:root {
+    --ds-cta: #FF6B35;
+    --ds-cta-hover: #E85A26;
+    --ds-cta-soft: #FFE9DE;
+
+    --ds-primary: #4E7286;
+    --ds-primary-soft: #EAF2F5;
+    --ds-success: #1F7A6B;
+    --ds-success-soft: #E4F5F0;
+    --ds-warning: #C76716;
+    --ds-warning-soft: #FFF0DC;
+    --ds-danger: #D55245;
+    --ds-danger-soft: #FDE8E5;
+    --ds-purple: #6C5A8C;
+    --ds-purple-soft: #F1ECF8;
+    --ds-gray: #7B746C;
+    --ds-gray-soft: #F4F1EC;
+
+    --ds-heading: #2F2F2F;
+    --ds-text-muted: #7B746C;
+
+    --ds-bg: #FAF9F6;
+    --ds-card-bg: #FFFFFF;
+    --ds-line: #EFEAE4;
+    --ds-line-strong: #DED9D2;
+
+    --ds-space-1: 4px;
+    --ds-space-2: 8px;
+    --ds-space-3: 16px;
+    --ds-space-4: 24px;
+    --ds-space-5: 32px;
+    --ds-space-6: 48px;
+
+    --ds-radius-card: 18px;
+    --ds-radius-pill: 999px;
+    --ds-radius-sm: 12px;
+
+    --ds-shadow: 0 8px 26px rgba(65, 48, 32, 0.07);
+    --ds-shadow-hover: 0 14px 34px rgba(65, 48, 32, 0.11);
+
+    --ds-font-cjk: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", -apple-system, "Segoe UI", sans-serif;
+    --ds-font-en: "Segoe UI", -apple-system, "Noto Sans TC", sans-serif;
+}
+
+/* ① 整體背景與內容留白：全站內容區統一暖白底、統一 32px 留白，不再白/灰交錯 */
+.admin-content {
+    background: var(--ds-bg);
+    font-family: var(--ds-font-cjk);
+    color: var(--ds-heading);
+}
+
+.admin-content .tabular,
+.admin-content .ds-stat-value {
+    font-variant-numeric: tabular-nums;
+}
+
+.admin-content > .container-fluid {
+    padding: 24px 40px !important;
+}
+
+/* 字級（H1 32 / H2 24 / 卡片數字 40 / 表格 15 / 徽章、標籤 13） */
+.ds-h1 {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--ds-heading);
+    margin-bottom: var(--ds-space-1);
+}
+
+.ds-h2 {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--ds-heading);
+}
+
+.ds-label {
+    font-size: 13px;
+}
+
+.ds-muted {
+    color: var(--ds-text-muted);
+}
+
+/* 頁首標題區塊：標題 + 一句功能說明文字，統一用跟其他區塊一致的白底卡片包起來，
+   跟頁面背景色做出區隔。 */
+.ds-page-header {
+    background: var(--ds-card-bg);
+    border-radius: var(--ds-radius-card);
+    box-shadow: var(--ds-shadow);
+    padding: var(--ds-space-4);
+    margin-bottom: var(--ds-space-4);
+}
+
+.ds-page-header p {
+    color: var(--ds-text-muted);
+    margin-bottom: 0;
+}
+
+/* 查詢/列表區塊的標題列：左邊區塊名稱、右邊目前筆數 */
+.ds-block-label {
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--ds-text-muted);
+    margin-bottom: var(--ds-space-3);
+}
+
+.ds-block-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--ds-space-2);
+}
+
+.ds-block-title-row h6 {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--ds-heading);
+    margin: 0;
+}
+
+/* Breadcrumb + 歡迎文字，讓頁首更有層次 */
+.ds-breadcrumb {
+    font-size: 13px;
+    color: var(--ds-text-muted);
+    margin-bottom: var(--ds-space-2);
+}
+
+.ds-breadcrumb a {
+    color: var(--ds-text-muted);
+    text-decoration: none;
+}
+
+.ds-breadcrumb a:hover {
+    text-decoration: underline;
+}
+
+.ds-welcome {
+    color: var(--ds-text-muted);
+    font-size: 14px;
+    margin: var(--ds-space-1) 0 var(--ds-space-4);
+}
+
+/* ② 卡片：16px 圓角、柔和陰影、無邊框 */
+.ds-card {
+    background: var(--ds-card-bg);
+    border: none;
+    border-radius: var(--ds-radius-card);
+    box-shadow: var(--ds-shadow);
+}
+
+/* 統計卡片：每張卡片只用一種強調色（icon 徽章 + 標籤文字），數字置中放大 */
+.ds-stat-card {
+    background: var(--ds-card-bg);
+    border: none;
+    border-radius: var(--ds-radius-card);
+    box-shadow: var(--ds-shadow);
+    padding: var(--ds-space-4);
+    display: block;
+    transition: transform .15s ease, box-shadow .15s ease;
+}
+
+.ds-stat-card:hover,
+.ds-stat-card:focus-visible {
+    transform: translateY(-2px);
+    box-shadow: var(--ds-shadow-hover);
+}
+
+.ds-stat-card .ds-stat-label {
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .02em;
+}
+
+.ds-stat-card .ds-stat-value {
+    font-size: 40px;
+    font-weight: 800;
+    color: var(--ds-heading);
+    line-height: 1.1;
+    margin: var(--ds-space-2) 0 var(--ds-space-1);
+}
+
+.ds-stat-card .ds-stat-caption {
+    font-size: 13px;
+    color: var(--ds-text-muted);
+}
+
+.ds-stat-card .ds-stat-trend {
+    font-size: 13px;
+    font-weight: 600;
+    margin-top: var(--ds-space-2);
+}
+
+/* 縮小版統計卡片：Dashboard 以外的頁面（餐廳一覽、會員一覽等）統一用這個尺寸，
+   避免每頁的統計欄位比 Dashboard 本身還要顯眼、佔用過多垂直空間。 */
+.ds-stat-card-sm {
+    padding: var(--ds-space-3) var(--ds-space-4);
+}
+
+.ds-stat-card-sm .ds-stat-icon {
+    width: 34px;
+    height: 34px;
+    font-size: 0.9rem;
+    border-radius: 10px;
+}
+
+.ds-stat-card-sm .ds-stat-value {
+    font-size: 24px;
+    margin: 4px 0 2px;
+}
+
+.ds-stat-card-sm .ds-stat-label {
+    font-size: 12px;
+}
+
+.ds-stat-card-sm .ds-stat-caption,
+.ds-stat-card-sm .ds-stat-trend {
+    font-size: 12px;
+    margin-top: 2px;
+}
+
+.ds-stat-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+
+/* 固定五色強調色系，全站共用，不再各自發明藍/紅/黃/綠 */
+.ds-accent-primary { color: var(--ds-primary); }
+.ds-accent-success { color: var(--ds-success); }
+.ds-accent-warning { color: var(--ds-warning); }
+.ds-accent-danger { color: var(--ds-danger); }
+.ds-accent-purple { color: var(--ds-purple); }
+.ds-accent-gray { color: var(--ds-gray); }
+
+.ds-icon-primary { background: var(--ds-primary-soft); color: var(--ds-primary); }
+.ds-icon-success { background: var(--ds-success-soft); color: var(--ds-success); }
+.ds-icon-warning { background: var(--ds-warning-soft); color: var(--ds-warning); }
+.ds-icon-danger { background: var(--ds-danger-soft); color: var(--ds-danger); }
+.ds-icon-purple { background: var(--ds-purple-soft); color: var(--ds-purple); }
+.ds-icon-gray { background: var(--ds-gray-soft); color: var(--ds-gray); }
+
+/* ④ 搜尋/篩選工具列：整塊白底卡片，內部欄位不再各自獨立 */
+.ds-toolbar {
+    background: var(--ds-card-bg);
+    border-radius: var(--ds-radius-sm);
+    box-shadow: var(--ds-shadow);
+    padding: var(--ds-space-3);
+    margin-bottom: var(--ds-space-4);
+}
+
+.ds-toolbar .form-control,
+.ds-toolbar .form-select,
+.ds-toolbar input,
+.ds-toolbar select {
+    border-color: #E5E9F0;
+}
+
+.ds-toolbar .form-control:focus,
+.ds-toolbar .form-select:focus,
+.ds-toolbar input:focus,
+.ds-toolbar select:focus {
+    border-color: var(--ds-cta);
+    box-shadow: 0 0 0 0.2rem rgba(255, 107, 53, 0.14);
+}
+
+/* 查詢 / 清除按鈕：統一取代各模組原本彩度過高的 Bootstrap 藍，改用品牌暖橘，
+   用 !important 蓋過各模組舊有、選擇器特異度較高的按鈕顏色規則。 */
+.ds-btn-query {
+    background: var(--ds-cta) !important;
+    border-color: var(--ds-cta) !important;
+    color: #fff !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    box-shadow: 0 6px 16px rgba(255, 107, 53, 0.22);
+}
+
+.ds-btn-query:hover {
+    background: var(--ds-cta-hover) !important;
+    border-color: var(--ds-cta-hover) !important;
+    color: #fff !important;
+    box-shadow: 0 9px 22px rgba(255, 107, 53, 0.3);
+}
+
+.ds-btn-clear {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff !important;
+    border: 1px solid var(--ds-line, #E4DFD7) !important;
+    color: var(--ds-text-muted) !important;
+}
+
+.ds-btn-clear:hover {
+    background: var(--ds-bg) !important;
+    color: var(--ds-text-muted) !important;
+}
+
+/* 篩選條件區塊統一版型：「篩選條件」標題獨立一行放在最上面，下面另起一行——
+   關鍵字/搜尋欄位固定排最左側且優先取得空間（絕不是最窄的欄位），下拉/日期選單
+   依序排在右側；空間不夠時優先縮小下拉選單（flex-shrink），搜尋欄位維持原寬度
+   不縮水，盡量維持單行顯示，太窄時才整行換行。 */
+.ds-filter-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: var(--ds-space-3);
+}
+
+.ds-filter-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1 1 90px;
+    min-width: 90px;
+    max-width: 200px;
+}
+
+.ds-filter-field label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ds-text-muted);
+    white-space: nowrap;
+}
+
+.ds-filter-field select,
+.ds-filter-field input[type="date"],
+.ds-filter-field input[type="datetime-local"] {
+    width: 100%;
+    max-width: 320px;
+}
+
+/* 關鍵字/搜尋欄位＋查詢/清除按鈕這一組：grow 權重比下拉選單高（優先取得多餘空間），
+   shrink 設為 0（空間不夠時絕不縮小，下拉選單先讓步）。 */
+.ds-filter-search-group {
+    display: flex;
+    align-items: flex-end;
+    gap: var(--ds-space-3);
+    flex: 2 0 240px;
+}
+
+.ds-filter-search-group .ds-filter-field {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: none;
+}
+
+/* 關鍵字/搜尋欄位：撐滿所在欄位可用寬度，最大不超過畫面一半；空間不夠完整顯示
+   提示文字時，用刪節號優雅裁切，不強行撐大導致區塊溢出。 */
+.ds-search-input-fill {
+    width: 100%;
+    min-width: 0;
+    max-width: 50vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ds-filter-actions {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 8px;
+}
+
+/* ⑤ Table：取消每列邊框，只有 Hover 變色；表頭柔和淺灰底 */
+.ds-table-wrap {
+    background: var(--ds-card-bg);
+    border-radius: var(--ds-radius-card);
+    box-shadow: var(--ds-shadow);
+    overflow: hidden;
+}
+
+.ds-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 15px;
+    margin-bottom: 0;
+}
+
+.ds-table thead th {
+    background: #F7F9FC;
+    color: #556;
+    font-weight: 600;
+    border: none;
+    padding: var(--ds-space-3);
+    text-align: left;
+    white-space: nowrap;
+}
+
+.ds-table tbody td {
+    border: none;
+    border-bottom: 1px solid #F0F2F6;
+    padding: var(--ds-space-3);
+    vertical-align: middle;
+}
+
+.ds-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.ds-table tbody tr {
+    background: #fff;
+    transition: background-color .1s ease;
+}
+
+.ds-table tbody tr:hover {
+    background: #F8FAFF;
+}
+
+/* ⑥ Badge：柔和底色膠囊，取代 Bootstrap 預設實心徽章 */
+.ds-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 12px;
+    border-radius: var(--ds-radius-pill);
+    font-size: 13px;
+    font-weight: 600;
+    white-space: nowrap;
+    line-height: 1.4;
+}
+
+.ds-badge-success { background: var(--ds-success-soft); color: var(--ds-success); }
+.ds-badge-warning { background: var(--ds-warning-soft); color: var(--ds-warning); }
+.ds-badge-danger { background: var(--ds-danger-soft); color: var(--ds-danger); }
+.ds-badge-gray { background: var(--ds-gray-soft); color: var(--ds-gray); }
+.ds-badge-primary { background: var(--ds-primary-soft); color: var(--ds-primary); }
+.ds-badge-purple { background: var(--ds-purple-soft); color: var(--ds-purple); }
+
+/* ⑦ Icon 按鈕：圓形、無邊框，依動作類型 Hover 變色 */
+.ds-icon-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    color: var(--ds-text-muted);
+    transition: background-color .12s ease, color .12s ease;
+    text-decoration: none;
+}
+
+.ds-icon-btn:hover {
+    color: var(--ds-heading);
+    text-decoration: none;
+}
+
+.ds-icon-btn.ds-icon-btn-view:hover {
+    background: var(--ds-primary-soft);
+    color: var(--ds-primary);
+}
+
+.ds-icon-btn.ds-icon-btn-edit:hover {
+    background: var(--ds-cta-soft);
+    color: var(--ds-cta-hover);
+}
+
+.ds-icon-btn.ds-icon-btn-delete:hover,
+.ds-icon-btn.ds-icon-btn-danger:hover {
+    background: var(--ds-danger-soft);
+    color: var(--ds-danger);
+}
+
+/* ⑪ 分類標籤色系：依名稱穩定分配到 8 種柔和暖色，取代單一顏色的標籤，
+   提升瀏覽時的辨識度（例如餐廳標籤：台式料理、日式料理、咖啡廳...）。 */
+.ds-tag-c1 { background: #FFE9DE; color: #C0501F; }
+.ds-tag-c2 { background: #E4F5F0; color: #1F7A6B; }
+.ds-tag-c3 { background: #FFF0DC; color: #C76716; }
+.ds-tag-c4 { background: #F1ECF8; color: #6C5A8C; }
+.ds-tag-c5 { background: #FDE8E5; color: #B84438; }
+.ds-tag-c6 { background: #EAF2F5; color: #4E7286; }
+.ds-tag-c7 { background: #F4F1EC; color: #7B746C; }
+.ds-tag-c8 { background: #FBE7C6; color: #8A5A0D; }
+
+/* ⑫ Bootstrap 彈跳視窗（AdminMembers / Reports 使用原生 .modal）套上與其他
+   卡片一致的圓角、陰影、字級，僅改外觀，不影響開關/表單邏輯。 */
+.modal-content {
+    border: none;
+    border-radius: var(--ds-radius-card);
+    box-shadow: var(--ds-shadow-hover);
+}
+
+.modal-header {
+    border-bottom: 1px solid var(--ds-line);
+    padding: var(--ds-space-4);
+}
+
+.modal-header .modal-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--ds-heading);
+}
+
+.modal-body {
+    padding: var(--ds-space-4);
+    color: var(--ds-heading);
+}
+
+.modal-footer {
+    border-top: 1px solid var(--ds-line);
+    padding: var(--ds-space-3) var(--ds-space-4);
+}
+
+.modal-backdrop.show {
+    opacity: 0.55;
+    background: #2F2F2F;
+}
+
+.admin-content .btn-primary {
+    background: var(--ds-cta);
+    border-color: var(--ds-cta);
+}
+
+.admin-content .btn-primary:hover,
+.admin-content .btn-primary:focus {
+    background: var(--ds-cta-hover);
+    border-color: var(--ds-cta-hover);
+}
+
+/* ⑬ 詳情頁共用元件：卡片式標題列 + 兩欄資訊列，取代各模組各自的
+   `.card.shadow` + `<dl class="row">` 組合，只影響外觀。 */
+.ds-detail-card {
+    background: var(--ds-card-bg);
+    border-radius: var(--ds-radius-card);
+    box-shadow: var(--ds-shadow);
+    margin-bottom: var(--ds-space-4);
+    overflow: hidden;
+}
+
+.ds-detail-card-header {
+    padding: var(--ds-space-3) var(--ds-space-4);
+    border-bottom: 1px solid var(--ds-line);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--ds-heading);
+}
+
+.ds-detail-card-body {
+    padding: var(--ds-space-4);
+}
+
+.ds-info-row {
+    display: grid;
+    grid-template-columns: 120px minmax(0, 1fr);
+    gap: var(--ds-space-3);
+    padding: 10px 0;
+    border-bottom: 1px solid var(--ds-line);
+    font-size: 14px;
+}
+
+.ds-info-row:last-child {
+    border-bottom: none;
+}
+
+.ds-info-key {
+    color: var(--ds-text-muted);
+}
+
+@media (max-width: 640px) {
+    .ds-info-row {
+        grid-template-columns: 1fr;
+        gap: 4px;
+    }
+}

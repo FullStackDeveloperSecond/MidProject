@@ -3,10 +3,14 @@
     ViewData["Title"] = "Dashboard";
 }
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+@section Styles {
+    <link rel="stylesheet" href="~/css/design-system.css" asp-append-version="true" />
+}
+
+<div class="d-flex justify-content-between align-items-end mb-4">
     <div>
-        <h1 class="h3 mb-1">Dashboard</h1>
-        <p class="text-muted mb-0">快速掌握美食地圖後台目前的資料與待處理項目</p>
+        <h1 class="ds-h1 mb-0">Dashboard</h1>
+        <p class="ds-welcome mb-0">歡迎回來，Admin。今天共有 @Model.PendingReportCount 筆待處理檢舉案件</p>
     </div>
 </div>
 
@@ -16,33 +20,32 @@
         <div class="col-12 col-md-6 col-xl">
             @if (card.IsAvailable)
             {
-                <a class="dashboard-card card h-100 text-decoration-none text-reset border-start border-4 border-@card.AccentClass"
-                   href="@card.TargetUrl">
-                    <div class="card-body d-flex justify-content-between align-items-start gap-3">
-                        <div>
-                            <div class="text-uppercase small fw-semibold text-@card.AccentClass mb-2">@card.Title</div>
-                            <div class="display-6 fw-bold mb-2">@card.Count</div>
-                            <div class="text-muted small">@card.Description</div>
-                        </div>
-                        <span class="dashboard-card-icon text-@card.AccentClass"><i class="@card.IconClass"></i></span>
+                <a class="ds-stat-card text-decoration-none text-reset d-block h-100" href="@card.TargetUrl">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="ds-stat-label ds-accent-@card.AccentClass">@card.Title</div>
+                        <span class="ds-stat-icon ds-icon-@card.AccentClass"><i class="@card.IconClass"></i></span>
                     </div>
+                    <div class="ds-stat-value">@card.Count</div>
+                    <div class="ds-stat-caption">@card.Description</div>
+                    @if (!string.IsNullOrWhiteSpace(card.Trend))
+                    {
+                        <div class="ds-stat-trend ds-accent-@card.AccentClass">@card.Trend</div>
+                    }
                 </a>
             }
             else
             {
-                <div class="card h-100 border-start border-4 border-secondary bg-light">
-                    <div class="card-body d-flex justify-content-between align-items-start gap-3">
-                        <div>
-                            <div class="text-uppercase small fw-semibold text-secondary mb-2">@card.Title</div>
-                            <div class="display-6 fw-bold text-secondary mb-2">—</div>
-                            <div class="text-muted small">@card.Description</div>
-                            @if (!string.IsNullOrWhiteSpace(card.UnavailableReason))
-                            {
-                                <div class="small text-secondary mt-2">@card.UnavailableReason</div>
-                            }
-                        </div>
-                        <span class="dashboard-card-icon text-secondary"><i class="@card.IconClass"></i></span>
+                <div class="ds-stat-card h-100">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="ds-stat-label ds-muted">@card.Title</div>
+                        <span class="ds-stat-icon ds-icon-gray"><i class="@card.IconClass"></i></span>
                     </div>
+                    <div class="ds-stat-value ds-muted">—</div>
+                    <div class="ds-stat-caption">@card.Description</div>
+                    @if (!string.IsNullOrWhiteSpace(card.UnavailableReason))
+                    {
+                        <div class="ds-stat-caption ds-muted mt-1">@card.UnavailableReason</div>
+                    }
                 </div>
             }
         </div>

@@ -36,10 +36,6 @@
     --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC", "Microsoft JhengHei", "Noto Sans TC", sans-serif;
   }
 
-  *{ box-sizing: border-box; }
-  html,body{ margin:0; padding:0; }
-  body{ font-family: var(--sans); background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; }
-  button{ font-family: inherit; }
   ::selection{ background: var(--brand-bg); color: var(--brand-dark); }
 
   @media (prefers-reduced-motion: reduce){
@@ -65,17 +61,15 @@
   .sidebar .item.active{ background: rgba(29,158,117,0.1); border-left-color: var(--brand); color:#7FDDB8; font-weight:600; }
   .sidebar .item .ic{ width:16px; text-align:center; opacity:0.9; }
 
-  main{ flex:1; min-width:0; overflow-y:auto; padding: 22px 26px 60px; }
-
-  .page-title{ font-size:19px; font-weight:600; color: var(--text); margin: 0 0 3px; }
+  .page-title{ font-size:24px; font-weight:700; color: var(--text); margin: 0 0 3px; }
   .page-sub{ font-size:12.5px; color: var(--text-soft); margin: 0 0 18px; }
 
   .fade-in{ animation: fadeIn .28s ease both; }
   @keyframes fadeIn{ from{ opacity:0; transform: translateY(4px);} to{ opacity:1; transform:none; } }
 
   .stat-row{ display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:12px; margin-bottom:18px; }
-  .stat-card{ background: var(--surface); border:1px solid var(--border); border-radius: var(--radius-md); padding:14px 16px; display:flex; align-items:center; gap:12px; cursor:pointer; transition: border-color .15s, transform .15s; text-decoration:none; color:inherit; }
-  .stat-card:hover{ border-color:#C9C6BB; transform: translateY(-1px); }
+  .stat-card{ background: var(--surface); border:none; border-radius:16px; box-shadow: 0 6px 18px rgba(31,45,61,0.08); padding:14px 16px; display:flex; align-items:center; gap:12px; cursor:pointer; transition: box-shadow .15s, transform .15s; text-decoration:none; color:inherit; }
+  .stat-card:hover{ box-shadow: 0 10px 24px rgba(31,45,61,0.14); transform: translateY(-2px); }
   .stat-card .icon{ width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
   .stat-card .num{ font-size:23px; font-weight:700; line-height:1; }
   .stat-card .lbl{ font-size:11.5px; color: var(--text-soft); margin-top:4px; }
@@ -87,23 +81,23 @@
   .tab-count{ font-size:10.5px; background: var(--muted-bg); color: var(--text-soft); padding:1px 7px; border-radius:20px; }
   .tab-btn.active .tab-count{ background: var(--brand-bg); color: var(--brand-dark); }
 
-  .filter-row{ display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; }
-  .search-box{ flex:1; min-width:200px; padding:8px 12px; border:1px solid var(--border); border-radius: var(--radius-sm); font-size:13px; background: var(--surface); color: var(--text); }
+  .filter-row{ display:flex; gap:16px; margin-bottom:14px; flex-wrap:wrap; }
+  .search-box{ flex:1; min-width:200px; padding:.375rem .75rem; border:1px solid var(--border); border-radius: var(--radius-sm); font-size:16px; background: var(--surface); color: var(--text); }
   .search-box:focus{ outline:2px solid var(--brand); outline-offset:1px; border-color: var(--brand); }
-  select.f-select{ padding:8px 10px; border:1px solid var(--border); border-radius: var(--radius-sm); font-size:13px; background: var(--surface); color: var(--text); }
+  select.f-select{ padding:.375rem .75rem; border:1px solid var(--border); border-radius: var(--radius-sm); font-size:16px; background: var(--surface); color: var(--text); }
   select.f-select:focus{ outline:2px solid var(--brand); outline-offset:1px; }
 
-  .panel{ background: var(--surface); border:1px solid var(--border); border-radius: var(--radius-md); overflow:hidden; }
-  table{ width:100%; border-collapse:collapse; }
-  thead th{ text-align:left; font-size:11px; font-weight:600; color: var(--text-soft); background: #FAFAF7; padding:9px 12px; border-bottom:1px solid var(--border); white-space:nowrap; }
+  .panel{ background: var(--surface); border:none; border-radius:16px; box-shadow: 0 6px 18px rgba(31,45,61,0.08); overflow:hidden; }
+  table{ width:100%; border-collapse:collapse; font-size:15px; }
+  thead th{ text-align:left; font-weight:600; color:#556; background:#F7F9FC; padding:16px; border-bottom:none; white-space:nowrap; }
   .rv-sort-link{ color: var(--text-soft); text-decoration:none; cursor:pointer; white-space:nowrap; }
   .rv-sort-link:hover{ color: var(--brand-dark); }
   .rv-name-link{ color: var(--text); text-decoration:none; border-bottom:1px dashed var(--border); }
   .rv-name-link:hover{ color: var(--brand-dark); border-bottom-color: var(--brand-dark); }
-  tbody td{ padding:10px 12px; font-size:12.5px; border-bottom:1px solid var(--border); vertical-align:middle; }
+  tbody td{ padding:16px; border-bottom:1px solid #F0F2F6; vertical-align:middle; }
   tbody tr:last-child td{ border-bottom:none; }
   tbody tr.row-click{ cursor:pointer; }
-  tbody tr.row-click:hover{ background:#FBFBF9; }
+  tbody tr.row-click:hover{ background:#F8FAFF; }
   tbody tr.row-deleted td{ color: var(--text-faint); }
   tbody tr.row-deleted .content-line{ text-decoration:line-through; }
   tbody tr.row-pending{ background: #FFFCF3; }
@@ -121,19 +115,6 @@
   .empty-row td{ text-align:center; color: var(--text-faint); padding: 34px 12px; font-size:13px; }
 
   .hint-bar{ margin-top:12px; background: var(--brand-bg); color: var(--brand-dark); border-radius:8px; padding:9px 12px; font-size:11.5px; text-align:center; }
-
-  .rv-pagination{ display:flex; align-items:center; justify-content:space-between; margin-top:12px; font-size:11.5px; color: var(--text-soft); flex-wrap:wrap; gap:8px; }
-  .page-btns{ display:flex; gap:4px; }
-  .page-btn{ padding:4px 10px; border:1px solid var(--border); border-radius:4px; cursor:pointer; background:transparent; color: var(--text-soft); font-size:11px; text-decoration:none; display:inline-block; }
-  .page-btn.on{ background: var(--brand-bg); border-color:#A9CF8D; color: var(--brand-dark); font-weight:600; }
-  .page-btn.disabled{ pointer-events:none; opacity:0.4; }
-
-  .rv-breadcrumb{ font-size:12px; color: var(--text-soft); margin-bottom:14px; display:flex; align-items:center; gap:6px; }
-  .rv-breadcrumb .link{ color: var(--brand-dark); cursor:pointer; background:none; border:none; font: inherit; padding:0; text-decoration:none; }
-  .rv-breadcrumb .link:hover{ text-decoration:underline; }
-  .link{ color: var(--brand-dark); cursor:pointer; text-decoration:none; font-weight:600; }
-  .link:hover{ text-decoration:underline; }
-  .rv-breadcrumb .sep{ color: var(--text-faint); }
 
   .detail-grid{ display:grid; grid-template-columns: 1fr 300px; gap:16px; align-items:start; }
   @media (max-width: 860px){ .detail-grid{ grid-template-columns: 1fr; } }
@@ -219,3 +200,12 @@
   .rv-toast{ position:fixed; bottom:22px; left:50%; transform:translateX(-50%); background: var(--ink); color:#fff; font-size:12.5px; padding:10px 18px; border-radius:8px; box-shadow:0 10px 26px rgba(0,0,0,0.25); z-index:200; display:flex; align-items:center; gap:8px; animation: toastIn .22s ease both; }
   @keyframes toastIn{ from{ opacity:0; transform:translate(-50%,8px);} to{ opacity:1; transform:translate(-50%,0);} }
   .rv-toast .tk{ color:#7FDDB8; }
+
+  /* 「只顯示餐廳 #X 的評論」這種頁面內固定顯示的提示條，跟 .rv-toast（浮動、自動消失的
+     成功訊息）用途不同，故獨立一個 class，避免沿用 .rv-toast 的 position:fixed 置中位移
+     技巧（left:50% + translateX(-50%)）——那組技巧只在 position:fixed 的縮排寬度下正確，
+     若被其他地方覆寫成 position:static，寬度會變成撐滿容器，translateX(-50%) 反而把整條
+     往左移出畫面，變成一條看不到文字的全寬色塊。 */
+  .rv-filter-banner{ display:flex; align-items:center; gap:8px; background: var(--ink); color:#fff; font-size:12.5px; padding:10px 18px; border-radius:8px; margin-bottom:10px; }
+  .rv-filter-banner .tk{ color:#7FDDB8; }
+  .rv-filter-banner a{ margin-left:8px; color:#fff; text-decoration:underline; }

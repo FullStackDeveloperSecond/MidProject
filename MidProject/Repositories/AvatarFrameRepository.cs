@@ -2,16 +2,19 @@ using Microsoft.EntityFrameworkCore;
 using MidProject.Data;
 using MidProject.Models;
 using MidProject.Repositories.IRepositories;
+using MidProject.Services.IServices;
 
 namespace MidProject.Repositories;
 
 public class AvatarFrameRepository : IAvatarFrameRepository
 {
     private readonly AppDbContext _db;
+    private readonly ITaipeiClock _clock;
 
-    public AvatarFrameRepository(AppDbContext db)
+    public AvatarFrameRepository(AppDbContext db, ITaipeiClock clock)
     {
         _db = db;
+        _clock = clock;
     }
 
     public async Task<List<AvatarFrame>> GetAllAsync()
@@ -19,7 +22,8 @@ public class AvatarFrameRepository : IAvatarFrameRepository
         return await _db.AvatarFrames
             .Include(f => f.Image)
             .Where(f => !f.IsDeleted)
-            .OrderByDescending(f => f.CreatedAt)
+            .OrderBy(f => f.SortOrder)
+            .ThenByDescending(f => f.CreatedAt)
             .ToListAsync();
     }
 
@@ -54,47 +58,50 @@ public class AvatarFrameRepository : IAvatarFrameRepository
         await _db.SaveChangesAsync();
     }
 
-    public async Task ToggleActiveAsync(int id)
+    public async Task<bool> ToggleActiveAsync(int id)
     {
         var frame = await _db.AvatarFrames.FirstOrDefaultAsync(f => f.FrameID == id && !f.IsDeleted);
         if (frame == null)
         {
-            return;
+            return false;
         }
 
         frame.IsActive = !frame.IsActive;
-        frame.UpdatedAt = DateTime.Now;
+        frame.UpdatedAt = _clock.GetNow();
         await _db.SaveChangesAsync();
+        return true;
     }
 
-    public async Task SoftDeleteAsync(int id, int byMemberId)
+    public async Task<bool> SoftDeleteAsync(int id, int byMemberId)
     {
         var frame = await _db.AvatarFrames.FirstOrDefaultAsync(f => f.FrameID == id && !f.IsDeleted);
         if (frame == null)
         {
-            return;
+            return false;
         }
 
         frame.IsActive = false;
         frame.IsDeleted = true;
-        frame.DeletedAt = DateTime.Now;
+        frame.DeletedAt = _clock.GetNow();
         frame.DeletedBy = byMemberId;
         await _db.SaveChangesAsync();
+        return true;
     }
 
-    public async Task RestoreAsync(int id)
+    public async Task<bool> RestoreAsync(int id)
     {
         var frame = await _db.AvatarFrames.FirstOrDefaultAsync(f => f.FrameID == id && f.IsDeleted);
         if (frame == null)
         {
-            return;
+            return false;
         }
 
         frame.IsDeleted = false;
         frame.DeletedAt = null;
         frame.DeletedBy = null;
-        frame.UpdatedAt = DateTime.Now;
+        frame.UpdatedAt = _clock.GetNow();
         await _db.SaveChangesAsync();
+        return true;
     }
 
     public Task SaveChangesAsync() => _db.SaveChangesAsync();

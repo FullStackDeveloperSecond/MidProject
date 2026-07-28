@@ -2,22 +2,25 @@ using Microsoft.EntityFrameworkCore;
 using MidProject.Data;
 using MidProject.Models;
 using MidProject.Repositories.IRepositories;
+using MidProject.Services.IServices;
 
 namespace MidProject.Repositories
 {
     public class ReviewRepository : IReviewRepository
     {
         private readonly AppDbContext _db;
+        private readonly ITaipeiClock _clock;
 
-        public ReviewRepository(AppDbContext db)
+        public ReviewRepository(AppDbContext db, ITaipeiClock clock)
         {
             _db = db;
+            _clock = clock;
         }
 
         public async Task<(List<Review> Items, int TotalCount, int Page)> GetFilteredReviewsAsync(
-            string tab, string? search, int? rating, string time, string sortBy, string sortDir, int page, int pageSize)
+            string tab, string? search, int? rating, string time, string sortBy, string sortDir, int page, int pageSize, int? restaurantId = null)
         {
-            var query = BuildFilteredQuery(tab, search, rating, time);
+            var query = BuildFilteredQuery(tab, search, rating, time, restaurantId);
 
             var total = await query.CountAsync();
             var totalPages = Math.Max(1, (int)Math.Ceiling(total / (double)pageSize));
@@ -73,9 +76,15 @@ namespace MidProject.Repositories
                 .ToListAsync();
         }
 
-        public async Task<Image?> GetImageByIdAsync(int imageId)
+        public async Task<Image?> GetImageForReviewAsync(int imageId, int reviewId)
         {
-            return await _db.Images.FindAsync(imageId);
+            return await _db.ReviewImages
+                .Where(reviewImage =>
+                    reviewImage.ImageID == imageId &&
+                    reviewImage.ReviewID == reviewId &&
+                    reviewImage.Image!.ImageType == "ReviewImage")
+                .Select(reviewImage => reviewImage.Image)
+                .FirstOrDefaultAsync();
         }
 
         public async Task<Restaurant?> GetRestaurantByIdAsync(int restaurantId)
@@ -96,8 +105,10 @@ namespace MidProject.Repositories
         }
 
         /// <summary>對應規格書 4.2：全部要排除 IsDeleted = true，其餘依 Tab / 星等 / 時間 / 搜尋疊加篩選條件。
-        /// 一則評論視為「已刪除」的條件：自己被軟刪除，或所屬餐廳被停用（Restaurant.IsDeleted）。</summary>
-        private IQueryable<Review> BuildFilteredQuery(string tab, string? search, int? rating, string time)
+        /// 一則評論視為「已刪除」的條件：自己被軟刪除，或所屬餐廳被停用（Restaurant.IsDeleted）。
+        /// restaurantId 有值時只看該餐廳的評論，給餐廳詳細頁「這間餐廳的評論」這種精確篩選用，
+        /// 跟 search 用餐廳名稱模糊搜尋是兩種不同的使用情境，可以同時疊加。</summary>
+        private IQueryable<Review> BuildFilteredQuery(string tab, string? search, int? rating, string time, int? restaurantId = null)
         {
             var query = _db.Reviews
                 .Include(r => r.Member)
@@ -120,7 +131,7 @@ namespace MidProject.Repositories
             if (time != "all")
             {
                 var days = time == "7" ? 7 : 30;
-                var cutoff = DateTime.Now.AddDays(-days);
+                var cutoff = _clock.GetNow().AddDays(-days);
                 query = query.Where(r => r.CreatedAt >= cutoff);
             }
 
@@ -130,6 +141,11 @@ namespace MidProject.Repositories
                     (r.Content != null && r.Content.Contains(search)) ||
                     (r.Member!.NickName != null && r.Member.NickName.Contains(search)) ||
                     r.Restaurant!.Name.Contains(search));
+            }
+
+            if (restaurantId.HasValue)
+            {
+                query = query.Where(r => r.RestaurantID == restaurantId.Value);
             }
 
             return query;

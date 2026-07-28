@@ -4,7 +4,9 @@
 }
 
 @section Styles {
+    <link rel="stylesheet" href="~/css/design-system.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/restaurant-admin.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/shared-pagination.css" asp-append-version="true" />
 }
 
 <div class="ra-page">
@@ -25,16 +27,24 @@
 @section Scripts {
     <script src="~/js/restaurant-admin.js" asp-append-version="true"></script>
     <script>
-        document.getElementById('addRestaurantBtn').addEventListener('click', () => RestaurantAdmin.openCreateModal());
+        function bindCreateRestaurantButton() {
+            const button = document.getElementById('addRestaurantBtn');
+            if (button && !button.dataset.bound) {
+                button.dataset.bound = 'true';
+                button.addEventListener('click', () => RestaurantAdmin.openCreateModal());
+            }
+        }
         RestaurantAdmin.bindAjaxContent({
             contentId: 'raContent',
             overlayId: 'raContentOverlay',
             formId: 'filterForm',
             afterRender: function () {
+                bindCreateRestaurantButton();
                 document.querySelectorAll('.js-edit-btn').forEach(btn => {
                     btn.addEventListener('click', () => RestaurantAdmin.openEditModal(btn.dataset.id));
                 });
                 RestaurantAdmin.initFilterDistrictCascade();
+                RestaurantAdmin.initViewToggle();
             }
         });
     </script>

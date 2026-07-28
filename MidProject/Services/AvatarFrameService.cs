@@ -9,10 +9,14 @@ namespace MidProject.Services;
 
 public class AvatarFrameService : IAvatarFrameService
 {
+    private const int PageSize = 10;
+    private static readonly HashSet<string> AllowedRarities = new() { "Common", "Rare", "Limited" };
+
     private readonly IAvatarFrameRepository _frameRepository;
     private readonly IImageUploadService _imageUploadService;
     private readonly IImageLifecycleService _imageLifecycleService;
     private readonly AppDbContext _dbContext;
+    private readonly ITaipeiClock _clock;
     private readonly ILogger<AvatarFrameService> _logger;
 
     public AvatarFrameService(
@@ -20,32 +24,63 @@ public class AvatarFrameService : IAvatarFrameService
         IImageUploadService imageUploadService,
         IImageLifecycleService imageLifecycleService,
         AppDbContext dbContext,
+        ITaipeiClock clock,
         ILogger<AvatarFrameService> logger)
     {
         _frameRepository = frameRepository;
         _imageUploadService = imageUploadService;
         _imageLifecycleService = imageLifecycleService;
         _dbContext = dbContext;
+        _clock = clock;
         _logger = logger;
     }
 
-    public async Task<AvatarFramesIndexViewModel> GetIndexAsync()
+    public async Task<AvatarFramesIndexViewModel> GetIndexAsync(
+        string? keyword, string? rarity, bool? isActive, string? sortBy, int page)
     {
-        var frames = await _frameRepository.GetAllAsync();
+        var framesQuery = _dbContext.AvatarFrames
+            .Include(f => f.Image)
+            .Where(f => !f.IsDeleted);
+
+        if (!string.IsNullOrWhiteSpace(keyword))
+            framesQuery = framesQuery.Where(f => f.Name.Contains(keyword));
+        if (!string.IsNullOrWhiteSpace(rarity))
+            framesQuery = framesQuery.Where(f => f.Rarity == rarity);
+        if (isActive.HasValue)
+            framesQuery = framesQuery.Where(f => f.IsActive == isActive.Value);
+
+        var resolvedSort = sortBy is "priceAsc" or "priceDesc" or "name" ? sortBy : "newest";
+        framesQuery = resolvedSort switch
+        {
+            "priceAsc" => framesQuery.OrderBy(f => f.PointsPrice).ThenBy(f => f.FrameID),
+            "priceDesc" => framesQuery.OrderByDescending(f => f.PointsPrice).ThenBy(f => f.FrameID),
+            "name" => framesQuery.OrderBy(f => f.Name).ThenBy(f => f.FrameID),
+            _ => framesQuery.OrderByDescending(f => f.CreatedAt).ThenBy(f => f.FrameID)
+        };
+
+        var totalItems = await framesQuery.CountAsync();
+        var totalPages = Math.Max(1, (int)Math.Ceiling(totalItems / (double)PageSize));
+        var currentPage = Math.Clamp(page, 1, totalPages);
+        var frames = await framesQuery
+            .Skip((currentPage - 1) * PageSize)
+            .Take(PageSize)
+            .ToListAsync();
         var redemptionCounts = await _frameRepository.GetRedemptionCountsAsync();
 
-        var monthStart = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
-        var monthlyRedemptions = await _dbContext.PointsTransactions
-            .Where(t => t.Type == "Redeem" && t.CreatedAt >= monthStart)
-            .ToListAsync();
+        var now = _clock.GetNow();
+        var monthStart = new DateTime(now.Year, now.Month, 1);
+        var monthlyQuery = _dbContext.PointsTransactions
+            .Where(t => t.Type == "Redeem" && t.CreatedAt >= monthStart);
+        var monthlyRedemptionCount = await monthlyQuery.CountAsync();
+        var monthlyPointsSpent = -(await monthlyQuery.SumAsync(t => t.Amount));
 
         return new AvatarFramesIndexViewModel
         {
-            TotalCount = frames.Count,
-            ActiveCount = frames.Count(f => f.IsActive),
-            AveragePointsPrice = frames.Count > 0 ? frames.Average(f => f.PointsPrice) : 0,
-            MonthlyRedemptionCount = monthlyRedemptions.Count,
-            MonthlyPointsSpent = -monthlyRedemptions.Sum(t => t.Amount),
+            TotalCount = await _dbContext.AvatarFrames.CountAsync(f => !f.IsDeleted),
+            ActiveCount = await _dbContext.AvatarFrames.CountAsync(f => !f.IsDeleted && f.IsActive),
+            AveragePointsPrice = await _dbContext.AvatarFrames.Where(f => !f.IsDeleted).Select(f => (double?)f.PointsPrice).AverageAsync() ?? 0,
+            MonthlyRedemptionCount = monthlyRedemptionCount,
+            MonthlyPointsSpent = monthlyPointsSpent,
             Frames = frames.Select(f => new AvatarFrameRowViewModel
             {
                 FrameID = f.FrameID,
@@ -55,24 +90,64 @@ public class AvatarFrameService : IAvatarFrameService
                 IsActive = f.IsActive,
                 ImageUrl = f.Image?.ImageURL,
                 RedeemedCount = redemptionCounts.TryGetValue(f.FrameID, out var count) ? count : 0
-            }).ToList()
+            }).ToList(),
+            Keyword = keyword,
+            Rarity = rarity,
+            IsActive = isActive,
+            SortBy = resolvedSort,
+            CurrentPage = currentPage,
+            TotalItems = totalItems,
+            PageSize = PageSize
         };
     }
 
-    public async Task<List<AvatarFrameDeletedRowViewModel>> GetDeletedIndexAsync()
+    public async Task<AvatarFramesDeletedIndexViewModel> GetDeletedIndexAsync(
+        string? keyword, string? rarity, string? sortBy, int page)
     {
-        var frames = await _frameRepository.GetDeletedAsync();
+        var framesQuery = _dbContext.AvatarFrames
+            .Include(f => f.Image)
+            .Include(f => f.DeletedByMember)
+            .Where(f => f.IsDeleted);
 
-        return frames.Select(f => new AvatarFrameDeletedRowViewModel
+        if (!string.IsNullOrWhiteSpace(keyword))
+            framesQuery = framesQuery.Where(f => f.Name.Contains(keyword));
+        if (!string.IsNullOrWhiteSpace(rarity))
+            framesQuery = framesQuery.Where(f => f.Rarity == rarity);
+
+        var resolvedSort = sortBy is "name" or "price" ? sortBy : "deletedAt";
+        framesQuery = resolvedSort switch
         {
-            FrameID = f.FrameID,
-            Name = f.Name,
-            Rarity = f.Rarity,
-            PointsPrice = f.PointsPrice,
-            ImageUrl = f.Image?.ImageURL,
-            DeletedAt = f.DeletedAt,
-            DeletedByName = f.DeletedByMember?.NickName ?? f.DeletedByMember?.UserName
-        }).ToList();
+            "name" => framesQuery.OrderBy(f => f.Name).ThenBy(f => f.FrameID),
+            "price" => framesQuery.OrderByDescending(f => f.PointsPrice).ThenBy(f => f.FrameID),
+            _ => framesQuery.OrderByDescending(f => f.DeletedAt).ThenBy(f => f.FrameID)
+        };
+
+        var totalItems = await framesQuery.CountAsync();
+        var totalPages = Math.Max(1, (int)Math.Ceiling(totalItems / (double)PageSize));
+        var currentPage = Math.Clamp(page, 1, totalPages);
+        var frames = await framesQuery.Skip((currentPage - 1) * PageSize).Take(PageSize).ToListAsync();
+
+        return new AvatarFramesDeletedIndexViewModel
+        {
+            TotalDeletedCount = await _dbContext.AvatarFrames.CountAsync(f => f.IsDeleted),
+            MostRecentDeletedAt = await _dbContext.AvatarFrames.Where(f => f.IsDeleted).MaxAsync(f => f.DeletedAt),
+            Frames = frames.Select(f => new AvatarFrameDeletedRowViewModel
+            {
+                FrameID = f.FrameID,
+                Name = f.Name,
+                Rarity = f.Rarity,
+                PointsPrice = f.PointsPrice,
+                ImageUrl = f.Image?.ImageURL,
+                DeletedAt = f.DeletedAt,
+                DeletedByName = f.DeletedByMember?.NickName ?? f.DeletedByMember?.UserName
+            }).ToList(),
+            Keyword = keyword,
+            Rarity = rarity,
+            SortBy = resolvedSort,
+            CurrentPage = currentPage,
+            TotalItems = totalItems,
+            PageSize = PageSize
+        };
     }
 
     public async Task<AvatarFrameFormViewModel?> GetForEditAsync(int id)
@@ -90,6 +165,7 @@ public class AvatarFrameService : IAvatarFrameService
             Description = frame.Description,
             Rarity = frame.Rarity,
             PointsPrice = frame.PointsPrice,
+            SortOrder = frame.SortOrder,
             IsActive = frame.IsActive,
             ExistingImageId = frame.ImageID,
             ExistingImageUrl = frame.Image?.ImageURL
@@ -98,6 +174,11 @@ public class AvatarFrameService : IAvatarFrameService
 
     public async Task<(bool Success, string? Error)> CreateAsync(AvatarFrameFormViewModel form, int adminId)
     {
+        if (!AllowedRarities.Contains(form.Rarity))
+        {
+            return (false, "分類只能是 Common、Rare 或 Limited。");
+        }
+
         if (form.ImageFile == null)
         {
             return (false, "請上傳外框圖片。");
@@ -116,24 +197,38 @@ public class AvatarFrameService : IAvatarFrameService
         try
         {
             await using var transaction = await _dbContext.Database.BeginTransactionAsync();
-            _dbContext.Images.Add(image);
-            await _dbContext.SaveChangesAsync();
-
-            await _frameRepository.AddAsync(new AvatarFrame
+            try
             {
-                Name = form.Name.Trim(),
-                Description = string.IsNullOrWhiteSpace(form.Description) ? null : form.Description.Trim(),
-                Rarity = form.Rarity,
-                PointsPrice = form.PointsPrice,
-                IsActive = form.IsActive,
-                ImageID = image.ImageID
-            });
+                _dbContext.Images.Add(image);
+                await _dbContext.SaveChangesAsync();
 
-            await transaction.CommitAsync();
+                var now = _clock.GetNow();
+                await _frameRepository.AddAsync(new AvatarFrame
+                {
+                    Name = form.Name.Trim(),
+                    Description = string.IsNullOrWhiteSpace(form.Description) ? null : form.Description.Trim(),
+                    Rarity = form.Rarity,
+                    PointsPrice = form.PointsPrice,
+                    SortOrder = form.SortOrder,
+                    IsActive = form.IsActive,
+                    ImageID = image.ImageID,
+                    CreatedAt = now,
+                    UpdatedAt = now
+                });
+
+                await transaction.CommitAsync();
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
         catch (Exception exception)
         {
             _dbContext.ChangeTracker.Clear();
+            // DB 交易無法建立或交易內容失敗時，清除已經寫入硬碟的檔案，
+            // 避免留下資料庫裡完全沒有紀錄指向的孤兒檔案。
             await _imageUploadService.DeleteAsync(image.ImageURL);
             _logger.LogError(
                 exception,
@@ -148,12 +243,19 @@ public class AvatarFrameService : IAvatarFrameService
 
     public async Task<(bool Success, string? Error)> UpdateAsync(int id, AvatarFrameFormViewModel form, int adminId)
     {
+        if (!AllowedRarities.Contains(form.Rarity))
+        {
+            return (false, "分類只能是 Common、Rare 或 Limited。");
+        }
+
         var frame = await _frameRepository.GetByIdAsync(id);
         if (frame == null)
         {
             return (false, "找不到這個商品。");
         }
 
+        // 圖片實際寫入硬碟這一步沒辦法被 DB 交易保護，所以先做，並記住檔案路徑，
+        // 讓下面的交易失敗時可以呼叫 DeleteAsync 手動清掉，不留孤兒檔案。
         Image? newImage = null;
         if (form.ImageFile != null)
         {
@@ -167,36 +269,49 @@ public class AvatarFrameService : IAvatarFrameService
             }
         }
 
-        var previousImageId = newImage is null ? null : frame.ImageID;
+        var oldImageId = frame.ImageID;
+        var now = _clock.GetNow();
+
+        // 商品欄位更新、新圖片寫入 DB、舊圖片軟刪除，三步驟包在同一個交易裡：
+        // 要嘛全部成功，要嘛全部回滾，不會出現「Frame 已經指向新圖但舊圖沒被標記刪除」
+        // 或「新圖片資料寫進去了但 Frame 欄位沒更新」這種中間狀態。
         try
         {
             await using var transaction = await _dbContext.Database.BeginTransactionAsync();
-
-            frame.Name = form.Name.Trim();
-            frame.Description = string.IsNullOrWhiteSpace(form.Description) ? null : form.Description.Trim();
-            frame.Rarity = form.Rarity;
-            frame.PointsPrice = form.PointsPrice;
-            frame.IsActive = form.IsActive;
-            frame.UpdatedAt = DateTime.Now;
-
-            if (newImage is not null)
+            try
             {
-                _dbContext.Images.Add(newImage);
-                await _dbContext.SaveChangesAsync();
-                frame.ImageID = newImage.ImageID;
-            }
+                frame.Name = form.Name.Trim();
+                frame.Description = string.IsNullOrWhiteSpace(form.Description) ? null : form.Description.Trim();
+                frame.Rarity = form.Rarity;
+                frame.PointsPrice = form.PointsPrice;
+                frame.SortOrder = form.SortOrder;
+                frame.IsActive = form.IsActive;
+                frame.UpdatedAt = now;
 
-            await _frameRepository.SaveChangesAsync();
-            await transaction.CommitAsync();
+                if (newImage != null)
+                {
+                    _dbContext.Images.Add(newImage);
+                    await _dbContext.SaveChangesAsync();
+                    frame.ImageID = newImage.ImageID;
+                }
+
+                await _frameRepository.SaveChangesAsync();
+
+                await transaction.CommitAsync();
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
         }
         catch (Exception exception)
         {
             _dbContext.ChangeTracker.Clear();
-            if (newImage is not null)
+            if (newImage != null)
             {
                 await _imageUploadService.DeleteAsync(newImage.ImageURL);
             }
-
             _logger.LogError(
                 exception,
                 "Avatar frame update failed; Operation=AvatarFrameUpdate; FrameID={FrameID}; AdminID={AdminID}; ExceptionType={ExceptionType}",
@@ -206,17 +321,17 @@ public class AvatarFrameService : IAvatarFrameService
             return (false, "商品更新失敗，已回復資料並清理本次上傳檔案，請稍後再試。");
         }
 
-        if (previousImageId.HasValue)
+        if (newImage != null && oldImageId.HasValue)
         {
-            await _imageLifecycleService.CleanupIfUnreferencedAsync([previousImageId.Value], adminId);
+            await _imageLifecycleService.CleanupIfUnreferencedAsync([oldImageId.Value], adminId);
         }
 
         return (true, null);
     }
 
-    public Task ToggleActiveAsync(int id) => _frameRepository.ToggleActiveAsync(id);
+    public Task<bool> ToggleActiveAsync(int id) => _frameRepository.ToggleActiveAsync(id);
 
-    public Task DeleteAsync(int id, int adminId) => _frameRepository.SoftDeleteAsync(id, adminId);
+    public Task<bool> DeleteAsync(int id, int adminId) => _frameRepository.SoftDeleteAsync(id, adminId);
 
-    public Task RestoreAsync(int id) => _frameRepository.RestoreAsync(id);
+    public Task<bool> RestoreAsync(int id) => _frameRepository.RestoreAsync(id);
 }

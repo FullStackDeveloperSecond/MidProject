@@ -8,14 +8,12 @@ namespace MidProject.Services;
 public class TagService : ITagService
 {
     private readonly ITagRepository _tagRepository;
-    private readonly ICurrentAdminAccessor _currentAdmin;
+    private readonly IRestaurantRepository _restaurantRepository;
 
-    public TagService(
-        ITagRepository tagRepository,
-        ICurrentAdminAccessor currentAdmin)
+    public TagService(ITagRepository tagRepository, IRestaurantRepository restaurantRepository)
     {
         _tagRepository = tagRepository;
-        _currentAdmin = currentAdmin;
+        _restaurantRepository = restaurantRepository;
     }
 
     public async Task<TagsIndexViewModel> GetIndexAsync()
@@ -38,7 +36,7 @@ public class TagService : ITagService
         };
     }
 
-    public async Task<(bool Success, string? Error)> CreateAsync(string name)
+    public async Task<(bool Success, string? Error)> CreateAsync(string name, int adminId)
     {
         var trimmed = (name ?? string.Empty).Trim();
         if (string.IsNullOrEmpty(trimmed))
@@ -51,7 +49,7 @@ public class TagService : ITagService
         {
             if (existing.IsDeleted)
             {
-                await _tagRepository.ToggleAsync(existing.TagID, _currentAdmin.MemberID);
+                await _tagRepository.ToggleAsync(existing.TagID, adminId);
             }
 
             return (true, null);
@@ -61,8 +59,13 @@ public class TagService : ITagService
         return (true, null);
     }
 
-    public async Task ToggleAsync(int id)
+    public async Task<bool> ToggleAsync(int id, int adminId)
     {
-        await _tagRepository.ToggleAsync(id, _currentAdmin.MemberID);
+        var tag = await _tagRepository.GetByIdAsync(id);
+        if (tag == null) return false;
+        await _tagRepository.ToggleAsync(id, adminId);
+        return true;
     }
+
+    public Task<bool> ReorderAsync(IReadOnlyList<int> orderedIds) => _tagRepository.ReorderAsync(orderedIds);
 }

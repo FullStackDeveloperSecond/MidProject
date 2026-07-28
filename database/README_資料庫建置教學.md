@@ -127,18 +127,13 @@ EF CLI 與 SQL 腳本二選一即可，不要重複執行兩種方式。
 
 ### 已有資料庫的組員：檢舉結果多收件者通知
 
-拉到包含 `20260727121449_AllowPerRecipientReportNotifications` 的版本後，
-建議直接執行 EF CLI。這個 Migration 會把通知的檢舉來源唯一索引改為
+`20260727083522_UniqueSourceReportPerMember` 會把通知的檢舉來源唯一索引改為
 `ReportID + Outcome + MemberID`，讓檢舉成立時可分別通知檢舉者與被檢舉內容擁有者，
 同時避免同一收件者收到重複的同結果通知。
 
-無法使用 EF CLI 時，請在既有 `MidProjectDb` 執行：
-
-```text
-database/20260727121449_AllowPerRecipientReportNotifications.sql
-```
-
-EF CLI 與 SQL 腳本二選一即可，不要重複執行兩種方式。
+建議使用 EF CLI 更新。無法使用 EF CLI 時，可在既有資料庫執行
+`database/MidProject_CreateDatabaseAndSchema.sql`；該腳本為 idempotent，只會套用
+`__EFMigrationsHistory` 尚未記錄的 migration。
 
 ### 已有資料庫的組員：強化點數異動規則
 
@@ -165,6 +160,19 @@ database/20260727160000_StrengthenPointsTransactionRules.sql
 新限制會保證兌換為負數、獲得點數為正數、管理員調整不得為零，且只有管理員調整
 必須記錄 `CreatedBy`。
 
+### 已有資料庫的組員：新增 Tags.SortOrder
+
+`20260728070110_AddTagSortOrder` 會新增
+`Tags.SortOrder int NOT NULL DEFAULT 0`，供後台標籤拖曳排序使用。
+
+建議使用 EF CLI；無法使用 EF CLI 時，請在既有 `MidProjectDb` 執行：
+
+```text
+database/20260728070110_AddTagSortOrder.sql
+```
+
+EF CLI 和這份 SQL 二選一即可，不要重複執行。
+
 ---
 
 ## 2. 替代方式：SQL 腳本
@@ -175,12 +183,12 @@ database/20260727160000_StrengthenPointsTransactionRules.sql
 database/MidProject_CreateDatabaseAndSchema.sql
 ```
 
-這份會做：
+請先建立並切換到目標資料庫，再執行這份腳本。它會：
 
 ```text
-1. 如果沒有 MidProjectDb，就建立資料庫
-2. USE MidProjectDb
-3. 建立 EF Core Migration 產生的所有資料表 / FK / Index / Check Constraints
+1. 建立 __EFMigrationsHistory（若尚不存在）
+2. 依序套用尚未執行的 Migration
+3. 建立或更新資料表 / FK / Index / Check Constraints
 4. 寫入 __EFMigrationsHistory
 ```
 

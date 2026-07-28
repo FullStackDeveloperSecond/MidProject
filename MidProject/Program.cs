@@ -37,6 +37,7 @@ builder.Logging.AddProvider(new NotificationAuditFileLoggerProvider(
     TimeProvider.System));
 
 builder.Services.AddControllersWithViews();
+builder.Services.AddHttpContextAccessor();
 
 var notificationIdentityMode = NotificationIdentityModeSelection.Parse(
     Environment.GetEnvironmentVariable("Notifications__IdentityMode"));
@@ -47,8 +48,6 @@ builder.Services.AddScoped<IRestaurantRepository, RestaurantRepository>();
 builder.Services.AddScoped<ITagRepository, TagRepository>();
 builder.Services.AddScoped<IRestaurantService, RestaurantService>();
 builder.Services.AddScoped<ITagService, TagService>();
-builder.Services.AddScoped<IImageUploadService, ImageUploadService>();
-builder.Services.AddScoped<IImageLifecycleService, ImageLifecycleService>();
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 if (string.IsNullOrWhiteSpace(connectionString))
@@ -61,6 +60,8 @@ if (string.IsNullOrWhiteSpace(connectionString))
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(connectionString));
 
+builder.Services.AddScoped<AdminCookieAuthenticationEvents>();
+
 //���U Cookie ���ҪA��
 builder.Services.AddAuthentication(Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
@@ -68,6 +69,7 @@ builder.Services.AddAuthentication(Microsoft.AspNetCore.Authentication.Cookies.C
         // �p�G���n�J�ξ��ҥ��ġA�|�۰ʸ���ܦ����|
         options.LoginPath = "/Account/Login";
         options.AccessDeniedPath = "/Account/AccessDenied";
+        options.EventsType = typeof(AdminCookieAuthenticationEvents);
     });
 
 builder.Services.AddScoped<IReportRepository, ReportRepository>();
@@ -80,7 +82,8 @@ builder.Services.AddScoped<IReviewService, ReviewService>();
 builder.Services.AddScoped<IAvatarFrameRepository, AvatarFrameRepository>();
 builder.Services.AddScoped<IAvatarFrameService, AvatarFrameService>();
 builder.Services.AddScoped<IPointsStoreRedemptionService, PointsStoreRedemptionService>();
-builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<IImageUploadService, ImageUploadService>();
+builder.Services.AddScoped<IImageLifecycleService, ImageLifecycleService>();
 if (notificationIdentityMode.Mode == NotificationIdentityMode.DevelopmentTemporary)
 {
     builder.Services.AddSingleton<DevelopmentTemporaryTrustedMemberIdentityAccessor>();
@@ -90,6 +93,7 @@ if (notificationIdentityMode.Mode == NotificationIdentityMode.DevelopmentTempora
 }
 else
 {
+    // AccountLogin：Account/Login 整合正式接上，讀取 AccountController.Login 簽發的 Cookie Claims
     builder.Services.AddScoped<ITrustedMemberIdentityAccessor, AccountLoginTrustedMemberIdentityAccessor>();
 }
 builder.Services.AddSingleton(TimeProvider.System);
@@ -104,6 +108,17 @@ builder.Services.AddScoped<ICurrentAdminAccessor, CurrentAdminAccessor>();
 builder.Services.AddScoped<IReportNotificationWindow, ReportNotificationWindow>();
 builder.Services.AddScoped<IDashboardNotificationWindow, DashboardNotificationWindow>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
+
+// 會員模組（haru）— Repository + Service 分層，比照其他模組：Controller 只碰 IMemberService，不直接用 AppDbContext
+builder.Services.AddScoped<IMemberRepository, MemberRepository>();
+builder.Services.AddScoped<IMemberService, MemberService>();
+
+// 會員自動懲處：批次邏輯本體是 Scoped 服務，排程背景服務每 30 秒呼叫一次當安全網，
+// 管理員也可以在會員列表/編輯頁按「立即重新檢查」手動觸發同一份邏輯（AdminMembersController.RecalculateEscalation）。
+// 不再放在 AdminMembersController 的 Index/Edit（GET）裡順便觸發寫入資料庫。
+builder.Services.AddScoped<IMemberEscalationService, MemberEscalationService>();
+builder.Services.AddHostedService<MemberEscalationBackgroundService>();
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment() && builder.Configuration.GetValue<bool>("SeedData:Enabled"))

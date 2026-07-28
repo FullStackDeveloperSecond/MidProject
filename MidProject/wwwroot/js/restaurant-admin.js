@@ -38,7 +38,7 @@ const RestaurantAdmin = (() => {
                 });
             }
 
-            content.querySelectorAll(".pager a").forEach(link => {
+            content.querySelectorAll(".sp-pagination .page-link").forEach(link => {
                 link.addEventListener("click", (e) => {
                     e.preventDefault();
                     navigate(link.getAttribute("href"));
@@ -445,6 +445,14 @@ const RestaurantAdmin = (() => {
                     body: new FormData(form)
                 });
 
+                if (response.status === 403) {
+                    toast("無法識別管理員身分，請重新登入後再試。");
+                    if (submitButton) {
+                        submitButton.disabled = false;
+                    }
+                    return;
+                }
+
                 const text = await response.text();
                 let json = null;
                 try {
@@ -463,6 +471,10 @@ const RestaurantAdmin = (() => {
                         // exactly where the user was, filters and all.
                         window.location.reload();
                     } else {
+                        // The list page is kept in the browser back-forward cache.
+                        // Remove the modal before leaving so returning to the filtered
+                        // list cannot revive the already-completed create form.
+                        closeModal();
                         window.location.href = json.redirectUrl;
                     }
                     return;
@@ -543,6 +555,142 @@ const RestaurantAdmin = (() => {
         }
     }
 
+    // ---- 餐廳一覽：表格 / 卡片檢視切換（純前端顯示形式切換，選擇記在 localStorage） ----
+
+    const VIEW_STORAGE_KEY = "ra-restaurant-view";
+
+    function initViewToggle() {
+        const buttons = document.querySelectorAll(".js-view-btn");
+        const panels = document.querySelectorAll(".js-view-panel");
+        if (!buttons.length || !panels.length) return;
+
+        function applyView(view) {
+            buttons.forEach(btn => {
+                const active = btn.dataset.view === view;
+                btn.classList.toggle("active", active);
+                btn.setAttribute("aria-pressed", active ? "true" : "false");
+            });
+            panels.forEach(panel => {
+                panel.hidden = panel.dataset.view !== view;
+            });
+        }
+
+        buttons.forEach(btn => {
+            btn.addEventListener("click", () => {
+                const view = btn.dataset.view;
+                window.localStorage.setItem(VIEW_STORAGE_KEY, view);
+                applyView(view);
+            });
+        });
+
+        applyView(window.localStorage.getItem(VIEW_STORAGE_KEY) || "table");
+    }
+
+    // ---- 通用確認視窗（例如：解除停用餐廳前的二次確認） ----
+
+    function openConfirmModal(options) {
+        const root = modalRoot();
+        if (!root) return;
+        const confirmLabel = options.confirmLabel || "確定";
+        const confirmClass = options.danger ? "btn-danger" : "btn-primary";
+
+        // Message/title may come from user-entered data (e.g. a restaurant name), so
+        // they're set via textContent below rather than interpolated into this HTML
+        // string, to avoid re-introducing an XSS hole through this shared helper.
+        root.innerHTML = `
+            <div class="ra-modal confirm-modal" role="alertdialog" aria-modal="true">
+                <div class="modal-body">
+                    <p data-confirm-message></p>
+                </div>
+                <div class="modal-foot">
+                    <button type="button" class="btn" data-confirm="cancel">取消</button>
+                    <button type="button" class="btn ${confirmClass}" data-confirm="ok">${confirmLabel}</button>
+                </div>
+            </div>`;
+        root.querySelector(".ra-modal").setAttribute("aria-label", options.title || "確認");
+        root.querySelector("[data-confirm-message]").textContent = options.message || "確定要執行這個操作嗎？";
+        root.classList.add("open");
+        root.setAttribute("aria-hidden", "false");
+        bindModalChrome();
+
+        root.querySelector("[data-confirm='cancel']").onclick = () => closeModal();
+        root.querySelector("[data-confirm='ok']").onclick = () => {
+            closeModal();
+            if (typeof options.onConfirm === "function") {
+                options.onConfirm();
+            }
+        };
+    }
+
+    // ---- 餐廳標籤一覽：Pinterest 風格拖曳排序 ----
+
+    function initTagReorder(reorderUrl, antiForgeryToken) {
+        const grid = document.querySelector(".tag-grid[data-reorderable]");
+        if (!grid) return;
+
+        let dragged = null;
+
+        grid.querySelectorAll(".tag-card:not(.inactive)").forEach(card => {
+            card.setAttribute("draggable", "true");
+
+            card.addEventListener("dragstart", () => {
+                dragged = card;
+                card.classList.add("dragging");
+            });
+
+            card.addEventListener("dragend", () => {
+                card.classList.remove("dragging");
+                grid.querySelectorAll(".tag-card").forEach(c => c.classList.remove("drag-over"));
+            });
+
+            card.addEventListener("dragover", event => {
+                if (!dragged || dragged === card) return;
+                event.preventDefault();
+                card.classList.add("drag-over");
+            });
+
+            card.addEventListener("dragleave", () => {
+                card.classList.remove("drag-over");
+            });
+
+            card.addEventListener("drop", event => {
+                event.preventDefault();
+                card.classList.remove("drag-over");
+                if (!dragged || dragged === card) return;
+
+                const cards = Array.from(grid.querySelectorAll(".tag-card:not(.inactive)"));
+                const draggedIndex = cards.indexOf(dragged);
+                const targetIndex = cards.indexOf(card);
+                if (draggedIndex < targetIndex) {
+                    card.after(dragged);
+                } else {
+                    card.before(dragged);
+                }
+
+                const orderedIds = Array.from(grid.querySelectorAll(".tag-card:not(.inactive)"))
+                    .map(c => c.dataset.tagId);
+
+                const body = new URLSearchParams();
+                orderedIds.forEach(id => body.append("orderedIds", id));
+                body.append("__RequestVerificationToken", antiForgeryToken);
+
+                fetch(reorderUrl, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                    body: body.toString()
+                }).then(res => {
+                    if (res.ok) {
+                        toast("已更新標籤排序，餐廳列表的標籤顯示順序將同步更新。");
+                    } else {
+                        toast("排序儲存失敗，請重新整理後再試一次。");
+                    }
+                }).catch(() => {
+                    toast("排序儲存失敗，請重新整理後再試一次。");
+                });
+            });
+        });
+    }
+
     function initFilterDistrictCascade() {
         const citySelect = document.getElementById("filterCitySelect");
         const districtSelect = document.getElementById("filterDistrictSelect");
@@ -587,6 +735,9 @@ const RestaurantAdmin = (() => {
         closeModal,
         toast,
         bindAjaxContent,
-        initFilterDistrictCascade
+        initFilterDistrictCascade,
+        initViewToggle,
+        openConfirmModal,
+        initTagReorder
     };
 })();

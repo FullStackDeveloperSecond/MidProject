@@ -1,105 +1,65 @@
 @model MidProject.Models.DTOs.ReportDashboardDto
 
 @{
-    ViewData["Title"] = "檢舉總攬";
+    ViewData["Title"] = "檢舉統計";
 }
 
-<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
-    <div>
-        <h1 class="h3 mb-1">檢舉統計</h1>
-        <p class="text-muted mb-0">檢視檢舉處理狀態與每月案件趨勢</p>
-    </div>
-    <nav aria-label="breadcrumb">
-        <ol class="breadcrumb bg-transparent mb-0 p-0">
-            <li class="breadcrumb-item"><a asp-controller="Home" asp-action="Index">HOME</a></li>
-            <li class="breadcrumb-item active">回報</li>
-        </ol>
-    </nav>
+@section Styles {
+    <link rel="stylesheet" href="~/css/design-system.css" asp-append-version="true" />
+}
+
+<div class="ds-page-header">
+    <h1 class="ds-h2 mb-1">檢舉統計</h1>
+    <p>檢視檢舉處理狀態與每月案件趨勢</p>
 </div>
 
-<h6 class="text-muted mb-3">累計</h6>
+<div class="ds-block-label">累計</div>
 
-<div class="row">
-    <!-- Pending 卡片 -->
-    <div class="col-xl-4 col-md-6 mb-4">
-        <a asp-action="Index" asp-route-Status="Pending" class="text-decoration-none d-block">
-            <div class="card border-start border-4 border-warning shadow-sm h-100 py-2">
-                <div class="card-body">
-                    <div class="row g-0 align-items-center">
-                        <div class="col me-2">
-                            <div class="d-flex align-items-baseline">
-                                <div class="h4 mb-0 fw-bold text-dark">@Model.PendingCount</div>
-                                <div class="h4 mb-0 fw-bold text-warning ms-2">待處理</div>
-                            </div>
-                            @if (Model.PendingNewThisMonth > 0)
-                            {
-                                <div class="small text-success">
-                                    <i class="fas fa-arrow-up"></i> @Model.PendingNewThisMonth new this month
-                                </div>
-                            }
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-folder fa-2x text-secondary opacity-50"></i>
-                        </div>
-                    </div>
-                </div>
+<div class="row g-3 mb-4">
+    <div class="col-xl-4 col-md-6">
+        <a asp-action="Index" asp-route-Status="Pending" class="ds-stat-card d-block text-decoration-none text-reset">
+            <div class="d-flex justify-content-between align-items-start">
+                <div class="ds-stat-label ds-accent-warning">待處理</div>
+                <span class="ds-stat-icon ds-icon-warning"><i class="fas fa-folder"></i></span>
             </div>
+            <div class="ds-stat-value">@Model.PendingCount</div>
+            @if (Model.PendingNewThisMonth > 0)
+            {
+                <div class="ds-stat-trend" style="color:var(--ds-success);">
+                    <i class="fas fa-arrow-up"></i> @Model.PendingNewThisMonth new this month
+                </div>
+            }
         </a>
     </div>
 
-    <!-- Approved 卡片 -->
-    <div class="col-xl-4 col-md-6 mb-4">
-        <a asp-action="Index" asp-route-Status="Approved" class="text-decoration-none d-block">
-            <div class="card border-start border-4 border-success shadow-sm h-100 py-2">
-                <div class="card-body">
-                    <div class="row g-0 align-items-center">
-                        <div class="col me-2">
-                            <div class="d-flex align-items-baseline">
-                                <div class="h4 mb-0 fw-bold text-dark">@Model.ApprovedCount</div>
-                                <div class="h4 mb-0 fw-bold text-success ms-2">檢舉成立</div>
-                            </div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-check-circle fa-2x text-secondary opacity-50"></i>
-                        </div>
-                    </div>
-                </div>
+    <div class="col-xl-4 col-md-6">
+        <a asp-action="Index" asp-route-Status="Approved" class="ds-stat-card d-block text-decoration-none text-reset">
+            <div class="d-flex justify-content-between align-items-start">
+                <div class="ds-stat-label ds-accent-success">檢舉成立</div>
+                <span class="ds-stat-icon ds-icon-success"><i class="fas fa-check-circle"></i></span>
             </div>
+            <div class="ds-stat-value">@Model.ApprovedCount</div>
         </a>
     </div>
 
-    <!-- Rejected 卡片 -->
-    <div class="col-xl-4 col-md-6 mb-4">
-        <a asp-action="Index" asp-route-Status="Rejected" class="text-decoration-none d-block">
-            <div class="card border-start border-4 border-secondary shadow-sm h-100 py-2">
-                <div class="card-body">
-                    <div class="row g-0 align-items-center">
-                        <div class="col me-2">
-                            <div class="d-flex align-items-baseline">
-                                <div class="h4 mb-0 fw-bold text-dark">@Model.RejectedCount</div>
-                                <div class="h4 mb-0 fw-bold text-secondary ms-2">駁回檢舉</div>
-                            </div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-clock fa-2x text-secondary opacity-50"></i>
-                        </div>
-                    </div>
-                </div>
+    <div class="col-xl-4 col-md-6">
+        <a asp-action="Index" asp-route-Status="Rejected" class="ds-stat-card d-block text-decoration-none text-reset">
+            <div class="d-flex justify-content-between align-items-start">
+                <div class="ds-stat-label ds-accent-gray">駁回檢舉</div>
+                <span class="ds-stat-icon ds-icon-gray"><i class="fas fa-exclamation-triangle"></i></span>
             </div>
+            <div class="ds-stat-value">@Model.RejectedCount</div>
         </a>
     </div>
 </div>
 
-<!-- 每月統計 -->
-<div class="card shadow mb-4">
-    <div class="card-header py-3 d-flex justify-content-between align-items-center">
-        <h6 class="m-0 fw-bold text-primary">每月統計（近 12 個月）</h6>
-        <a asp-action="Index" class="btn btn-sm btn-outline-primary">查看回報列表</a>
-    </div>
-    <div class="card-body">
-        <div class="report-chart">
-            <canvas id="monthlyReportsChart"></canvas>
-        </div>
+<div class="ds-block-title-row">
+    <h6>每月統計（近 12 個月）</h6>
+    <a asp-action="Index" class="btn ds-btn-query">查看檢舉列表</a>
+</div>
+<div class="ds-card p-4 mb-4">
+    <div class="report-chart">
+        <canvas id="monthlyReportsChart"></canvas>
     </div>
 </div>
 
@@ -123,17 +83,17 @@
                     datasets: [
                         {
                             label: "檢舉成立",
-                            backgroundColor: "#1cc88a",
+                            backgroundColor: "#1F7A6B",
                             data: approvedData
                         },
                         {
                             label: "駁回檢舉",
-                            backgroundColor: "#858796",
+                            backgroundColor: "#7B746C",
                             data: rejectedData
                         },
                         {
                             label: "待處理",
-                            backgroundColor: "#f6c23e",
+                            backgroundColor: "#C76716",
                             data: pendingData
                         }
                     ]

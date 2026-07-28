@@ -14,8 +14,8 @@ namespace MidProject.Controllers
     /// 假設條件（跟愷核對，如果名稱不同要照他實際的改）：
     /// 1. Review 有 navigation property：Member、Restaurant、ReviewImages（ReviewImages 裡有 Image）、DeletedByMember（透過 DeletedBy 關聯 Members）
     /// 2. Report 有 navigation property：ReporterMember（透過 ReporterMemberID 關聯 Members）
-    /// 3. IReviewRepository / IReviewService 要在 Program.cs 註冊 DI（見這個檔案最下面的說明，
-    ///    Program.cs 不是我能自己改的檔案，要請愷/Alex 加兩行）
+    /// 3. 只有登入的管理員可以進來（[Authorize(Roles = "Admin")]），管理員 ID 讀取登入 Cookie 的 ClaimTypes.NameIdentifier
+    /// 4. IReviewRepository / IReviewService 已在 Program.cs 註冊 DI
     /// </summary>
     [ServiceFilter(typeof(AdminAuthorizationFilter))]
     public class ReviewsController : Controller
@@ -39,9 +39,10 @@ namespace MidProject.Controllers
             string time = "all",
             string sortBy = "time",
             string sortDir = "desc",
-            int page = 1)
+            int page = 1,
+            int? restaurantId = null)
         {
-            var vm = await _reviewService.GetReviewListAsync(tab, search, rating, time, sortBy, sortDir, page);
+            var vm = await _reviewService.GetReviewListAsync(tab, search, rating, time, sortBy, sortDir, page, restaurantId);
             return View(vm);
         }
 
@@ -91,7 +92,7 @@ namespace MidProject.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteImage(int imageId, int reviewId)
         {
-            var ok = await _reviewService.DeleteImageAsync(imageId, _currentAdmin.MemberID);
+            var ok = await _reviewService.DeleteImageAsync(imageId, reviewId, _currentAdmin.MemberID);
             if (!ok)
             {
                 return NotFound();
@@ -100,6 +101,5 @@ namespace MidProject.Controllers
             TempData["Toast"] = "圖片已刪除（軟刪除，實體檔案保留）";
             return RedirectToAction(nameof(Details), new { id = reviewId });
         }
-
     }
 }

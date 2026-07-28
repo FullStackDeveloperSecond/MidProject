@@ -15,6 +15,7 @@ public class RedemptionsIndexViewModel
     public int? FrameFilter { get; set; }
     public DateOnly? StartDate { get; set; }
     public DateOnly? EndDate { get; set; }
+    public string? DateRangeError { get; set; }
 
     public int CurrentPage { get; set; } = 1;
     public int TotalPages { get; set; } = 1;

@@ -1,26 +1,32 @@
 @model MidProject.Models.ViewModels.Notifications.NotificationDetailsViewModel
 @{ ViewData["Title"] = $"通知 #{Model.NotificationID}"; }
-@section Styles { <link rel="stylesheet" href="~/css/notifications-admin.css" asp-append-version="true" /> }
+@section Styles {
+    <link rel="stylesheet" href="~/css/design-system.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/notifications-admin.css" asp-append-version="true" />
+}
 
 <div class="notification-admin">
+    <div class="detail-header-bar">
+        <a class="btn btn-outline-secondary js-back-btn" href="@Url.Action("Index")">← 返回</a>
+        <div class="detail-crumb"><a asp-action="Index">通知管理</a> / 通知 #@Model.NotificationID</div>
+    </div>
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <div><h1 class="h2">通知 #@Model.NotificationID</h1><p class="text-muted mb-0">通知完整資料</p></div>
+        <div><h1 class="ds-h2 mb-1">通知 #@Model.NotificationID</h1><p class="ds-muted mb-0">通知完整資料</p></div>
         <div class="d-flex gap-2">
             @if (Model.CanMutate)
             {
                 <a asp-action="Edit" asp-route-id="@Model.NotificationID" class="btn btn-warning">編輯</a>
                 <a asp-action="Delete" asp-route-id="@Model.NotificationID" class="btn btn-danger">刪除</a>
             }
-            <a asp-action="Index" class="btn btn-secondary">返回</a>
         </div>
     </div>
     @if (TempData["NotificationSuccess"] is string success) { <div class="alert alert-success">@success</div> }
     <div class="card">
         <div class="card-header d-flex justify-content-between">
             <span class="fw-semibold">@Model.Title</span>
-            @if (Model.IsDeleted) { <span class="badge bg-danger">已刪除</span> }
-            else if (Model.IsSent) { <span class="badge bg-success">已發送</span> }
-            else { <span class="badge bg-warning text-dark">未發送</span> }
+            @if (Model.IsDeleted) { <span class="ds-badge ds-badge-danger">已刪除</span> }
+            else if (Model.IsSent) { <span class="ds-badge ds-badge-success">已發送</span> }
+            else { <span class="ds-badge ds-badge-warning">未發送</span> }
         </div>
         <div class="card-body">
             <dl class="row notification-details">

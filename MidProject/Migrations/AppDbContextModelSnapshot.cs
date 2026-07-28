@@ -336,6 +336,11 @@ namespace MidProject.Migrations
                         .HasColumnType("int")
                         .HasDefaultValue(0);
 
+                    b.Property<int>("FailedLoginCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0);
+
                     b.Property<bool>("IsActive")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
@@ -384,6 +389,12 @@ namespace MidProject.Migrations
                         .HasColumnType("nvarchar(10)")
                         .HasDefaultValue("User");
 
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -427,6 +438,8 @@ namespace MidProject.Migrations
                     b.ToTable("Members", t =>
                         {
                             t.HasCheckConstraint("CK_Members_Experience", "[Experience] >= 0");
+
+                            t.HasCheckConstraint("CK_Members_FailedLoginCount", "[FailedLoginCount] >= 0");
 
                             t.HasCheckConstraint("CK_Members_Points", "[Points] >= 0");
 
@@ -559,11 +572,11 @@ namespace MidProject.Migrations
 
                     b.HasIndex("TargetLevelID");
 
+                    b.HasIndex("IsDeleted", "ScheduledAt", "NotificationID");
+
                     b.HasIndex("SourceReportID", "SourceReportOutcome", "MemberID")
                         .IsUnique()
-                        .HasFilter("[SourceReportID] IS NOT NULL AND [SourceReportOutcome] IS NOT NULL AND [MemberID] IS NOT NULL");
-
-                    b.HasIndex("IsDeleted", "ScheduledAt", "NotificationID");
+                        .HasFilter("[SourceReportID] IS NOT NULL AND [SourceReportOutcome] IS NOT NULL");
 
                     b.HasIndex("IsSent", "IsDeleted", "ScheduledAt", "NotificationID");
 
@@ -978,6 +991,9 @@ namespace MidProject.Migrations
                         .HasColumnType("bit")
                         .HasDefaultValue(false);
 
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
                     b.Property<string>("TagName")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -1236,7 +1252,7 @@ namespace MidProject.Migrations
                         .IsRequired();
 
                     b.HasOne("MidProject.Models.AvatarFrame", "RelatedFrame")
-                        .WithMany()
+                        .WithMany("PointsTransactions")
                         .HasForeignKey("RelatedFrameID")
                         .OnDelete(DeleteBehavior.NoAction);
 
@@ -1414,6 +1430,8 @@ namespace MidProject.Migrations
             modelBuilder.Entity("MidProject.Models.AvatarFrame", b =>
                 {
                     b.Navigation("MemberAvatarFrames");
+
+                    b.Navigation("PointsTransactions");
                 });
 
             modelBuilder.Entity("MidProject.Models.FavoriteFolder", b =>

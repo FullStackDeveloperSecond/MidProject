@@ -1,13 +1,4 @@
-﻿IF DB_ID(N'MidProjectDb') IS NULL
-BEGIN
-    CREATE DATABASE [MidProjectDb];
-END;
-GO
-
-USE [MidProjectDb];
-GO
-
-IF OBJECT_ID(N'[__EFMigrationsHistory]') IS NULL
+﻿IF OBJECT_ID(N'[__EFMigrationsHistory]') IS NULL
 BEGIN
     CREATE TABLE [__EFMigrationsHistory] (
         [MigrationId] nvarchar(150) NOT NULL,
@@ -1474,7 +1465,7 @@ GO
 
 IF NOT EXISTS (
     SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260727121449_AllowPerRecipientReportNotifications'
+    WHERE [MigrationId] = N'20260723081106_RemoveUniqueSourceReportIndex'
 )
 BEGIN
     DROP INDEX [IX_Notifications_SourceReportID_SourceReportOutcome] ON [Notifications];
@@ -1483,24 +1474,107 @@ GO
 
 IF NOT EXISTS (
     SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260727121449_AllowPerRecipientReportNotifications'
+    WHERE [MigrationId] = N'20260723081106_RemoveUniqueSourceReportIndex'
 )
 BEGIN
-    CREATE UNIQUE INDEX [IX_Notifications_SourceReportID_SourceReportOutcome_MemberID]
-        ON [Notifications] ([SourceReportID], [SourceReportOutcome], [MemberID])
-        WHERE [SourceReportID] IS NOT NULL
-          AND [SourceReportOutcome] IS NOT NULL
-          AND [MemberID] IS NOT NULL;
+    EXEC(N'CREATE INDEX [IX_Notifications_SourceReportID_SourceReportOutcome] ON [Notifications] ([SourceReportID], [SourceReportOutcome]) WHERE [SourceReportID] IS NOT NULL AND [SourceReportOutcome] IS NOT NULL');
 END;
 GO
 
 IF NOT EXISTS (
     SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260727121449_AllowPerRecipientReportNotifications'
+    WHERE [MigrationId] = N'20260723081106_RemoveUniqueSourceReportIndex'
 )
 BEGIN
     INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
-    VALUES (N'20260727121449_AllowPerRecipientReportNotifications', N'8.0.22');
+    VALUES (N'20260723081106_RemoveUniqueSourceReportIndex', N'8.0.22');
+END;
+GO
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260724061013_AddFailedLoginCountToMembers'
+)
+BEGIN
+    ALTER TABLE [Members] ADD [FailedLoginCount] int NOT NULL DEFAULT 0;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260724061013_AddFailedLoginCountToMembers'
+)
+BEGIN
+    EXEC(N'ALTER TABLE [Members] ADD CONSTRAINT [CK_Members_FailedLoginCount] CHECK ([FailedLoginCount] >= 0)');
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260724061013_AddFailedLoginCountToMembers'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20260724061013_AddFailedLoginCountToMembers', N'8.0.22');
+END;
+GO
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260727083522_UniqueSourceReportPerMember'
+)
+BEGIN
+    DROP INDEX [IX_Notifications_SourceReportID_SourceReportOutcome] ON [Notifications];
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260727083522_UniqueSourceReportPerMember'
+)
+BEGIN
+
+    WITH dup AS (
+        SELECT NotificationID,
+               ROW_NUMBER() OVER (
+                   PARTITION BY SourceReportID, SourceReportOutcome, MemberID
+                   ORDER BY NotificationID) AS rn
+        FROM Notifications
+        WHERE SourceReportID IS NOT NULL AND SourceReportOutcome IS NOT NULL
+    )
+    DELETE FROM Notifications WHERE NotificationID IN (SELECT NotificationID FROM dup WHERE rn > 1);
+
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260727083522_UniqueSourceReportPerMember'
+)
+BEGIN
+    EXEC(N'CREATE UNIQUE INDEX [IX_Notifications_SourceReportID_SourceReportOutcome_MemberID] ON [Notifications] ([SourceReportID], [SourceReportOutcome], [MemberID]) WHERE [SourceReportID] IS NOT NULL AND [SourceReportOutcome] IS NOT NULL');
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260727083522_UniqueSourceReportPerMember'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20260727083522_UniqueSourceReportPerMember', N'8.0.22');
 END;
 GO
 
@@ -1515,13 +1589,7 @@ IF NOT EXISTS (
     WHERE [MigrationId] = N'20260727160000_StrengthenPointsTransactionRules'
 )
 BEGIN
-    ALTER TABLE [PointsTransactions] WITH CHECK
-        ADD CONSTRAINT [CK_PointsTransactions_AmountByType]
-        CHECK (
-            ([Type] = 'Redeem' AND [Amount] < 0)
-            OR ([Type] = 'Earn' AND [Amount] > 0)
-            OR ([Type] = 'AdminAdjust' AND [Amount] <> 0)
-        );
+    EXEC(N'ALTER TABLE [PointsTransactions] ADD CONSTRAINT [CK_PointsTransactions_AmountByType] CHECK (([Type] = ''Redeem'' AND [Amount] < 0) OR ([Type] = ''Earn'' AND [Amount] > 0) OR ([Type] = ''AdminAdjust'' AND [Amount] <> 0))');
 END;
 GO
 
@@ -1530,12 +1598,7 @@ IF NOT EXISTS (
     WHERE [MigrationId] = N'20260727160000_StrengthenPointsTransactionRules'
 )
 BEGIN
-    ALTER TABLE [PointsTransactions] WITH CHECK
-        ADD CONSTRAINT [CK_PointsTransactions_CreatedByType]
-        CHECK (
-            ([Type] = 'AdminAdjust' AND [CreatedBy] IS NOT NULL)
-            OR ([Type] IN ('Redeem', 'Earn') AND [CreatedBy] IS NULL)
-        );
+    EXEC(N'ALTER TABLE [PointsTransactions] ADD CONSTRAINT [CK_PointsTransactions_CreatedByType] CHECK (([Type] = ''AdminAdjust'' AND [CreatedBy] IS NOT NULL) OR ([Type] IN (''Redeem'', ''Earn'') AND [CreatedBy] IS NULL))');
 END;
 GO
 
@@ -1546,6 +1609,56 @@ IF NOT EXISTS (
 BEGIN
     INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
     VALUES (N'20260727160000_StrengthenPointsTransactionRules', N'8.0.22');
+END;
+GO
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260728070110_AddTagSortOrder'
+)
+BEGIN
+    ALTER TABLE [Tags] ADD [SortOrder] int NOT NULL DEFAULT 0;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260728070110_AddTagSortOrder'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20260728070110_AddTagSortOrder', N'8.0.22');
+END;
+GO
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260728090000_AddMemberRowVersion'
+)
+BEGIN
+    ALTER TABLE [Members] ADD [RowVersion] rowversion NOT NULL;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260728090000_AddMemberRowVersion'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20260728090000_AddMemberRowVersion', N'8.0.22');
 END;
 GO
 

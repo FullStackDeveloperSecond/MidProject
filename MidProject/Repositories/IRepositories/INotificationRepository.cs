@@ -16,7 +16,9 @@ public interface INotificationRepository
     Task<IReadOnlyList<MemberLookup>> GetActiveMembersAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<UserLevelLookup>> GetActiveLevelsAsync(CancellationToken cancellationToken = default);
     Task<bool> IsUsableAdminAsync(int memberId, CancellationToken cancellationToken = default);
-    Task<bool> ReportSourceExistsAsync(int reportId, string outcome, int memberId, CancellationToken cancellationToken = default);
+    Task<bool> ReportSourceExistsAsync(int reportId, string outcome, CancellationToken cancellationToken = default);
+    // 同一檢舉＋結果可能對多位收件人各發一筆（檢舉者/被檢舉會員），故防重需連收件會員一起判斷
+    Task<bool> ReportSourceExistsForMemberAsync(int reportId, string outcome, int memberId, CancellationToken cancellationToken = default);
     Task<NotificationSendState?> GetSendStateAsync(int id, CancellationToken cancellationToken = default);
     Task<int> TryMarkSentAsync(int id, DateTime nextMinute, DateTime sentAt, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<NotificationSendCandidate>> GetDueCandidatesAsync(DateTime nextMinute, CancellationToken cancellationToken = default);

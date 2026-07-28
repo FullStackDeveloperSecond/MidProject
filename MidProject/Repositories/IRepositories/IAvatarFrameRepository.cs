@@ -9,8 +9,8 @@ public interface IAvatarFrameRepository
     Task<AvatarFrame?> GetByIdAsync(int id);
     Task<Dictionary<int, int>> GetRedemptionCountsAsync();
     Task AddAsync(AvatarFrame frame);
-    Task ToggleActiveAsync(int id);
-    Task SoftDeleteAsync(int id, int byMemberId);
-    Task RestoreAsync(int id);
+    Task<bool> ToggleActiveAsync(int id);
+    Task<bool> SoftDeleteAsync(int id, int byMemberId);
+    Task<bool> RestoreAsync(int id);
     Task SaveChangesAsync();
 }

@@ -1,6 +1,7 @@
 using MidProject.Data;
 using MidProject.Models;
 using MidProject.Models.ViewModels.Restaurants;
+using MidProject.Repositories;
 using MidProject.Repositories.IRepositories;
 using MidProject.Services.IServices;
 
@@ -14,7 +15,6 @@ public class RestaurantService : IRestaurantService
     private readonly ITagRepository _tagRepository;
     private readonly IImageUploadService _imageUploadService;
     private readonly IImageLifecycleService _imageLifecycleService;
-    private readonly ICurrentAdminAccessor _currentAdmin;
     private readonly AppDbContext _dbContext;
     private readonly ILogger<RestaurantService> _logger;
 
@@ -23,7 +23,6 @@ public class RestaurantService : IRestaurantService
         ITagRepository tagRepository,
         IImageUploadService imageUploadService,
         IImageLifecycleService imageLifecycleService,
-        ICurrentAdminAccessor currentAdmin,
         AppDbContext dbContext,
         ILogger<RestaurantService> logger)
     {
@@ -31,7 +30,6 @@ public class RestaurantService : IRestaurantService
         _tagRepository = tagRepository;
         _imageUploadService = imageUploadService;
         _imageLifecycleService = imageLifecycleService;
-        _currentAdmin = currentAdmin;
         _dbContext = dbContext;
         _logger = logger;
     }
@@ -40,6 +38,8 @@ public class RestaurantService : IRestaurantService
     {
         var stats = await _restaurantRepository.GetStatsAsync(filter);
         var (items, total) = await _restaurantRepository.GetActivePagedAsync(filter, PageSize);
+        var reviewStats = await _restaurantRepository.GetReviewStatsAsync(items.Select(item => item.RestaurantID));
+        var favoriteCounts = await _restaurantRepository.GetFavoriteCountsAsync(items.Select(item => item.RestaurantID));
         var activeTags = (await _tagRepository.GetAllAsync()).Where(t => !t.IsDeleted).ToList();
 
         return new RestaurantIndexViewModel
@@ -48,7 +48,7 @@ public class RestaurantService : IRestaurantService
             StatsAvgRating = stats.AvgRating,
             StatsReviewCount = stats.ReviewCount,
             StatsDisabledCount = stats.DisabledCount,
-            Items = items.Select(MapRow).ToList(),
+            Items = items.Select(item => MapRow(item, GetReviewStats(reviewStats, item.RestaurantID), GetFavoriteCount(favoriteCounts, item.RestaurantID))).ToList(),
             Filter = filter,
             AvailableCities = RestaurantOptions.Cities,
             AvailableDistricts = RestaurantOptions.Districts,
@@ -61,17 +61,22 @@ public class RestaurantService : IRestaurantService
 
     public async Task<RestaurantDeletedIndexViewModel> GetDeletedIndexAsync(RestaurantDeletedFilterQuery filter)
     {
-        var items = await _restaurantRepository.GetDeletedAsync(filter);
+        const int pageSize = 10;
+        var (items, totalCount) = await _restaurantRepository.GetDeletedPagedAsync(filter, pageSize);
         var rows = items.Select(MapDeletedRow).ToList();
+        var mostRecent = await _restaurantRepository.GetMostRecentlyDeletedAsync(filter);
         var reasons = await _restaurantRepository.GetDistinctDeleteReasonsAsync();
 
         return new RestaurantDeletedIndexViewModel
         {
-            StatsDisabledTotal = rows.Count,
-            StatsMostRecentName = rows.FirstOrDefault()?.Name,
-            StatsMostRecentAt = rows.FirstOrDefault()?.DeletedAt,
-            StatsLastReason = rows.FirstOrDefault()?.DeleteReason,
+            StatsDisabledTotal = totalCount,
+            StatsMostRecentName = mostRecent?.Name,
+            StatsMostRecentAt = mostRecent?.DeletedAt,
+            StatsLastReason = mostRecent?.DeleteReason,
             Items = rows,
+            TotalItems = totalCount,
+            PageSize = pageSize,
+            CurrentPage = Math.Max(1, filter.Page),
             Filter = filter,
             AvailableCities = RestaurantOptions.Cities,
             AvailableReasons = reasons
@@ -81,7 +86,14 @@ public class RestaurantService : IRestaurantService
     public async Task<RestaurantDetailViewModel?> GetDetailAsync(int id)
     {
         var restaurant = await _restaurantRepository.GetByIdAsync(id);
-        return restaurant == null ? null : MapDetail(restaurant);
+        if (restaurant == null)
+        {
+            return null;
+        }
+
+        var reviewStats = await _restaurantRepository.GetReviewStatsAsync(new[] { id });
+        var favoriteCounts = await _restaurantRepository.GetFavoriteCountsAsync(new[] { id });
+        return MapDetail(restaurant, GetReviewStats(reviewStats, id), GetFavoriteCount(favoriteCounts, id));
     }
 
     public async Task<RestaurantFormViewModel> GetCreateFormAsync()
@@ -171,15 +183,12 @@ public class RestaurantService : IRestaurantService
         return form;
     }
 
-    public async Task<(bool Success, int? NewId, string? Error)> CreateAsync(RestaurantFormViewModel form)
+    public async Task<(bool Success, int? NewId)> CreateAsync(RestaurantFormViewModel form, int adminId)
     {
         if (form.SelectedTagIds.Count == 0)
         {
-            return (false, null, "請至少選擇一個標籤。");
+            return (false, null);
         }
-
-        var adminId = _currentAdmin.MemberID;
-        var newImageUrls = new List<string>();
 
         var restaurant = new Restaurant
         {
@@ -196,23 +205,16 @@ public class RestaurantService : IRestaurantService
             UpdatedAt = DateTime.Now
         };
 
+        var newImageUrls = new List<string>();
         try
         {
             await using var transaction = await _dbContext.Database.BeginTransactionAsync();
-
             await _restaurantRepository.AddAsync(restaurant);
             await _restaurantRepository.ReplaceTagsAsync(restaurant.RestaurantID, form.SelectedTagIds);
             await _restaurantRepository.ReplaceBusinessHoursAsync(restaurant.RestaurantID, BuildHourEntitiesFromRows(form.Hours));
             await ApplyImageChangesAsync(restaurant.RestaurantID, form, adminId, newImageUrls);
-
             await transaction.CommitAsync();
-            return (true, restaurant.RestaurantID, null);
-        }
-        catch (InvalidOperationException exception)
-        {
-            await CleanupFailedUploadsAsync(newImageUrls);
-            _dbContext.ChangeTracker.Clear();
-            return (false, null, exception.Message);
+            return (true, restaurant.RestaurantID);
         }
         catch (Exception exception)
         {
@@ -223,27 +225,25 @@ public class RestaurantService : IRestaurantService
                 "Restaurant create failed; Operation=RestaurantCreate; AdminID={AdminID}; ExceptionType={ExceptionType}",
                 adminId,
                 exception.GetType().Name);
-            return (false, null, "餐廳新增失敗，已清理本次上傳檔案，請稍後再試。");
+            return (false, null);
         }
     }
 
-    public async Task<(bool Success, string? Error)> EditAsync(int id, RestaurantFormViewModel form)
+    public async Task<bool> EditAsync(int id, RestaurantFormViewModel form, int adminId)
     {
         if (form.SelectedTagIds.Count == 0)
         {
-            return (false, "請至少選擇一個標籤。");
+            return false;
         }
 
         var restaurant = await _restaurantRepository.GetByIdAsync(id);
         if (restaurant == null)
         {
-            return (false, "找不到這間餐廳。");
+            return false;
         }
 
-        var adminId = _currentAdmin.MemberID;
         var newImageUrls = new List<string>();
         var cleanupCandidateIds = GetCleanupCandidateIds(restaurant, form);
-
         try
         {
             await using var transaction = await _dbContext.Database.BeginTransactionAsync();
@@ -262,14 +262,7 @@ public class RestaurantService : IRestaurantService
             await _restaurantRepository.ReplaceTagsAsync(id, form.SelectedTagIds);
             await _restaurantRepository.ReplaceBusinessHoursAsync(id, BuildHourEntitiesFromRows(form.Hours));
             await ApplyImageChangesAsync(id, form, adminId, newImageUrls);
-
             await transaction.CommitAsync();
-        }
-        catch (InvalidOperationException exception)
-        {
-            await CleanupFailedUploadsAsync(newImageUrls);
-            _dbContext.ChangeTracker.Clear();
-            return (false, exception.Message);
         }
         catch (Exception exception)
         {
@@ -281,22 +274,33 @@ public class RestaurantService : IRestaurantService
                 id,
                 adminId,
                 exception.GetType().Name);
-            return (false, "餐廳更新失敗，已回復資料並清理本次上傳檔案，請稍後再試。");
+            return false;
         }
 
         await _imageLifecycleService.CleanupIfUnreferencedAsync(cleanupCandidateIds, adminId);
-        return (true, null);
+        return true;
     }
 
-    public Task DisableAsync(int id, string reason)
+    public Task<bool> DisableAsync(int id, string reason, int? byMemberId = null)
     {
+        return DisableInternalAsync(id, reason, byMemberId);
+    }
+
+    private async Task<bool> DisableInternalAsync(int id, string reason, int? byMemberId)
+    {
+        if (!byMemberId.HasValue || byMemberId.Value <= 0) return false;
+        if (await _restaurantRepository.GetByIdAsync(id) == null) return false;
         var trimmedReason = string.IsNullOrWhiteSpace(reason) ? "違規內容" : reason.Trim();
-        return _restaurantRepository.SoftDeleteAsync(id, trimmedReason, _currentAdmin.MemberID);
+        await _restaurantRepository.SoftDeleteAsync(id, trimmedReason, byMemberId.Value);
+        return true;
     }
 
-    public Task RestoreAsync(int id)
+    public async Task<bool> RestoreAsync(int id)
     {
-        return _restaurantRepository.RestoreAsync(id);
+        var restaurant = await _restaurantRepository.GetByIdAsync(id);
+        if (restaurant == null || !restaurant.IsDeleted) return false;
+        await _restaurantRepository.RestoreAsync(id);
+        return true;
     }
 
     private async Task ApplyImageChangesAsync(
@@ -317,16 +321,16 @@ public class RestaurantService : IRestaurantService
             await _restaurantRepository.SetCoverImageAsync(restaurantId, coverImage);
         }
 
-        foreach (var imageId in form.RemoveEnvironmentImageIds)
+        foreach (var imageId in form.RemoveEnvironmentImageIds.Distinct())
         {
             await _restaurantRepository.RemoveEnvironmentImageAsync(restaurantId, imageId);
         }
 
         foreach (var file in form.EnvironmentImageFiles)
         {
-            var envImage = await _imageUploadService.SaveAsync(file, "RestaurantEnvironment", adminId);
-            newImageUrls.Add(envImage.ImageURL);
-            await _restaurantRepository.AddEnvironmentImageAsync(restaurantId, envImage);
+            var environmentImage = await _imageUploadService.SaveAsync(file, "RestaurantEnvironment", adminId);
+            newImageUrls.Add(environmentImage.ImageURL);
+            await _restaurantRepository.AddEnvironmentImageAsync(restaurantId, environmentImage);
         }
     }
 
@@ -335,7 +339,7 @@ public class RestaurantService : IRestaurantService
         RestaurantFormViewModel form)
     {
         var candidateIds = new HashSet<int>();
-        if (form.RemoveCoverImage || form.CoverImageFile is not null)
+        if (form.RemoveCoverImage || form.CoverImageFile != null)
         {
             foreach (var link in restaurant.RestaurantImages.Where(link =>
                          link.Image?.ImageType == "RestaurantCover"))
@@ -344,7 +348,7 @@ public class RestaurantService : IRestaurantService
             }
         }
 
-        foreach (var imageId in form.RemoveEnvironmentImageIds)
+        foreach (var imageId in form.RemoveEnvironmentImageIds.Distinct())
         {
             if (restaurant.RestaurantImages.Any(link => link.ImageID == imageId))
             {
@@ -363,7 +367,7 @@ public class RestaurantService : IRestaurantService
         }
     }
 
-    private static RestaurantRowViewModel MapRow(Restaurant r)
+    private static RestaurantRowViewModel MapRow(Restaurant r, RestaurantReviewStats reviewStats, int favoriteCount)
     {
         return new RestaurantRowViewModel
         {
@@ -372,9 +376,13 @@ public class RestaurantService : IRestaurantService
             City = r.City,
             District = r.District,
             Phone = r.Phone,
-            Tags = r.RestaurantTags.Where(rt => rt.Tag != null && !rt.Tag.IsDeleted).Select(rt => rt.Tag!.TagName).ToList(),
-            Rating = r.AverageRating,
-            ReviewCount = r.ReviewCount
+            Tags = r.RestaurantTags.Where(rt => rt.Tag != null && !rt.Tag.IsDeleted)
+                .OrderBy(rt => rt.Tag!.SortOrder).ThenBy(rt => rt.Tag!.TagName)
+                .Select(rt => rt.Tag!.TagName).ToList(),
+            Rating = reviewStats.AverageRating,
+            ReviewCount = reviewStats.ReviewCount,
+            FavoriteCount = favoriteCount,
+            UploaderName = r.Member?.NickName ?? r.Member?.UserName
         };
     }
 
@@ -386,14 +394,16 @@ public class RestaurantService : IRestaurantService
             Name = r.Name,
             City = r.City,
             District = r.District,
-            Tags = r.RestaurantTags.Where(rt => rt.Tag != null && !rt.Tag.IsDeleted).Select(rt => rt.Tag!.TagName).ToList(),
+            Tags = r.RestaurantTags.Where(rt => rt.Tag != null && !rt.Tag.IsDeleted)
+                .OrderBy(rt => rt.Tag!.SortOrder).ThenBy(rt => rt.Tag!.TagName)
+                .Select(rt => rt.Tag!.TagName).ToList(),
             DeletedAt = r.DeletedAt,
             DeleteReason = r.DeleteReason,
             DeletedByName = r.DeletedByMember?.NickName ?? r.DeletedByMember?.UserName
         };
     }
 
-    private static RestaurantDetailViewModel MapDetail(Restaurant r)
+    private static RestaurantDetailViewModel MapDetail(Restaurant r, RestaurantReviewStats reviewStats, int favoriteCount)
     {
         var cover = r.RestaurantImages.FirstOrDefault(ri => ri.Image != null && ri.Image.ImageType == "RestaurantCover")?.Image;
         var environments = r.RestaurantImages
@@ -411,14 +421,16 @@ public class RestaurantService : IRestaurantService
             Phone = r.Phone,
             Note = r.Note,
             Tags = r.RestaurantTags.Where(rt => rt.Tag != null && !rt.Tag.IsDeleted)
+                .OrderBy(rt => rt.Tag!.SortOrder).ThenBy(rt => rt.Tag!.TagName)
                 .Select(rt => new TagOptionViewModel { Id = rt.Tag!.TagID, Name = rt.Tag.TagName })
                 .ToList(),
             OwnerName = r.Member?.NickName ?? r.Member?.UserName ?? "-",
             OwnerMemberId = r.MemberID,
             Latitude = r.Latitude,
             Longitude = r.Longitude,
-            AverageRating = r.AverageRating,
-            ReviewCount = r.ReviewCount,
+            AverageRating = reviewStats.AverageRating,
+            ReviewCount = reviewStats.ReviewCount,
+            FavoriteCount = favoriteCount,
             HoursByDay = BuildHourGroupsFromEntities(r.BusinessHours.ToList()),
             CoverImageUrl = cover?.ImageURL,
             EnvironmentImageUrls = environments,
@@ -427,6 +439,18 @@ public class RestaurantService : IRestaurantService
             DeletedByName = r.DeletedByMember?.NickName ?? r.DeletedByMember?.UserName,
             DeleteReason = r.DeleteReason
         };
+    }
+
+    private static RestaurantReviewStats GetReviewStats(IReadOnlyDictionary<int, RestaurantReviewStats> stats, int restaurantId)
+    {
+        return stats.TryGetValue(restaurantId, out var reviewStats)
+            ? reviewStats
+            : new RestaurantReviewStats();
+    }
+
+    private static int GetFavoriteCount(IReadOnlyDictionary<int, int> counts, int restaurantId)
+    {
+        return counts.TryGetValue(restaurantId, out var count) ? count : 0;
     }
 
     private static List<BusinessHourFormRow> BuildDefaultHourRows()

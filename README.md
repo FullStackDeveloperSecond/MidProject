@@ -1,8 +1,7 @@
 # 美食地圖｜MidProject 基礎專案
 
-這個分支提供五人協作開發所需的共用基礎，只包含 ASP.NET Core MVC 架構、Entity、`AppDbContext`、Initial Migration 與開發用 SeedData。
-
-目前不包含會員、餐廳、評論、檢舉、通知等功能模組的 Controller、ViewModel、Service 或 CRUD 頁面。
+這是美食地圖後台管理系統，包含會員、餐廳、評論、檢舉、通知與點數商城模組，
+採 ASP.NET Core MVC、Entity Framework Core 與 SQL Server。
 
 ## 技術
 
@@ -35,8 +34,8 @@ database/
 ├── 20260718074506_AddWarningCountToMembers.sql # 已有資料庫新增會員警告次數
 ├── 20260723023637_AddAvatarFrameRedemptionTables.sql # 點數商城資料表
 ├── 20260723064747_FixPointsStoreMappings.sql # 點數商城索引與限制修正
-├── 20260727121449_AllowPerRecipientReportNotifications.sql # 檢舉結果多收件者通知索引
 ├── 20260727160000_StrengthenPointsTransactionRules.sql # 點數異動規則
+├── 20260728070110_AddTagSortOrder.sql # 餐廳標籤排序
 ├── MidProject_CreateDatabaseAndSchema.sql
 ├── MidProject_InitialCreate.sql
 └── README_資料庫建置教學.md

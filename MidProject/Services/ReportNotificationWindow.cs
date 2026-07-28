@@ -7,6 +7,8 @@ namespace MidProject.Services;
 
 public sealed class ReportNotificationWindow : IReportNotificationWindow
 {
+    private const string FixedTitle = "【檢舉結果通知】您提交的檢舉已完成審核";
+    private const string ReportedMemberFixedTitle = "【內容審核通知】您的內容已被檢舉審核";
     private readonly INotificationRepository _repository;
     private readonly ITaipeiClock _clock;
     private readonly ILogger<ReportNotificationWindow> _logger;
@@ -21,7 +23,7 @@ public sealed class ReportNotificationWindow : IReportNotificationWindow
         _logger = logger;
     }
 
-    public async Task<ReportNotificationResult> CreateOutcomeNotificationsAsync(
+    public async Task<ReportNotificationResult> CreateOutcomeNotificationAsync(
         ReportNotificationRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -36,16 +38,15 @@ public sealed class ReportNotificationWindow : IReportNotificationWindow
             return Result(ReportNotificationClassification.InvalidOutcome, correlationId, "INVALID_OUTCOME");
         }
 
-        if (!HasValidMessage(request.ReporterTitle, request.ReporterContent))
+        var member = await _repository.GetMemberAsync(request.ReporterMemberID, cancellationToken);
+        if (member is null)
         {
-            return Result(ReportNotificationClassification.InvalidInput, correlationId, "INVALID_REPORTER_MESSAGE");
+            return Result(ReportNotificationClassification.MemberNotFound, correlationId, "MEMBER_NOT_FOUND");
         }
 
-        if (request.Outcome == "Approved" &&
-            (!request.ReportedMemberID.HasValue ||
-             !HasValidMessage(request.ReportedMemberTitle, request.ReportedMemberContent)))
+        if (member.IsDeleted)
         {
-            return Result(ReportNotificationClassification.InvalidInput, correlationId, "INVALID_REPORTED_MEMBER_MESSAGE");
+            return Result(ReportNotificationClassification.MemberDeleted, correlationId, "MEMBER_DELETED");
         }
 
         if (!await _repository.IsUsableAdminAsync(request.HandledByAdminID, cancellationToken))
@@ -53,111 +54,47 @@ public sealed class ReportNotificationWindow : IReportNotificationWindow
             return Result(ReportNotificationClassification.AdminInvalid, correlationId, "ADMIN_INVALID");
         }
 
-        var recipients = new List<ReportNotificationRecipient>
-        {
-            new(request.ReporterMemberID, request.ReporterTitle.Trim(), request.ReporterContent.Trim())
-        };
-
-        if (request.Outcome == "Approved" &&
-            request.ReportedMemberID is int reportedMemberId &&
-            reportedMemberId != request.ReporterMemberID)
-        {
-            recipients.Add(new(
-                reportedMemberId,
-                request.ReportedMemberTitle!.Trim(),
-                request.ReportedMemberContent!.Trim()));
-        }
-
-        foreach (var recipient in recipients)
-        {
-            var member = await _repository.GetMemberAsync(recipient.MemberID, cancellationToken);
-            if (member is null)
-            {
-                return Result(ReportNotificationClassification.MemberNotFound, correlationId, "MEMBER_NOT_FOUND");
-            }
-
-            if (member.IsDeleted)
-            {
-                return Result(ReportNotificationClassification.MemberDeleted, correlationId, "MEMBER_DELETED");
-            }
-        }
-
-        var existingRecipientIds = new HashSet<int>();
-        foreach (var recipient in recipients)
-        {
-            if (await _repository.ReportSourceExistsAsync(
-                    request.ReportID,
-                    request.Outcome,
-                    recipient.MemberID,
-                    cancellationToken))
-            {
-                existingRecipientIds.Add(recipient.MemberID);
-            }
-        }
-
-        if (existingRecipientIds.Count == recipients.Count)
+        // 去重以（來源檢舉＋結果＋收件會員）為粒度，與資料庫複合唯一索引一致；
+        // 這樣同一檢舉的「通知被檢舉會員」不會誤擋到「通知檢舉者」（收件人不同）
+        if (await _repository.ReportSourceExistsForMemberAsync(request.ReportID, request.Outcome, request.ReporterMemberID, cancellationToken))
         {
             return Result(ReportNotificationClassification.AlreadyExists, correlationId);
         }
 
-        var createdNotifications = recipients
-            .Where(recipient => !existingRecipientIds.Contains(recipient.MemberID))
-            .Select(recipient => new Notification
-            {
-                NotificationType = "Personal",
-                MemberID = recipient.MemberID,
-                Title = recipient.Title,
-                Content = recipient.Content,
-                ScheduledAt = _clock.NormalizeMinute(request.HandledAt),
-                IsSent = false,
-                SentAt = null,
-                CreatedAt = _clock.GetNow(),
-                CreatedBy = request.HandledByAdminID,
-                IsDeleted = false,
-                SourceReportID = request.ReportID,
-                SourceReportOutcome = request.Outcome
-            })
-            .ToList();
+        var notification = new Notification
+        {
+            NotificationType = "Personal",
+            MemberID = request.ReporterMemberID,
+            // 優先採用管理員編輯後的標題/內容，留空才套用預設範本
+            Title = string.IsNullOrWhiteSpace(request.Title) ? FixedTitle : request.Title,
+            Content = !string.IsNullOrWhiteSpace(request.Content)
+                ? request.Content
+                : (request.Outcome == "Approved"
+                    ? "您提交的檢舉已完成審核，審核結果為通過（Approved）。"
+                    : "您提交的檢舉已完成審核，審核結果為駁回（Rejected）。"),
+            ScheduledAt = _clock.NormalizeMinute(request.HandledAt),
+            IsSent = false,
+            SentAt = null,
+            CreatedAt = _clock.GetNow(),
+            CreatedBy = request.HandledByAdminID,
+            IsDeleted = false,
+            SourceReportID = request.ReportID,
+            SourceReportOutcome = request.Outcome
+        };
 
         try
         {
-            foreach (var notification in createdNotifications)
-            {
-                await _repository.AddAsync(notification, cancellationToken);
-            }
-
+            await _repository.AddAsync(notification, cancellationToken);
             await _repository.SaveChangesAsync(cancellationToken);
             _logger.LogInformation(
-                "Report notifications created at {TaipeiTimestamp}; Operation=ReportCreate; NotificationIDs={NotificationIDs}; AdminID={AdminID}; ResultClassification=Created; CorrelationID={CorrelationID}; MemberIDs={MemberIDs}",
-                _clock.GetNow(),
-                createdNotifications.Select(x => x.NotificationID).ToArray(),
-                request.HandledByAdminID,
-                correlationId,
-                createdNotifications.Select(x => x.MemberID).ToArray());
-            return new(
-                ReportNotificationClassification.Created,
-                createdNotifications.Select(x => x.NotificationID).ToArray(),
-                null,
-                correlationId);
+                "Report notification created at {TaipeiTimestamp}; Operation=ReportCreate; NotificationID={NotificationID}; AdminID={AdminID}; ResultClassification=Created; CorrelationID={CorrelationID}; MemberID={MemberID}",
+                _clock.GetNow(), notification.NotificationID, request.HandledByAdminID, correlationId, request.ReporterMemberID);
+            return new(ReportNotificationClassification.Created, notification.NotificationID, null, correlationId);
         }
         catch (DbUpdateException ex)
         {
             _repository.ClearTracking();
-            var allRecipientsExist = true;
-            foreach (var recipient in recipients)
-            {
-                if (!await _repository.ReportSourceExistsAsync(
-                        request.ReportID,
-                        request.Outcome,
-                        recipient.MemberID,
-                        cancellationToken))
-                {
-                    allRecipientsExist = false;
-                    break;
-                }
-            }
-
-            if (allRecipientsExist)
+            if (await _repository.ReportSourceExistsForMemberAsync(request.ReportID, request.Outcome, request.ReporterMemberID, cancellationToken))
             {
                 return Result(ReportNotificationClassification.AlreadyExists, correlationId);
             }
@@ -173,16 +110,99 @@ public sealed class ReportNotificationWindow : IReportNotificationWindow
         }
     }
 
-    private static bool HasValidMessage(string? title, string? content) =>
-        !string.IsNullOrWhiteSpace(title) &&
-        title.Trim().Length <= 100 &&
-        !string.IsNullOrWhiteSpace(content) &&
-        content.Trim().Length <= 1000;
+    public async Task<ReportNotificationResult> CreateReportedMemberNotificationAsync(
+        ReportedMemberNotificationRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var correlationId = Guid.NewGuid().ToString("N");
+        if (request.ReportID <= 0 || request.ReportedMemberID <= 0 || request.HandledByAdminID <= 0 || request.HandledAt == default)
+        {
+            return Result(ReportNotificationClassification.InvalidInput, correlationId, "INVALID_INPUT");
+        }
+
+        // 被檢舉會員通知只在「檢舉成立」時發送
+        if (request.Outcome != "Approved")
+        {
+            return Result(ReportNotificationClassification.InvalidOutcome, correlationId, "INVALID_OUTCOME");
+        }
+
+        var member = await _repository.GetMemberAsync(request.ReportedMemberID, cancellationToken);
+        if (member is null)
+        {
+            return Result(ReportNotificationClassification.MemberNotFound, correlationId, "MEMBER_NOT_FOUND");
+        }
+
+        if (member.IsDeleted)
+        {
+            return Result(ReportNotificationClassification.MemberDeleted, correlationId, "MEMBER_DELETED");
+        }
+
+        if (!await _repository.IsUsableAdminAsync(request.HandledByAdminID, cancellationToken))
+        {
+            return Result(ReportNotificationClassification.AdminInvalid, correlationId, "ADMIN_INVALID");
+        }
+
+        // 同一檢舉可能同時通知檢舉者與被檢舉會員，故防重需連收件會員一起判斷
+        if (await _repository.ReportSourceExistsForMemberAsync(request.ReportID, request.Outcome, request.ReportedMemberID, cancellationToken))
+        {
+            return Result(ReportNotificationClassification.AlreadyExists, correlationId);
+        }
+
+        var notification = new Notification
+        {
+            NotificationType = "Personal",
+            MemberID = request.ReportedMemberID,
+            // 優先採用管理員編輯後的標題/內容，留空才套用預設範本
+            Title = string.IsNullOrWhiteSpace(request.Title) ? ReportedMemberFixedTitle : request.Title,
+            Content = string.IsNullOrWhiteSpace(request.Content)
+                ? "您在平台發布的內容經檢舉審核成立，我們將依規定處理相關內容，請留意後續處理結果。"
+                : request.Content,
+            ScheduledAt = _clock.NormalizeMinute(request.HandledAt),
+            IsSent = false,
+            SentAt = null,
+            CreatedAt = _clock.GetNow(),
+            CreatedBy = request.HandledByAdminID,
+            IsDeleted = false,
+            SourceReportID = request.ReportID,
+            SourceReportOutcome = request.Outcome
+        };
+
+        try
+        {
+            await _repository.AddAsync(notification, cancellationToken);
+            await _repository.SaveChangesAsync(cancellationToken);
+            _logger.LogInformation(
+                "Reported-member notification created at {TaipeiTimestamp}; Operation=ReportedMemberCreate; NotificationID={NotificationID}; AdminID={AdminID}; ResultClassification=Created; CorrelationID={CorrelationID}; MemberID={MemberID}",
+                _clock.GetNow(), notification.NotificationID, request.HandledByAdminID, correlationId, request.ReportedMemberID);
+            return new(ReportNotificationClassification.Created, notification.NotificationID, null, correlationId);
+        }
+        catch (DbUpdateException ex)
+        {
+            _repository.ClearTracking();
+            if (await _repository.ReportSourceExistsForMemberAsync(request.ReportID, request.Outcome, request.ReportedMemberID, cancellationToken))
+            {
+                return Result(ReportNotificationClassification.AlreadyExists, correlationId);
+            }
+
+            _logger.LogError(ex,
+                "Reported-member notification failure at {TaipeiTimestamp}; Operation=ReportedMemberCreate; AdminID={AdminID}; ResultClassification=Failed; CorrelationID={CorrelationID}; MemberID={MemberID}; ExceptionType={ExceptionType}",
+                _clock.GetNow(), request.HandledByAdminID, correlationId, request.ReportedMemberID, ex.GetType().Name);
+            return Result(ReportNotificationClassification.Failed, correlationId, "PERSISTENCE_ERROR");
+        }
+        catch (Exception ex)
+        {
+            _repository.ClearTracking();
+            _logger.LogError(ex,
+                "Reported-member notification failure at {TaipeiTimestamp}; Operation=ReportedMemberCreate; AdminID={AdminID}; ResultClassification=Failed; CorrelationID={CorrelationID}; MemberID={MemberID}; ExceptionType={ExceptionType}",
+                _clock.GetNow(), request.HandledByAdminID, correlationId, request.ReportedMemberID, ex.GetType().Name);
+            return Result(ReportNotificationClassification.Failed, correlationId, "UNEXPECTED_ERROR");
+        }
+    }
 
     private static ReportNotificationResult Result(
         ReportNotificationClassification classification,
         string correlationId,
-        string? safeErrorCode = null) => new(classification, Array.Empty<int>(), safeErrorCode, correlationId);
+        string? safeErrorCode = null) => new(classification, null, safeErrorCode, correlationId);
 
     private void LogFailure(ReportNotificationRequest request, string correlationId, Exception exception)
     {
@@ -191,6 +211,4 @@ public sealed class ReportNotificationWindow : IReportNotificationWindow
             "Report notification failure at {TaipeiTimestamp}; Operation=ReportCreate; NotificationID={NotificationID}; AdminID={AdminID}; ResultClassification=Failed; CorrelationID={CorrelationID}; MemberID={MemberID}; ExceptionType={ExceptionType}",
             _clock.GetNow(), null, request.HandledByAdminID, correlationId, request.ReporterMemberID, exception.GetType().Name);
     }
-
-    private sealed record ReportNotificationRecipient(int MemberID, string Title, string Content);
 }
