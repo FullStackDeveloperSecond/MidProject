@@ -154,6 +154,13 @@ public sealed class NotificationRepository : INotificationRepository
             cancellationToken);
     }
 
+    public Task<bool> ReportSourceExistsForMemberAsync(int reportId, string outcome, int memberId, CancellationToken cancellationToken = default)
+    {
+        return _dbContext.Notifications.AsNoTracking().AnyAsync(x =>
+            x.SourceReportID == reportId && x.SourceReportOutcome == outcome && x.MemberID == memberId,
+            cancellationToken);
+    }
+
     public Task<NotificationSendState?> GetSendStateAsync(int id, CancellationToken cancellationToken = default)
     {
         return _dbContext.Notifications.AsNoTracking()
