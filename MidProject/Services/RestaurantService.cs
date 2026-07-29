@@ -16,6 +16,7 @@ public class RestaurantService : IRestaurantService
     private readonly IImageUploadService _imageUploadService;
     private readonly IImageLifecycleService _imageLifecycleService;
     private readonly AppDbContext _dbContext;
+    private readonly ITaipeiClock _clock;
     private readonly ILogger<RestaurantService> _logger;
 
     public RestaurantService(
@@ -24,6 +25,7 @@ public class RestaurantService : IRestaurantService
         IImageUploadService imageUploadService,
         IImageLifecycleService imageLifecycleService,
         AppDbContext dbContext,
+        ITaipeiClock clock,
         ILogger<RestaurantService> logger)
     {
         _restaurantRepository = restaurantRepository;
@@ -31,6 +33,7 @@ public class RestaurantService : IRestaurantService
         _imageUploadService = imageUploadService;
         _imageLifecycleService = imageLifecycleService;
         _dbContext = dbContext;
+        _clock = clock;
         _logger = logger;
     }
 
@@ -190,6 +193,7 @@ public class RestaurantService : IRestaurantService
             return (false, null);
         }
 
+        var now = _clock.GetNow();
         var restaurant = new Restaurant
         {
             Name = form.Name.Trim(),
@@ -201,8 +205,8 @@ public class RestaurantService : IRestaurantService
             Latitude = form.Latitude,
             Longitude = form.Longitude,
             MemberID = adminId,
-            CreatedAt = DateTime.Now,
-            UpdatedAt = DateTime.Now
+            CreatedAt = now,
+            UpdatedAt = now
         };
 
         var newImageUrls = new List<string>();
@@ -256,7 +260,7 @@ public class RestaurantService : IRestaurantService
             restaurant.Note = string.IsNullOrWhiteSpace(form.Note) ? null : form.Note.Trim();
             restaurant.Latitude = form.Latitude;
             restaurant.Longitude = form.Longitude;
-            restaurant.UpdatedAt = DateTime.Now;
+            restaurant.UpdatedAt = _clock.GetNow();
             await _restaurantRepository.SaveChangesAsync();
 
             await _restaurantRepository.ReplaceTagsAsync(id, form.SelectedTagIds);

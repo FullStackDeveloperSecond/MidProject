@@ -19,6 +19,7 @@ public sealed class MemberMigrationTests
 
         var migrations = context.GetService<IMigrationsAssembly>().Migrations;
         Assert.Contains("20260728090000_AddMemberRowVersion", migrations.Keys);
+        Assert.Contains("20260729013845_AddTemporaryLoginLockout", migrations.Keys);
 
         var rowVersion = context.Model
             .FindEntityType("MidProject.Models.Member")!
@@ -26,5 +27,11 @@ public sealed class MemberMigrationTests
         Assert.NotNull(rowVersion);
         Assert.True(rowVersion!.IsConcurrencyToken);
         Assert.Equal(ValueGenerated.OnAddOrUpdate, rowVersion.ValueGenerated);
+
+        var loginLockoutEndAt = context.Model
+            .FindEntityType("MidProject.Models.Member")!
+            .FindProperty("LoginLockoutEndAt");
+        Assert.NotNull(loginLockoutEndAt);
+        Assert.Equal(typeof(DateTime?), loginLockoutEndAt!.ClrType);
     }
 }

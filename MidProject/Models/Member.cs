@@ -35,8 +35,10 @@ public class Member
     // 記錄自動懲處機制上次套用時的受理檢舉次數，用來避免同一次數重複套用（見 Services/MemberEscalationBackgroundService.cs）
     public int WarningCount { get; set; }
 
-    // 記錄連續密碼登入失敗次數，達 3 次時 IsLocked 會被設為 true（見 AccountController.Login）；登入成功或管理員手動解鎖時歸零
+    // 記錄連續密碼登入失敗次數；登入造成的鎖定會設定 LoginLockoutEndAt，
+    // 到期後可自動恢復。LoginLockoutEndAt 為 null 的 IsLocked 保留給管理員手動鎖定。
     public int FailedLoginCount { get; set; }
+    public DateTime? LoginLockoutEndAt { get; set; }
 
     public string? AdminNote { get; set; }
     public DateTime? PenaltyEndAt { get; set; }

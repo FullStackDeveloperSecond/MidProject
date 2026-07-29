@@ -8,6 +8,12 @@ namespace MidProject.Services;
 public static class MemberLoginPolicy
 {
     public const int MaxFailedAttempts = 3;
+    public static readonly TimeSpan LoginLockoutDuration = TimeSpan.FromMinutes(15);
+
+    public static bool HasExpiredLoginLockout(Member member, DateTime now) =>
+        member.IsLocked &&
+        member.LoginLockoutEndAt.HasValue &&
+        member.LoginLockoutEndAt.Value <= now;
 
     // 帳號本身是否允許嘗試登入（跟密碼是否正確無關）。回傳 null 代表合格；
     // 有值代表應該顯示的拒絕訊息。

@@ -13,9 +13,28 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      REPORTS_TEST_SERVER: >-
+        Server=localhost,1433;User Id=sa;Password=MidProject_CI_2026!;
+        TrustServerCertificate=True
+
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: Y
+          MSSQL_SA_PASSWORD: MidProject_CI_2026!
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa
+          -P 'MidProject_CI_2026!' -C -Q 'SELECT 1'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-dotnet@v4
         with:
@@ -23,6 +42,9 @@ jobs:
           cache: true
           cache-dependency-path: |
             MidProject/MidProject.csproj
+            Member.Tests/Member.Tests.csproj
+            Reviews.Tests/Reviews.Tests.csproj
+            Reports.Tests/Reports.Tests.csproj
             Notification.AcceptanceTests/Notification.AcceptanceTests.csproj
 
       - name: Restore
@@ -31,17 +53,98 @@ jobs:
           dotnet restore MidProject.sln
 
       - name: Build
-        run: dotnet build MidProject.sln --configuration Release --no-restore
+        run: dotnet build MidProject.sln --configuration Release --no-restore -warnaserror
 
       - name: Notification protocol tests
         run: >-
-          dotnet test MidProject.sln
+          dotnet test Notification.AcceptanceTests/Notification.AcceptanceTests.csproj
           --configuration Release
           --no-build
           --filter "Suite=Protocol"
-          --logger "console;verbosity=minimal"
+          --collect "XPlat Code Coverage"
+          --logger "trx;LogFileName=notification-protocol.trx"
+          --results-directory TestResults
+
+      - name: Member tests
+        run: >-
+          dotnet test Member.Tests/Member.Tests.csproj
+          --configuration Release
+          --no-build
+          --collect "XPlat Code Coverage"
+          --logger "trx;LogFileName=member.trx"
+          --results-directory TestResults
+
+      - name: Reviews tests
+        run: >-
+          dotnet test Reviews.Tests/Reviews.Tests.csproj
+          --configuration Release
+          --no-build
+          --collect "XPlat Code Coverage"
+          --logger "trx;LogFileName=reviews.trx"
+          --results-directory TestResults
+
+      - name: Reports tests
+        run: >-
+          dotnet test Reports.Tests/Reports.Tests.csproj
+          --configuration Release
+          --no-build
+          --collect "XPlat Code Coverage"
+          --logger "trx;LogFileName=reports.trx"
+          --results-directory TestResults
+
+      - name: NuGet vulnerability audit
+        shell: bash
+        run: |
+          audit_output="$(dotnet list MidProject/MidProject.csproj package --vulnerable --include-transitive)"
+          printf '%s\n' "$audit_output"
+          if printf '%s\n' "$audit_output" | grep -Eq '\b(High|Critical)\b'; then
+            echo "High or Critical NuGet vulnerability detected."
+            exit 1
+          fi
 
       - name: Migration drift
         run: |
           dotnet MidProject/bin/Release/net8.0/MidProject.dll \
             --verify-migration-drift
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: |
+            TestResults/**/*.trx
+            TestResults/**/coverage.cobertura.xml
+
+  codeql:
+    name: CodeQL (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: csharp
+            build-mode: autobuild
+          - language: javascript-typescript
+            build-mode: none
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+          queries: security-extended
+
+      - name: Autobuild
+        if: matrix.build-mode == 'autobuild'
+        uses: github/codeql-action/autobuild@v4
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@v4

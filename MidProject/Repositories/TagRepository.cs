@@ -1,17 +1,21 @@
+using System.Data;
 using Microsoft.EntityFrameworkCore;
 using MidProject.Data;
 using MidProject.Models;
 using MidProject.Repositories.IRepositories;
+using MidProject.Services.IServices;
 
 namespace MidProject.Repositories;
 
 public class TagRepository : ITagRepository
 {
     private readonly AppDbContext _db;
+    private readonly ITaipeiClock _clock;
 
-    public TagRepository(AppDbContext db)
+    public TagRepository(AppDbContext db, ITaipeiClock clock)
     {
         _db = db;
+        _clock = clock;
     }
 
     public async Task<List<Tag>> GetAllAsync()
@@ -31,6 +35,19 @@ public class TagRepository : ITagRepository
 
     public async Task AddAsync(Tag tag)
     {
+        if (!_db.Database.IsRelational())
+        {
+            await AddCoreAsync(tag);
+            return;
+        }
+
+        await using var transaction = await _db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+        await AddCoreAsync(tag);
+        await transaction.CommitAsync();
+    }
+
+    private async Task AddCoreAsync(Tag tag)
+    {
         var maxSortOrder = await _db.Tags.Select(t => (int?)t.SortOrder).MaxAsync() ?? -1;
         tag.SortOrder = maxSortOrder + 1;
         _db.Tags.Add(tag);
@@ -46,7 +63,7 @@ public class TagRepository : ITagRepository
         }
 
         tag.IsDeleted = !tag.IsDeleted;
-        tag.DeletedAt = tag.IsDeleted ? DateTime.Now : null;
+        tag.DeletedAt = tag.IsDeleted ? _clock.GetNow() : null;
         tag.DeletedBy = tag.IsDeleted ? byMemberId : null;
         await _db.SaveChangesAsync();
     }

@@ -221,7 +221,7 @@
                                 }
                             </td>
                             <td>@report.CreatedAt.ToString("yyyy-MM-dd")</td>
-                            <td class="@(report.ProcessingDays < 0 ? "text-danger" : "")">@report.ProcessingDays</td>
+                            <td>@report.ProcessingDays</td>
                             <td>@(report.HandledByUserName ?? "—")</td>
                             <td class="text-end">
                                 <a asp-action="Details" asp-route-id="@report.ReportID" class="ds-icon-btn ds-icon-btn-view" title="查看" aria-label="查看">

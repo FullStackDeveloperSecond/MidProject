@@ -26,12 +26,17 @@ public class ReviewServiceTests
         return new AppDbContext(options);
     }
 
-    private static (AppDbContext Db, ReviewService Service, FakeTaipeiClock Clock) CreateSut()
+    private static (AppDbContext Db, ReviewService Service, FakeTaipeiClock Clock) CreateSut(
+        RecordingImageLifecycleService? imageLifecycleService = null)
     {
         var db = CreateContext();
         var clock = new FakeTaipeiClock();
         var repo = new ReviewRepository(db, clock);
-        var service = new ReviewService(repo, db, clock);
+        var service = new ReviewService(
+            repo,
+            db,
+            clock,
+            imageLifecycleService ?? new RecordingImageLifecycleService());
         return (db, service, clock);
     }
 
@@ -197,9 +202,10 @@ public class ReviewServiceTests
     }
 
     [Fact]
-    public async Task DeleteImageAsync_SoftDeletesImage_ButKeepsFileUrl()
+    public async Task DeleteImageAsync_SoftDeletesImage_UnlinksReview_AndStartsLifecycleCleanup()
     {
-        var (db, service, clock) = CreateSut();
+        var lifecycle = new RecordingImageLifecycleService();
+        var (db, service, clock) = CreateSut(lifecycle);
         var member = SeedMember(db);
         var restaurant = SeedRestaurant(db);
         var review = SeedReview(db, restaurant.RestaurantID, member.MemberID);
@@ -227,7 +233,11 @@ public class ReviewServiceTests
         Assert.True(updated!.IsDeleted);
         Assert.Equal(5, updated.DeletedBy);
         Assert.Equal(clock.Now, updated.DeletedAt);
-        // 規格書 5.5/8：只軟刪除，實體檔案網址要保留，不能被清掉
+        Assert.False(await db.ReviewImages.AnyAsync(
+            link => link.ReviewID == review.ReviewID && link.ImageID == image.ImageID));
+        Assert.Equal([image.ImageID], lifecycle.CleanedImageIds);
+        Assert.Equal(5, lifecycle.DeletedByMemberId);
+        // URL 保留作為稽核資訊；生命週期服務負責在沒有其他引用時刪除實體檔。
         Assert.Equal("/uploads/ReviewImage/test.jpg", updated.ImageURL);
     }
 

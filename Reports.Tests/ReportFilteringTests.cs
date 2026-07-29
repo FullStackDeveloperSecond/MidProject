@@ -76,6 +76,6 @@ public sealed class ReportFilteringTests : ReportTestBase
 
         var result = await Service.GetReportsAsync(new ReportQueryParams { PageSize = 50 });
 
-        Assert.Equal(-2, Assert.Single(result.Items).ProcessingDays);
+        Assert.Equal(2, Assert.Single(result.Items).ProcessingDays);
     }
 }

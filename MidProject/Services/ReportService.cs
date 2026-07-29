@@ -279,7 +279,7 @@ public class ReportService : IReportService
         HandledByUserName = r.HandledByMember?.UserName,
         AdminNote = r.AdminNote,
         ProcessingDays = r.Status == "Pending"
-            ? (r.CreatedAt.Date - today).Days
+            ? Math.Max(0, (today - r.CreatedAt.Date).Days)
             : (r.HandledAt.HasValue ? (r.HandledAt.Value.Date - r.CreatedAt.Date).Days : 0)
     };
 

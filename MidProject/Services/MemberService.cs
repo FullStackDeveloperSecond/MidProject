@@ -12,11 +12,16 @@ public sealed class MemberService : IMemberService
 {
     private readonly IMemberRepository _repository;
     private readonly ITaipeiClock _clock;
+    private readonly IImageLifecycleService _imageLifecycleService;
 
-    public MemberService(IMemberRepository repository, ITaipeiClock clock)
+    public MemberService(
+        IMemberRepository repository,
+        ITaipeiClock clock,
+        IImageLifecycleService imageLifecycleService)
     {
         _repository = repository;
         _clock = clock;
+        _imageLifecycleService = imageLifecycleService;
     }
 
     public async Task<MemberListPageData> GetIndexViewDataAsync(MemberIndexQuery query, CancellationToken cancellationToken = default)
@@ -78,7 +83,9 @@ public sealed class MemberService : IMemberService
         var statusChanged = memberInDb.Status != model.Status;
         var nicknameChanged = model.NickName != null && memberInDb.NickName != model.NickName;
         var avatarRemoval = model.RemoveAvatarRequested && memberInDb.AvatarImageID != null;
+        var removedAvatarImageId = avatarRemoval ? memberInDb.AvatarImageID : null;
         var pointsChanged = memberInDb.Points != model.Points;
+        var pointsDifference = model.Points - memberInDb.Points;
         var unlockRequested = model.UnlockAccountRequested && memberInDb.IsLocked;
 
         var errors = new Dictionary<string, string>();
@@ -191,11 +198,22 @@ public sealed class MemberService : IMemberService
         if (pointsChanged)
         {
             memberInDb.Points = model.Points;
+            _repository.AddPointsTransaction(new MidProject.Models.PointsTransaction
+            {
+                MemberID = memberInDb.MemberID,
+                Amount = pointsDifference,
+                BalanceAfter = model.Points,
+                Type = "AdminAdjust",
+                Note = model.PointsChangeReason?.Trim(),
+                CreatedAt = now,
+                CreatedBy = memberEditOperator.MemberId
+            });
         }
         if (unlockRequested)
         {
             memberInDb.IsLocked = false;
             memberInDb.FailedLoginCount = 0;
+            memberInDb.LoginLockoutEndAt = null;
         }
 
         // 5.5 處分期限現在由自動懲處排程（MemberEscalationBackgroundService）依受理檢舉次數計算，
@@ -225,6 +243,13 @@ public sealed class MemberService : IMemberService
         try
         {
             await _repository.SaveChangesAsync(cancellationToken);
+            if (removedAvatarImageId.HasValue)
+            {
+                await _imageLifecycleService.CleanupIfUnreferencedAsync(
+                    [removedAvatarImageId.Value],
+                    memberEditOperator.MemberId,
+                    cancellationToken);
+            }
             return MemberEditOutcome.Success();
         }
         catch (DbUpdateConcurrencyException)

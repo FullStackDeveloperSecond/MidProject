@@ -101,7 +101,7 @@ public sealed class ReportServiceGuardTests
         var result = await service.GetReportsAsync(new ReportQueryParams());
 
         Assert.Equal(Clock.GetNow().Date, repository.QueryToday);
-        Assert.Equal(-2, Assert.Single(result.Items).ProcessingDays);
+        Assert.Equal(2, Assert.Single(result.Items).ProcessingDays);
     }
 
     [Fact]

@@ -10,6 +10,7 @@ public interface IMemberRepository
     Task<List<Report>> GetApprovedReportsAsync(int memberId, CancellationToken cancellationToken = default);
     Task<List<UserLevel>> GetLevelsAsync(CancellationToken cancellationToken = default);
     Task<MemberListPageData> GetIndexPageDataAsync(MemberListFilter filter, CancellationToken cancellationToken = default);
+    void AddPointsTransaction(PointsTransaction transaction);
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }
 

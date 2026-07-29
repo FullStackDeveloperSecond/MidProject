@@ -60,6 +60,7 @@ public class AppDbContext : DbContext
             entity.Property(e => e.Status).HasMaxLength(20).IsRequired().HasDefaultValue("Normal");
             entity.Property(e => e.WarningCount).HasDefaultValue(0);
             entity.Property(e => e.FailedLoginCount).HasDefaultValue(0);
+            entity.Property(e => e.LoginLockoutEndAt);
             entity.Property(e => e.LevelID).HasDefaultValue(1);
             entity.Property(e => e.Experience).HasDefaultValue(0);
             entity.Property(e => e.Points).HasDefaultValue(0);

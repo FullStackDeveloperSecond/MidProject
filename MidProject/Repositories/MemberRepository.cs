@@ -103,5 +103,8 @@ public sealed class MemberRepository : IMemberRepository
         return new MemberListPageData(totalMembers, todayRegistered, abnormalCount, members, totalItems, levels);
     }
 
+    public void AddPointsTransaction(PointsTransaction transaction) =>
+        _context.PointsTransactions.Add(transaction);
+
     public Task SaveChangesAsync(CancellationToken cancellationToken = default) => _context.SaveChangesAsync(cancellationToken);
 }

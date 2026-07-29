@@ -9,6 +9,7 @@ public class UserLevel
     [Required, StringLength(50)]
     public string LevelName { get; set; } = string.Empty;
 
+    [Range(0, int.MaxValue)]
     public int MinExp { get; set; }
 
     [StringLength(50)]

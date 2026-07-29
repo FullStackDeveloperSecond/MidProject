@@ -30,7 +30,7 @@ public sealed class DashboardService : IDashboardService
 
     public async Task<DashboardIndexViewModel> GetIndexAsync(CancellationToken cancellationToken = default)
     {
-        var today = DateTime.Today;
+        var today = _clock.GetNow().Date;
         var startOfMonth = new DateTime(today.Year, today.Month, 1);
 
         var memberCount = await TryCountAsync("Members", () => _dbContext.Members

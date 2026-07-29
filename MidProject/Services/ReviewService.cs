@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using MidProject.Data;
 using MidProject.Models.ViewModels;
 using MidProject.Repositories.IRepositories;
@@ -10,13 +11,19 @@ namespace MidProject.Services
         private readonly IReviewRepository _repo;
         private readonly AppDbContext _dbContext;
         private readonly ITaipeiClock _clock;
+        private readonly IImageLifecycleService _imageLifecycleService;
         private const int PageSize = 10;
 
-        public ReviewService(IReviewRepository repo, AppDbContext dbContext, ITaipeiClock clock)
+        public ReviewService(
+            IReviewRepository repo,
+            AppDbContext dbContext,
+            ITaipeiClock clock,
+            IImageLifecycleService imageLifecycleService)
         {
             _repo = repo;
             _dbContext = dbContext;
             _clock = clock;
+            _imageLifecycleService = imageLifecycleService;
         }
 
         public async Task<ReviewListViewModel> GetReviewListAsync(string tab, string? search, int? rating, string time, string sortBy, string sortDir, int page, int? restaurantId = null)
@@ -139,11 +146,17 @@ namespace MidProject.Services
                 return false;
             }
 
-            // 規格書 5.5 / 8：只做軟刪除，不刪實體檔
+            var reviewLinks = await _dbContext.ReviewImages
+                .Where(link => link.ReviewID == reviewId && link.ImageID == imageId)
+                .ToListAsync();
+            _dbContext.ReviewImages.RemoveRange(reviewLinks);
+
             image.IsDeleted = true;
             image.DeletedAt = _clock.GetNow();
             image.DeletedBy = adminMemberId;
             await _repo.SaveChangesAsync();
+
+            await _imageLifecycleService.CleanupIfUnreferencedAsync([imageId], adminMemberId);
             return true;
         }
 

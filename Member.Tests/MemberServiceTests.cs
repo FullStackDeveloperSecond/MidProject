@@ -12,13 +12,18 @@ namespace Member.Tests;
 // 都已經搬進 MemberService，這裡直接測 Service，不需要啟動整個 ASP.NET Core 管線。
 public class MemberServiceTests
 {
-    private static (MemberService Service, AppDbContext Context, FakeTaipeiClock Clock) CreateService()
+    private static (
+        MemberService Service,
+        AppDbContext Context,
+        FakeTaipeiClock Clock,
+        RecordingImageLifecycleService ImageLifecycle) CreateService()
     {
         var context = InMemoryDbContextFactory.Create();
         var clock = new FakeTaipeiClock();
         var repository = new MemberRepository(context);
-        var service = new MemberService(repository, clock);
-        return (service, context, clock);
+        var imageLifecycle = new RecordingImageLifecycleService();
+        var service = new MemberService(repository, clock, imageLifecycle);
+        return (service, context, clock, imageLifecycle);
     }
 
     private static async Task<MemberModel> SeedMemberAsync(AppDbContext context, Action<MemberModel>? configure = null)
@@ -63,7 +68,7 @@ public class MemberServiceTests
     [Fact]
     public async Task SaveMemberEditAsync_StatusChangedWithoutReason_ReturnsValidationFailed()
     {
-        var (service, context, _) = CreateService();
+        var (service, context, _, _) = CreateService();
         var member = await SeedMemberAsync(context, m => m.Status = "Normal");
 
         var model = BaseModel(member);
@@ -79,7 +84,7 @@ public class MemberServiceTests
     [Fact]
     public async Task SaveMemberEditAsync_StatusChangedWithReason_Succeeds()
     {
-        var (service, context, clock) = CreateService();
+        var (service, context, clock, _) = CreateService();
         var member = await SeedMemberAsync(context, m => m.Status = "Normal");
 
         var model = BaseModel(member);
@@ -101,7 +106,7 @@ public class MemberServiceTests
     [InlineData("Unexpected")]
     public async Task SaveMemberEditAsync_DisallowedStatus_IsRejectedWithoutChangingMember(string status)
     {
-        var (service, context, _) = CreateService();
+        var (service, context, _, _) = CreateService();
         var member = await SeedMemberAsync(context, m => m.Status = "Normal");
 
         var model = BaseModel(member);
@@ -123,7 +128,7 @@ public class MemberServiceTests
     [Fact]
     public async Task SaveMemberEditAsync_ForgedAdminNoteInRequest_IsIgnored()
     {
-        var (service, context, _) = CreateService();
+        var (service, context, _, _) = CreateService();
         var member = await SeedMemberAsync(context, m => m.Status = "Normal");
 
         var model = BaseModel(member);
@@ -144,7 +149,7 @@ public class MemberServiceTests
     [Fact]
     public async Task SaveMemberEditAsync_SuspendMember_SetsIsDeletedAndDeletedByToCurrentAdmin()
     {
-        var (service, context, clock) = CreateService();
+        var (service, context, clock, _) = CreateService();
         var member = await SeedMemberAsync(context, m => m.Status = "Muted");
 
         var model = BaseModel(member);
@@ -164,7 +169,7 @@ public class MemberServiceTests
     [Fact]
     public async Task SaveMemberEditAsync_UnsuspendMember_ClearsIsDeletedAndDeletedBy()
     {
-        var (service, context, _) = CreateService();
+        var (service, context, _, _) = CreateService();
         var member = await SeedMemberAsync(context, m =>
         {
             m.Status = "Suspended";
@@ -191,7 +196,7 @@ public class MemberServiceTests
     [Fact]
     public async Task SaveMemberEditAsync_NicknameChangedWithoutReason_ReturnsValidationFailed()
     {
-        var (service, context, _) = CreateService();
+        var (service, context, _, _) = CreateService();
         var member = await SeedMemberAsync(context, m => m.NickName = "舊名稱");
 
         var model = BaseModel(member);
@@ -207,7 +212,7 @@ public class MemberServiceTests
     [Fact]
     public async Task SaveMemberEditAsync_AvatarRemovalWithoutReason_ReturnsValidationFailed()
     {
-        var (service, context, _) = CreateService();
+        var (service, context, _, _) = CreateService();
         var member = await SeedMemberAsync(context, m => m.AvatarImageID = 999);
 
         var model = BaseModel(member);
@@ -221,9 +226,30 @@ public class MemberServiceTests
     }
 
     [Fact]
+    public async Task SaveMemberEditAsync_AvatarRemoval_CleansUpPreviousImage()
+    {
+        var (service, context, _, imageLifecycle) = CreateService();
+        var member = await SeedMemberAsync(context, m => m.AvatarImageID = 999);
+
+        var model = BaseModel(member);
+        model.RemoveAvatarRequested = true;
+        model.AvatarRemovalReason = "使用者要求移除";
+
+        var outcome = await service.SaveMemberEditAsync(
+            member.MemberID,
+            model,
+            new MemberEditOperator(42, "測試管理員"));
+
+        Assert.Equal(MemberEditOutcomeKind.Success, outcome.Kind);
+        Assert.Null((await context.Members.FindAsync(member.MemberID))!.AvatarImageID);
+        Assert.Equal([999], imageLifecycle.CleanedImageIds);
+        Assert.Equal(42, imageLifecycle.DeletedByMemberId);
+    }
+
+    [Fact]
     public async Task SaveMemberEditAsync_PointsChangedWithoutReason_ReturnsValidationFailed()
     {
-        var (service, context, _) = CreateService();
+        var (service, context, _, _) = CreateService();
         var member = await SeedMemberAsync(context, m => m.Points = 100);
 
         var model = BaseModel(member);
@@ -239,7 +265,7 @@ public class MemberServiceTests
     [Fact]
     public async Task SaveMemberEditAsync_NegativePoints_IsRejectedWithoutWriting()
     {
-        var (service, context, _) = CreateService();
+        var (service, context, _, _) = CreateService();
         var member = await SeedMemberAsync(context, m => m.Points = 100);
 
         var model = BaseModel(member);
@@ -257,9 +283,37 @@ public class MemberServiceTests
     }
 
     [Fact]
+    public async Task SaveMemberEditAsync_PointsChanged_WritesAdminAdjustTransaction()
+    {
+        var (service, context, clock, _) = CreateService();
+        var member = await SeedMemberAsync(context, m => m.Points = 100);
+
+        var model = BaseModel(member);
+        model.Points = 175;
+        model.PointsChangeReason = "客服補償";
+
+        var outcome = await service.SaveMemberEditAsync(
+            member.MemberID,
+            model,
+            new MemberEditOperator(42, "測試管理員"));
+
+        Assert.Equal(MemberEditOutcomeKind.Success, outcome.Kind);
+        Assert.Equal(175, (await context.Members.FindAsync(member.MemberID))!.Points);
+
+        var transaction = Assert.Single(context.PointsTransactions);
+        Assert.Equal(member.MemberID, transaction.MemberID);
+        Assert.Equal(75, transaction.Amount);
+        Assert.Equal(175, transaction.BalanceAfter);
+        Assert.Equal("AdminAdjust", transaction.Type);
+        Assert.Equal("客服補償", transaction.Note);
+        Assert.Equal(42, transaction.CreatedBy);
+        Assert.Equal(clock.Now, transaction.CreatedAt);
+    }
+
+    [Fact]
     public async Task SaveMemberEditAsync_StaleRowVersion_ReturnsConcurrencyConflict()
     {
-        var (service, context, _) = CreateService();
+        var (service, context, _, _) = CreateService();
         var member = await SeedMemberAsync(context, m =>
         {
             m.Points = 100;
@@ -283,7 +337,7 @@ public class MemberServiceTests
     [Fact]
     public async Task SaveMemberEditAsync_UnlockWithoutReason_SucceedsBecauseReasonIsOptional()
     {
-        var (service, context, _) = CreateService();
+        var (service, context, _, _) = CreateService();
         var member = await SeedMemberAsync(context, m =>
         {
             m.IsLocked = true;
@@ -301,12 +355,13 @@ public class MemberServiceTests
         var updated = await context.Members.FindAsync(member.MemberID);
         Assert.False(updated!.IsLocked);
         Assert.Equal(0, updated.FailedLoginCount);
+        Assert.Null(updated.LoginLockoutEndAt);
     }
 
     [Fact]
     public async Task SaveMemberEditAsync_MemberNotFound_ReturnsNotFound()
     {
-        var (service, _, _) = CreateService();
+        var (service, _, _, _) = CreateService();
 
         var model = new MemberEditVM { MemberID = 999, Status = "Normal" };
         var outcome = await service.SaveMemberEditAsync(999, model, new MemberEditOperator(1, "測試管理員"));
@@ -317,7 +372,7 @@ public class MemberServiceTests
     [Fact]
     public async Task GetEditViewDataAsync_ExistingMember_ReturnsOriginalValuesFromDatabase()
     {
-        var (service, context, _) = CreateService();
+        var (service, context, _, _) = CreateService();
         var member = await SeedMemberAsync(context, m =>
         {
             m.Status = "Muted";
@@ -336,7 +391,7 @@ public class MemberServiceTests
     [Fact]
     public async Task GetEditViewDataAsync_MissingMember_ReturnsNull()
     {
-        var (service, _, _) = CreateService();
+        var (service, _, _, _) = CreateService();
 
         var data = await service.GetEditViewDataAsync(999);
 

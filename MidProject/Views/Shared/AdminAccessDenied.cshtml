@@ -9,7 +9,9 @@
         <div class="alert alert-danger mb-3" role="alert">@Model.Message</div>
         @if (User.Identity?.IsAuthenticated == true)
         {
-            <a asp-controller="Account" asp-action="Logout" class="btn btn-secondary">登出並返回登入頁</a>
+            <form asp-controller="Account" asp-action="Logout" method="post">
+                <button type="submit" class="btn btn-secondary">登出並返回登入頁</button>
+            </form>
         }
         else
         {

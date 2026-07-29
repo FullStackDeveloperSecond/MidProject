@@ -16,7 +16,7 @@ public class TagRepositoryReorderTests
         context.Tags.AddRange(first, second, inactive);
         await context.SaveChangesAsync();
 
-        var repository = new TagRepository(context);
+        var repository = new TagRepository(context, new FakeTaipeiClock());
         var result = await repository.ReorderAsync([second.TagID, first.TagID]);
 
         Assert.True(result);
@@ -35,7 +35,7 @@ public class TagRepositoryReorderTests
         context.Tags.AddRange(first, second, inactive);
         await context.SaveChangesAsync();
 
-        var repository = new TagRepository(context);
+        var repository = new TagRepository(context, new FakeTaipeiClock());
 
         Assert.False(await repository.ReorderAsync([first.TagID]));
         Assert.False(await repository.ReorderAsync([first.TagID, first.TagID]));

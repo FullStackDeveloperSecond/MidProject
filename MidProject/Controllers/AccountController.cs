@@ -3,21 +3,26 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.RateLimiting;
 using MidProject.Data;
 using MidProject.Models;
 using MidProject.Models.ViewModels;
 using MidProject.Services;
+using MidProject.Services.IServices;
 using System.Collections.Generic;
 using System.Security.Claims;
 using System.Threading.Tasks;
 
 public class AccountController : Controller
 {
-    private readonly AppDbContext _context; // 請確認這裡與你的 DbContext 名稱一致
+    private const string GenericLoginError = "帳號或密碼錯誤。";
+    private readonly AppDbContext _context;
+    private readonly ITaipeiClock _clock;
 
-    public AccountController(AppDbContext context)
+    public AccountController(AppDbContext context, ITaipeiClock clock)
     {
         _context = context;
+        _clock = clock;
     }
 
     // 6.1 登入網頁 (GET: /Account/Login)
@@ -35,6 +40,7 @@ public class AccountController : Controller
     // 6.1 執行登入驗證 (POST: /Account/Login)
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [EnableRateLimiting("login")]
     public async Task<IActionResult> Login(string email, string password)
     {
         // 8. 基礎欄位驗證
@@ -52,8 +58,25 @@ public class AccountController : Controller
         // 💡 防禦性檢查：如果資料庫完全找不到這筆帳號資料
         if (admin == null)
         {
-            ModelState.AddModelError("", "帳號或密碼錯誤。");
+            ModelState.AddModelError("", GenericLoginError);
             return View();
+        }
+
+        var now = _clock.GetNow();
+        if (MemberLoginPolicy.HasExpiredLoginLockout(admin, now))
+        {
+            await _context.Members
+                .Where(m => m.MemberID == admin.MemberID &&
+                            m.LoginLockoutEndAt != null &&
+                            m.LoginLockoutEndAt <= now)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(m => m.FailedLoginCount, 0)
+                    .SetProperty(m => m.IsLocked, false)
+                    .SetProperty(m => m.LoginLockoutEndAt, (DateTime?)null));
+
+            admin.FailedLoginCount = 0;
+            admin.IsLocked = false;
+            admin.LoginLockoutEndAt = null;
         }
 
         // 8. 帳號資格檢查：鎖定／停用／停權／刪除的帳號一律拒絕登入。
@@ -63,7 +86,7 @@ public class AccountController : Controller
         var eligibilityError = MemberLoginPolicy.CheckEligibility(admin);
         if (eligibilityError != null)
         {
-            ModelState.AddModelError("", eligibilityError);
+            ModelState.AddModelError("", GenericLoginError);
             return View();
         }
 
@@ -72,23 +95,29 @@ public class AccountController : Controller
 
         if (!isPasswordValid)
         {
-            // 8. 連續密碼錯誤達 3 次鎖定帳號，須由管理員在會員編輯頁手動解鎖（AdminMembersController.Edit）
+            // 8. 連續密碼錯誤達 3 次進入短期鎖定；到期後自動解除，也可由管理員提前解鎖。
             // 必須讓 SQL Server 直接以資料庫中的目前值遞增，不能先在記憶體算好固定值再覆寫；
             // 否則多個並行的錯誤密碼請求可能都讀到相同次數，造成實際嘗試次數被少算。
             await _context.Members.Where(m => m.MemberID == admin.MemberID)
                 .ExecuteUpdateAsync(s => s
-                    .SetProperty(m => m.FailedLoginCount, m => m.FailedLoginCount + 1)
-                    .SetProperty(m => m.IsLocked, m => m.FailedLoginCount + 1 >= MemberLoginPolicy.MaxFailedAttempts));
+                    .SetProperty(m => m.FailedLoginCount, m => m.FailedLoginCount + 1));
 
-            var willLock = await _context.Members
+            var failedLoginCount = await _context.Members
                 .AsNoTracking()
                 .Where(m => m.MemberID == admin.MemberID)
-                .Select(m => m.IsLocked)
+                .Select(m => m.FailedLoginCount)
                 .SingleAsync();
 
-            ModelState.AddModelError("", willLock
-                ? "帳號或密碼錯誤，密碼已連續錯誤 3 次，帳號已被鎖定，請聯繫管理員解除鎖定。"
-                : "帳號或密碼錯誤。");
+            if (failedLoginCount >= MemberLoginPolicy.MaxFailedAttempts)
+            {
+                var lockoutEnd = now.Add(MemberLoginPolicy.LoginLockoutDuration);
+                await _context.Members.Where(m => m.MemberID == admin.MemberID)
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(m => m.IsLocked, true)
+                        .SetProperty(m => m.LoginLockoutEndAt, lockoutEnd));
+            }
+
+            ModelState.AddModelError("", GenericLoginError);
             return View();
         }
 
@@ -96,7 +125,9 @@ public class AccountController : Controller
         if (admin.FailedLoginCount != 0)
         {
             await _context.Members.Where(m => m.MemberID == admin.MemberID)
-                .ExecuteUpdateAsync(s => s.SetProperty(m => m.FailedLoginCount, 0));
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(m => m.FailedLoginCount, 0)
+                    .SetProperty(m => m.LoginLockoutEndAt, (DateTime?)null));
         }
 
         // 驗證通過！建立使用者的身份憑證 (Claims)

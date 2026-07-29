@@ -3,16 +3,19 @@ using MidProject.Data;
 using MidProject.Models;
 using MidProject.Models.ViewModels.Restaurants;
 using MidProject.Repositories.IRepositories;
+using MidProject.Services.IServices;
 
 namespace MidProject.Repositories;
 
 public class RestaurantRepository : IRestaurantRepository
 {
     private readonly AppDbContext _db;
+    private readonly ITaipeiClock _clock;
 
-    public RestaurantRepository(AppDbContext db)
+    public RestaurantRepository(AppDbContext db, ITaipeiClock clock)
     {
         _db = db;
+        _clock = clock;
     }
 
     // Index/Deleted rows only ever render Name/City/District/Phone/Tags/Rating/
@@ -264,10 +267,11 @@ public class RestaurantRepository : IRestaurantRepository
         }
 
         restaurant.IsDeleted = true;
-        restaurant.DeletedAt = DateTime.Now;
+        var now = _clock.GetNow();
+        restaurant.DeletedAt = now;
         restaurant.DeletedBy = byMemberId;
         restaurant.DeleteReason = reason;
-        restaurant.UpdatedAt = DateTime.Now;
+        restaurant.UpdatedAt = now;
         await _db.SaveChangesAsync();
     }
 
@@ -280,7 +284,10 @@ public class RestaurantRepository : IRestaurantRepository
         }
 
         restaurant.IsDeleted = false;
-        restaurant.UpdatedAt = DateTime.Now;
+        restaurant.DeletedAt = null;
+        restaurant.DeletedBy = null;
+        restaurant.DeleteReason = null;
+        restaurant.UpdatedAt = _clock.GetNow();
         await _db.SaveChangesAsync();
     }
 

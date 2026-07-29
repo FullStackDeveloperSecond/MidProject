@@ -1,9 +1,13 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.RateLimiting;
 using MidProject.Data;
 using MidProject.Repositories;
 using MidProject.Repositories.IRepositories;
 using MidProject.Services;
 using MidProject.Services.IServices;
+using System.Threading.RateLimiting;
 
 if (args.Contains(MigrationDriftVerifier.CommandArgument, StringComparer.Ordinal))
 {
@@ -38,6 +42,26 @@ builder.Logging.AddProvider(new NotificationAuditFileLoggerProvider(
 
 builder.Services.AddControllersWithViews();
 builder.Services.AddHttpContextAccessor();
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders =
+        ForwardedHeaders.XForwardedFor |
+        ForwardedHeaders.XForwardedProto;
+});
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy("login", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+});
 
 var notificationIdentityMode = NotificationIdentityModeSelection.Parse(
     Environment.GetEnvironmentVariable("Notifications__IdentityMode"));
@@ -70,6 +94,9 @@ builder.Services.AddAuthentication(Microsoft.AspNetCore.Authentication.Cookies.C
         options.LoginPath = "/Account/Login";
         options.AccessDeniedPath = "/Account/AccessDenied";
         options.EventsType = typeof(AdminCookieAuthenticationEvents);
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+        options.Cookie.SameSite = SameSiteMode.Lax;
     });
 
 builder.Services.AddScoped<IReportRepository, ReportRepository>();
@@ -151,13 +178,29 @@ await using (var scope = app.Services.CreateAsyncScope())
     }
 }
 
+app.UseForwardedHeaders();
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
+    app.UseHsts();
 }
 
+app.UseHttpsRedirection();
+app.Use(async (context, next) =>
+{
+    context.Response.OnStarting(() =>
+    {
+        context.Response.Headers.TryAdd("X-Content-Type-Options", "nosniff");
+        context.Response.Headers.TryAdd("X-Frame-Options", "SAMEORIGIN");
+        context.Response.Headers.TryAdd("Referrer-Policy", "strict-origin-when-cross-origin");
+        return Task.CompletedTask;
+    });
+    await next();
+});
 app.UseStaticFiles();
 app.UseRouting();
+app.UseRateLimiter();
 
 //�ҥ�����
 app.UseAuthentication();

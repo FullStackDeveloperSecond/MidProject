@@ -110,4 +110,25 @@ public class MemberLoginPolicyTests
         Assert.Equal(expectedNewCount, newCount);
         Assert.Equal(expectedLock, shouldLock);
     }
+
+    [Fact]
+    public void HasExpiredLoginLockout_WhenTemporaryLockoutExpired_ReturnsTrue()
+    {
+        var now = new DateTime(2026, 7, 29, 10, 0, 0);
+        var member = CreateEligibleMember();
+        member.IsLocked = true;
+        member.LoginLockoutEndAt = now.AddSeconds(-1);
+
+        Assert.True(MemberLoginPolicy.HasExpiredLoginLockout(member, now));
+    }
+
+    [Fact]
+    public void HasExpiredLoginLockout_WhenManualLockHasNoEnd_ReturnsFalse()
+    {
+        var member = CreateEligibleMember();
+        member.IsLocked = true;
+        member.LoginLockoutEndAt = null;
+
+        Assert.False(MemberLoginPolicy.HasExpiredLoginLockout(member, DateTime.Now));
+    }
 }

@@ -383,6 +383,27 @@ const RestaurantAdmin = (() => {
 
     // ---- New image file previews (upload itself happens via normal form file inputs) ----
 
+    function createImagePreviewCard(file, title, datasetKey) {
+        const card = document.createElement("article");
+        card.className = "image-preview-card";
+        card.dataset[datasetKey] = "1";
+
+        const image = document.createElement("img");
+        image.src = URL.createObjectURL(file);
+        image.alt = title;
+
+        const details = document.createElement("div");
+        const heading = document.createElement("strong");
+        heading.textContent = title;
+        const fileName = document.createElement("p");
+        fileName.className = "muted";
+        fileName.textContent = file.name;
+
+        details.append(heading, fileName);
+        card.append(image, details);
+        return card;
+    }
+
     function bindImageInputs() {
         const coverInput = document.getElementById("coverImageInput");
         const envInput = document.getElementById("envImageInput");
@@ -394,11 +415,7 @@ const RestaurantAdmin = (() => {
                 preview.querySelectorAll("[data-new-cover]").forEach(el => el.remove());
                 const file = coverInput.files[0];
                 if (file) {
-                    const card = document.createElement("article");
-                    card.className = "image-preview-card";
-                    card.dataset.newCover = "1";
-                    card.innerHTML = `<img src="${URL.createObjectURL(file)}" alt="新封面圖預覽"><div><strong>新封面圖預覽</strong><p class="muted">${file.name}</p></div>`;
-                    preview.appendChild(card);
+                    preview.appendChild(createImagePreviewCard(file, "新封面圖預覽", "newCover"));
                 }
             });
         }
@@ -407,11 +424,7 @@ const RestaurantAdmin = (() => {
             envInput.addEventListener("change", () => {
                 preview.querySelectorAll("[data-new-env]").forEach(el => el.remove());
                 Array.from(envInput.files).forEach(file => {
-                    const card = document.createElement("article");
-                    card.className = "image-preview-card";
-                    card.dataset.newEnv = "1";
-                    card.innerHTML = `<img src="${URL.createObjectURL(file)}" alt="新環境圖預覽"><div><strong>新環境圖預覽</strong><p class="muted">${file.name}</p></div>`;
-                    preview.appendChild(card);
+                    preview.appendChild(createImagePreviewCard(file, "新環境圖預覽", "newEnv"));
                 });
             });
         }

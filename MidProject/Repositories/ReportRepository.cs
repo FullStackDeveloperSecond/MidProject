@@ -82,7 +82,7 @@ public class ReportRepository : IReportRepository
 
         var totalCount = await q.CountAsync();
 
-        // 處理天數：已處理＝處理日－檢舉日（正數）；待處理＝檢舉日－今天（負數，越久未處理越小）。
+        // 處理天數：已處理＝處理日－檢舉日；待處理＝今天－檢舉日，兩者皆為非負的經過天數。
         // 與 ReportDto.ProcessingDays 的計算一致，在資料庫端算出來才能正確排序＋分頁。
         var currentDate = today.Date;
 
@@ -94,10 +94,10 @@ public class ReportRepository : IReportRepository
             ("Status", "asc") => q.OrderBy(r => r.Status),
             ("Status", "desc") => q.OrderByDescending(r => r.Status),
             ("ProcessingDays", "asc") => q.OrderBy(r => r.Status == "Pending"
-                ? EF.Functions.DateDiffDay(currentDate, r.CreatedAt.Date)
+                ? EF.Functions.DateDiffDay(r.CreatedAt.Date, currentDate)
                 : (r.HandledAt.HasValue ? EF.Functions.DateDiffDay(r.CreatedAt.Date, r.HandledAt.Value.Date) : 0)),
             ("ProcessingDays", "desc") => q.OrderByDescending(r => r.Status == "Pending"
-                ? EF.Functions.DateDiffDay(currentDate, r.CreatedAt.Date)
+                ? EF.Functions.DateDiffDay(r.CreatedAt.Date, currentDate)
                 : (r.HandledAt.HasValue ? EF.Functions.DateDiffDay(r.CreatedAt.Date, r.HandledAt.Value.Date) : 0)),
             ("CreatedAt", "asc") => q.OrderBy(r => r.CreatedAt),
             _ => q.OrderByDescending(r => r.CreatedAt)

@@ -1,3 +1,5 @@
+using System.Text;
+using Microsoft.EntityFrameworkCore;
 using MidProject.Models;
 using MidProject.Models.ViewModels.Tags;
 using MidProject.Repositories.IRepositories;
@@ -8,12 +10,10 @@ namespace MidProject.Services;
 public class TagService : ITagService
 {
     private readonly ITagRepository _tagRepository;
-    private readonly IRestaurantRepository _restaurantRepository;
 
-    public TagService(ITagRepository tagRepository, IRestaurantRepository restaurantRepository)
+    public TagService(ITagRepository tagRepository)
     {
         _tagRepository = tagRepository;
-        _restaurantRepository = restaurantRepository;
     }
 
     public async Task<TagsIndexViewModel> GetIndexAsync()
@@ -38,10 +38,14 @@ public class TagService : ITagService
 
     public async Task<(bool Success, string? Error)> CreateAsync(string name, int adminId)
     {
-        var trimmed = (name ?? string.Empty).Trim();
+        var trimmed = (name ?? string.Empty).Trim().Normalize(NormalizationForm.FormKC);
         if (string.IsNullOrEmpty(trimmed))
         {
             return (false, "請輸入標籤名稱。");
+        }
+        if (trimmed.Length > 50)
+        {
+            return (false, "標籤名稱最多 50 個字。");
         }
 
         var existing = await _tagRepository.FindByNameAsync(trimmed);
@@ -55,8 +59,16 @@ public class TagService : ITagService
             return (true, null);
         }
 
-        await _tagRepository.AddAsync(new Tag { TagName = trimmed });
-        return (true, null);
+        try
+        {
+            await _tagRepository.AddAsync(new Tag { TagName = trimmed });
+            return (true, null);
+        }
+        catch (DbUpdateException)
+        {
+            // 另一個請求可能在名稱查重後先完成新增；以安全訊息結束，不把唯一鍵例外回傳成 500。
+            return (false, "此標籤已存在，請重新整理後確認。");
+        }
     }
 
     public async Task<bool> ToggleAsync(int id, int adminId)
