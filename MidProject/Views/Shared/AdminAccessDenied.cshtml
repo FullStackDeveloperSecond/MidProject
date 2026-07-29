@@ -1,0 +1,19 @@
+@model MidProject.Models.ViewModels.AdminAccessDeniedViewModel
+@{
+    ViewData["Title"] = "無權存取";
+}
+
+<div class="card border-danger">
+    <div class="card-header bg-danger text-white">無法執行</div>
+    <div class="card-body">
+        <div class="alert alert-danger mb-3" role="alert">@Model.Message</div>
+        @if (User.Identity?.IsAuthenticated == true)
+        {
+            <a asp-controller="Account" asp-action="Logout" class="btn btn-secondary">登出並返回登入頁</a>
+        }
+        else
+        {
+            <a asp-controller="Account" asp-action="Login" class="btn btn-secondary">返回登入頁</a>
+        }
+    </div>
+</div>

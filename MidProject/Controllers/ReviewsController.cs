@@ -1,7 +1,6 @@
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using MidProject.Services;
 using MidProject.Services.IServices;
-using System.Security.Claims;
 
 namespace MidProject.Controllers
 {
@@ -18,14 +17,18 @@ namespace MidProject.Controllers
     /// 3. 只有登入的管理員可以進來（[Authorize(Roles = "Admin")]），管理員 ID 讀取登入 Cookie 的 ClaimTypes.NameIdentifier
     /// 4. IReviewRepository / IReviewService 已在 Program.cs 註冊 DI
     /// </summary>
-    [Authorize(Roles = "Admin")]
+    [ServiceFilter(typeof(AdminAuthorizationFilter))]
     public class ReviewsController : Controller
     {
         private readonly IReviewService _reviewService;
+        private readonly ICurrentAdminAccessor _currentAdmin;
 
-        public ReviewsController(IReviewService reviewService)
+        public ReviewsController(
+            IReviewService reviewService,
+            ICurrentAdminAccessor currentAdmin)
         {
             _reviewService = reviewService;
+            _currentAdmin = currentAdmin;
         }
 
         // GET: /Reviews
@@ -59,12 +62,7 @@ namespace MidProject.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> SoftDelete(int id)
         {
-            if (!TryGetCurrentAdminMemberId(out var adminMemberId))
-            {
-                return Forbid();
-            }
-
-            var ok = await _reviewService.SoftDeleteAsync(id, adminMemberId);
+            var ok = await _reviewService.SoftDeleteAsync(id, _currentAdmin.MemberID);
             if (!ok)
             {
                 return NotFound();
@@ -94,12 +92,7 @@ namespace MidProject.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteImage(int imageId, int reviewId)
         {
-            if (!TryGetCurrentAdminMemberId(out var adminMemberId))
-            {
-                return Forbid();
-            }
-
-            var ok = await _reviewService.DeleteImageAsync(imageId, reviewId, adminMemberId);
+            var ok = await _reviewService.DeleteImageAsync(imageId, reviewId, _currentAdmin.MemberID);
             if (!ok)
             {
                 return NotFound();
@@ -107,14 +100,6 @@ namespace MidProject.Controllers
 
             TempData["Toast"] = "圖片已刪除（軟刪除，實體檔案保留）";
             return RedirectToAction(nameof(Details), new { id = reviewId });
-        }
-
-        private bool TryGetCurrentAdminMemberId(out int adminMemberId)
-        {
-            return int.TryParse(
-                    User.FindFirstValue(ClaimTypes.NameIdentifier),
-                    out adminMemberId)
-                && adminMemberId > 0;
         }
     }
 }

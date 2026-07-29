@@ -41,10 +41,11 @@ public sealed class SpyReportNotificationWindow : IReportNotificationWindow
 // 種好共用的「世界」（會員/餐廳/評論/圖片），測試各自新增自己的檢舉，結束後刪除資料庫確保隔離。
 public abstract class ReportTestBase : IDisposable
 {
-    // 可用環境變數覆寫；預設對應開發環境的 SQL Server
+    // 外部整合測試必須明確提供隔離 SQL Server；不得在原始碼保存共用帳密。
     private static readonly string ServerConnection =
         Environment.GetEnvironmentVariable("REPORTS_TEST_SERVER")
-        ?? @"Server=.\sql2025;User Id=sa;Password=123456;TrustServerCertificate=True";
+        ?? throw new InvalidOperationException(
+            "REPORTS_TEST_SERVER is required and must target an isolated SQL Server test instance.");
 
     private readonly string _dbName = "ReportsTest_" + Guid.NewGuid().ToString("N");
 

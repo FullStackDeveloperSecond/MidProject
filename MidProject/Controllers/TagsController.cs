@@ -1,18 +1,21 @@
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using MidProject.Services;
 using MidProject.Services.IServices;
-using System.Security.Claims;
 
 namespace MidProject.Controllers;
 
-[Authorize(Roles = "Admin")]
+[ServiceFilter(typeof(AdminAuthorizationFilter))]
 public class TagsController : Controller
 {
     private readonly ITagService _tagService;
+    private readonly ICurrentAdminAccessor _currentAdmin;
 
-    public TagsController(ITagService tagService)
+    public TagsController(
+        ITagService tagService,
+        ICurrentAdminAccessor currentAdmin)
     {
         _tagService = tagService;
+        _currentAdmin = currentAdmin;
     }
 
     // GET /Tags
@@ -27,12 +30,7 @@ public class TagsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(string name)
     {
-        if (!TryGetAdminId(out var adminId))
-        {
-            return Forbid();
-        }
-
-        var (success, error) = await _tagService.CreateAsync(name, adminId);
+        var (success, error) = await _tagService.CreateAsync(name, _currentAdmin.MemberID);
         TempData["Toast"] = success ? "標籤已新增。" : error;
         return RedirectToAction(nameof(Index));
     }
@@ -42,12 +40,7 @@ public class TagsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Toggle(int id)
     {
-        if (!TryGetAdminId(out var adminId))
-        {
-            return Forbid();
-        }
-
-        var success = await _tagService.ToggleAsync(id, adminId);
+        var success = await _tagService.ToggleAsync(id, _currentAdmin.MemberID);
         if (!success) return NotFound();
         return RedirectToAction(nameof(Index));
     }
@@ -59,11 +52,5 @@ public class TagsController : Controller
     {
         if (orderedIds == null || orderedIds.Count == 0) return BadRequest();
         return await _tagService.ReorderAsync(orderedIds) ? Ok() : BadRequest();
-    }
-
-    private bool TryGetAdminId(out int adminId)
-    {
-        var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        return int.TryParse(claim, out adminId) && adminId > 0;
     }
 }

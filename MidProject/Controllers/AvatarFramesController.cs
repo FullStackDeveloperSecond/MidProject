@@ -1,19 +1,22 @@
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MidProject.Models.ViewModels.PointsStore;
+using MidProject.Services;
 using MidProject.Services.IServices;
-using System.Security.Claims;
 
 namespace MidProject.Controllers;
 
-[Authorize(Roles = "Admin")]
+[ServiceFilter(typeof(AdminAuthorizationFilter))]
 public class AvatarFramesController : Controller
 {
     private readonly IAvatarFrameService _avatarFrameService;
+    private readonly ICurrentAdminAccessor _currentAdmin;
 
-    public AvatarFramesController(IAvatarFrameService avatarFrameService)
+    public AvatarFramesController(
+        IAvatarFrameService avatarFrameService,
+        ICurrentAdminAccessor currentAdmin)
     {
         _avatarFrameService = avatarFrameService;
+        _currentAdmin = currentAdmin;
     }
 
     public async Task<IActionResult> Index(string? keyword, string? rarity, bool? isActive, string? sortBy, int page = 1)
@@ -42,12 +45,7 @@ public class AvatarFramesController : Controller
             return View(model);
         }
 
-        if (!TryGetAdminId(out var adminId))
-        {
-            return Forbid();
-        }
-
-        var (success, error) = await _avatarFrameService.CreateAsync(model, adminId);
+        var (success, error) = await _avatarFrameService.CreateAsync(model, _currentAdmin.MemberID);
         if (!success)
         {
             ModelState.AddModelError(string.Empty, error ?? "新增失敗，請重試。");
@@ -83,12 +81,7 @@ public class AvatarFramesController : Controller
             return View(model);
         }
 
-        if (!TryGetAdminId(out var adminId))
-        {
-            return Forbid();
-        }
-
-        var (success, error) = await _avatarFrameService.UpdateAsync(id, model, adminId);
+        var (success, error) = await _avatarFrameService.UpdateAsync(id, model, _currentAdmin.MemberID);
         if (!success)
         {
             ModelState.AddModelError(string.Empty, error ?? "更新失敗，請重試。");
@@ -116,12 +109,7 @@ public class AvatarFramesController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Delete(int id)
     {
-        if (!TryGetAdminId(out var adminId))
-        {
-            return Forbid();
-        }
-
-        var success = await _avatarFrameService.DeleteAsync(id, adminId);
+        var success = await _avatarFrameService.DeleteAsync(id, _currentAdmin.MemberID);
         if (!success)
         {
             return NotFound();
@@ -143,11 +131,5 @@ public class AvatarFramesController : Controller
 
         TempData["Toast"] = "商品已復原，狀態為下架，請視需要重新上架。";
         return RedirectToAction(nameof(Deleted));
-    }
-
-    private bool TryGetAdminId(out int adminId)
-    {
-        var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        return int.TryParse(claim, out adminId) && adminId > 0;
     }
 }

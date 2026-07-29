@@ -4,22 +4,22 @@ using MidProject.Services.IServices;
 
 namespace MidProject.Services;
 
-public sealed class NotificationAdminAccessEvaluator : INotificationAdminAccessEvaluator
+public sealed class AdminAccessEvaluator : IAdminAccessEvaluator
 {
     private readonly AppDbContext _dbContext;
 
-    public NotificationAdminAccessEvaluator(AppDbContext dbContext)
+    public AdminAccessEvaluator(AppDbContext dbContext)
     {
         _dbContext = dbContext;
     }
 
-    public async Task<NotificationAdminAccessResult> EvaluateAsync(
+    public async Task<AdminAccessResult> EvaluateAsync(
         int? memberId,
         CancellationToken cancellationToken = default)
     {
         if (!memberId.HasValue || memberId.Value <= 0)
         {
-            return new(NotificationAdminAccessClassification.IdentityUnmapped);
+            return new(AdminAccessClassification.IdentityUnmapped);
         }
 
         var member = await _dbContext.Members.AsNoTracking()
@@ -29,16 +29,16 @@ public sealed class NotificationAdminAccessEvaluator : INotificationAdminAccessE
 
         if (member is null || member.IsDeleted || !member.IsActive || member.IsLocked || member.Status != "Normal")
         {
-            return new(NotificationAdminAccessClassification.AdministratorUnavailable);
+            return new(AdminAccessClassification.AdministratorUnavailable);
         }
 
         if (member.Role != "Admin")
         {
-            return new(NotificationAdminAccessClassification.NotAdministrator);
+            return new(AdminAccessClassification.NotAdministrator);
         }
 
         return new(
-            NotificationAdminAccessClassification.Authorized,
-            new NotificationAdminContext(member.MemberID));
+            AdminAccessClassification.Authorized,
+            new AdminContext(member.MemberID));
     }
 }

@@ -1,5 +1,3 @@
-using System.Security.Claims;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using MidProject.Controllers;
 using MidProject.Models.ViewModels.Restaurants;
@@ -11,61 +9,54 @@ namespace Member.Tests;
 public class AdminIdentityGuardTests
 {
     [Fact]
-    public async Task DisableRestaurant_MissingMemberIdClaim_ReturnsForbidWithoutCallingService()
+    public async Task DisableRestaurant_UsesValidatedCurrentAdminId()
     {
         var service = new RecordingRestaurantService();
-        var controller = WithAdminWithoutMemberId(new RestaurantsController(service));
+        var controller = new RestaurantsController(service, new FixedCurrentAdminAccessor(123));
 
         var result = await controller.Disable(42, "測試");
 
-        Assert.IsType<ForbidResult>(result);
-        Assert.Equal(0, service.DisableCallCount);
+        Assert.IsType<NotFoundResult>(result);
+        Assert.Equal(1, service.DisableCallCount);
+        Assert.Equal(123, service.LastAdminId);
     }
 
     [Fact]
-    public async Task CreateTag_InvalidMemberIdClaim_ReturnsForbidWithoutCallingService()
+    public async Task ToggleTag_UsesValidatedCurrentAdminId()
     {
         var service = new RecordingTagService();
-        var controller = WithAdminWithoutMemberId(new TagsController(service), "not-an-id");
+        var controller = new TagsController(service, new FixedCurrentAdminAccessor(456));
 
-        var result = await controller.Create("新標籤");
+        var result = await controller.Toggle(42);
 
-        Assert.IsType<ForbidResult>(result);
-        Assert.Equal(0, service.CreateCallCount);
+        Assert.IsType<NotFoundResult>(result);
+        Assert.Equal(1, service.ToggleCallCount);
+        Assert.Equal(456, service.LastAdminId);
     }
 
-    private static T WithAdminWithoutMemberId<T>(T controller, string? memberId = null)
-        where T : Controller
+    private sealed class FixedCurrentAdminAccessor : ICurrentAdminAccessor
     {
-        var claims = new List<Claim> { new(ClaimTypes.Role, "Admin") };
-        if (memberId != null)
-        {
-            claims.Add(new Claim(ClaimTypes.NameIdentifier, memberId));
-        }
+        public FixedCurrentAdminAccessor(int memberId) => MemberID = memberId;
 
-        controller.ControllerContext = new ControllerContext
-        {
-            HttpContext = new DefaultHttpContext
-            {
-                User = new ClaimsPrincipal(new ClaimsIdentity(claims, "Test"))
-            }
-        };
-        return controller;
+        public int MemberID { get; }
     }
 
     private sealed class RecordingTagService : ITagService
     {
-        public int CreateCallCount { get; private set; }
+        public int ToggleCallCount { get; private set; }
+        public int? LastAdminId { get; private set; }
 
         public Task<TagsIndexViewModel> GetIndexAsync() => throw new NotSupportedException();
 
         public Task<(bool Success, string? Error)> CreateAsync(string name, int adminId)
-        {
-            CreateCallCount++;
-            return Task.FromResult<(bool, string?)>((true, null));
-        }
+            => throw new NotSupportedException();
 
-        public Task<bool> ToggleAsync(int id, int adminId) => throw new NotSupportedException();
+        public Task<bool> ToggleAsync(int id, int adminId)
+        {
+            ToggleCallCount++;
+            LastAdminId = adminId;
+            return Task.FromResult(false);
+        }
 
         public Task<bool> ReorderAsync(IReadOnlyList<int> orderedIds) => throw new NotSupportedException();
     }
@@ -73,6 +64,7 @@ public class AdminIdentityGuardTests
     private sealed class RecordingRestaurantService : IRestaurantService
     {
         public int DisableCallCount { get; private set; }
+        public int? LastAdminId { get; private set; }
 
         public Task<RestaurantIndexViewModel> GetIndexAsync(RestaurantFilterQuery filter) =>
             throw new NotSupportedException();
@@ -98,7 +90,8 @@ public class AdminIdentityGuardTests
         public Task<bool> DisableAsync(int id, string reason, int? byMemberId = null)
         {
             DisableCallCount++;
-            return Task.FromResult(true);
+            LastAdminId = byMemberId;
+            return Task.FromResult(false);
         }
 
         public Task<bool> RestoreAsync(int id) => throw new NotSupportedException();

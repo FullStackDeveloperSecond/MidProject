@@ -1,10 +1,10 @@
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using MidProject.Data;
 using MidProject.Models;
+using MidProject.Services;
 
-[Authorize(Roles = "Admin")]
+[ServiceFilter(typeof(AdminAuthorizationFilter))]
 public class UserLevelsController : Controller
 {
     private readonly AppDbContext _context;

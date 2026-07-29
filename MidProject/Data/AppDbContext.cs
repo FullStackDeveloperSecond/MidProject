@@ -277,6 +277,8 @@ public class AppDbContext : DbContext
                 table.HasCheckConstraint("CK_PointsTransactions_Type", "[Type] IN ('Redeem', 'AdminAdjust', 'Earn')");
                 table.HasCheckConstraint("CK_PointsTransactions_RelatedFrame", "([Type] = 'Redeem' AND [RelatedFrameID] IS NOT NULL) OR ([Type] <> 'Redeem' AND [RelatedFrameID] IS NULL)");
                 table.HasCheckConstraint("CK_PointsTransactions_BalanceAfter", "[BalanceAfter] >= 0");
+                table.HasCheckConstraint("CK_PointsTransactions_AmountByType", "([Type] = 'Redeem' AND [Amount] < 0) OR ([Type] = 'Earn' AND [Amount] > 0) OR ([Type] = 'AdminAdjust' AND [Amount] <> 0)");
+                table.HasCheckConstraint("CK_PointsTransactions_CreatedByType", "([Type] = 'AdminAdjust' AND [CreatedBy] IS NOT NULL) OR ([Type] IN ('Redeem', 'Earn') AND [CreatedBy] IS NULL)");
             });
             entity.HasOne(e => e.Member).WithMany(e => e.PointsTransactions).HasForeignKey(e => e.MemberID).OnDelete(DeleteBehavior.NoAction);
             entity.HasOne(e => e.RelatedFrame).WithMany(e => e.PointsTransactions).HasForeignKey(e => e.RelatedFrameID).OnDelete(DeleteBehavior.NoAction);

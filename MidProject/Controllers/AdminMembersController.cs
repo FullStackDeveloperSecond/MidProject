@@ -1,21 +1,26 @@
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MidProject.Models.ViewModels;
+using MidProject.Services;
 using MidProject.Services.IServices;
 using System.Security.Claims;
 
 // Controller 只呼叫 IMemberService / IMemberEscalationService，不直接持有 AppDbContext
 // （Controller → Service → Repository → DbContext）。
-[Authorize(Roles = "Admin")]
+[ServiceFilter(typeof(AdminAuthorizationFilter))]
 public class AdminMembersController : Controller
 {
     private readonly IMemberService _memberService;
     private readonly IMemberEscalationService _escalationService;
+    private readonly ICurrentAdminAccessor _currentAdmin;
 
-    public AdminMembersController(IMemberService memberService, IMemberEscalationService escalationService)
+    public AdminMembersController(
+        IMemberService memberService,
+        IMemberEscalationService escalationService,
+        ICurrentAdminAccessor currentAdmin)
     {
         _memberService = memberService;
         _escalationService = escalationService;
+        _currentAdmin = currentAdmin;
     }
 
     // 5.5 立即重新檢查懲處（POST，管理員手動觸發）：跟排程背景服務共用同一份 IMemberEscalationService，
@@ -82,12 +87,6 @@ public class AdminMembersController : Controller
     {
         if (id != model.MemberID) return NotFound();
 
-        var adminIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (!int.TryParse(adminIdClaim, out var currentAdminId) || currentAdminId <= 0)
-        {
-            return Forbid();
-        }
-
         if (!ModelState.IsValid)
         {
             var invalidData = await _memberService.GetEditViewDataAsync(id);
@@ -98,7 +97,7 @@ public class AdminMembersController : Controller
         }
 
         var currentAdminName = User.FindFirstValue(ClaimTypes.Name) ?? "管理員";
-        var memberEditOperator = new MemberEditOperator(currentAdminId, currentAdminName);
+        var memberEditOperator = new MemberEditOperator(_currentAdmin.MemberID, currentAdminName);
 
         var outcome = await _memberService.SaveMemberEditAsync(id, model, memberEditOperator);
 

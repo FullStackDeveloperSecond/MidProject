@@ -1,19 +1,22 @@
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MidProject.Models.ViewModels.Restaurants;
+using MidProject.Services;
 using MidProject.Services.IServices;
-using System.Security.Claims;
 
 namespace MidProject.Controllers;
 
-[Authorize(Roles = "Admin")]
+[ServiceFilter(typeof(AdminAuthorizationFilter))]
 public class RestaurantsController : Controller
 {
     private readonly IRestaurantService _restaurantService;
+    private readonly ICurrentAdminAccessor _currentAdmin;
 
-    public RestaurantsController(IRestaurantService restaurantService)
+    public RestaurantsController(
+        IRestaurantService restaurantService,
+        ICurrentAdminAccessor currentAdmin)
     {
         _restaurantService = restaurantService;
+        _currentAdmin = currentAdmin;
     }
 
     // GET /Restaurants
@@ -94,12 +97,7 @@ public class RestaurantsController : Controller
             return PartialView("_FormPartial", form);
         }
 
-        if (!TryGetAdminId(out var adminId))
-        {
-            return Forbid();
-        }
-
-        var (success, newId) = await _restaurantService.CreateAsync(form, adminId);
+        var (success, newId) = await _restaurantService.CreateAsync(form, _currentAdmin.MemberID);
         if (!success)
         {
             form = await _restaurantService.RehydrateFormAsync(form);
@@ -128,12 +126,7 @@ public class RestaurantsController : Controller
             return PartialView("_FormPartial", form);
         }
 
-        if (!TryGetAdminId(out var adminId))
-        {
-            return Forbid();
-        }
-
-        var success = await _restaurantService.EditAsync(id, form, adminId);
+        var success = await _restaurantService.EditAsync(id, form, _currentAdmin.MemberID);
         if (!success)
         {
             form = await _restaurantService.RehydrateFormAsync(form);
@@ -148,12 +141,7 @@ public class RestaurantsController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Disable(int id, string reason)
     {
-        if (!TryGetAdminId(out var adminId))
-        {
-            return Forbid();
-        }
-
-        var success = await _restaurantService.DisableAsync(id, reason, adminId);
+        var success = await _restaurantService.DisableAsync(id, reason, _currentAdmin.MemberID);
         if (!success) return NotFound();
         TempData["Toast"] = "餐廳已移至停用餐廳一覽。";
         return RedirectToAction(nameof(Deleted));
@@ -168,11 +156,5 @@ public class RestaurantsController : Controller
         if (!success) return NotFound();
         TempData["Toast"] = "已解除停用。";
         return RedirectToAction(nameof(Index));
-    }
-
-    private bool TryGetAdminId(out int adminId)
-    {
-        var claim = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        return int.TryParse(claim, out adminId) && adminId > 0;
     }
 }

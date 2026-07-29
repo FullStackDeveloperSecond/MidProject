@@ -19,6 +19,13 @@ dotnet ef database update \
 
 這會依 `MidProject/Migrations` 建立或更新資料庫。
 
+只驗證 Model Snapshot 是否與目前 Entity／`AppDbContext` 一致、不連線或更新資料庫時，
+可執行：
+
+```bash
+./scripts/verify-migration-drift.sh
+```
+
 ### 已有資料庫的組員：新增 Reports.Category
 
 拉到包含 `20260715153559_AddCategoryToReports` 的版本後，建議直接執行：
@@ -88,19 +95,77 @@ FROM Members;
 既有會員的初始值為 `0`。未來執行警告動作時，應在同一個資料庫交易中將
 `WarningCount` 增加 1。
 
-### 已有資料庫的組員：新增 Tags.SortOrder
+### 已有資料庫的組員：新增點數商城
 
-拉到包含 `20260728070110_AddTagSortOrder` 的版本後，建議執行：
+點數商城包含兩個連續 Migration：
 
-```bash
-dotnet restore MidProject.sln
-dotnet tool restore
-dotnet ef database update --project MidProject/MidProject.csproj --startup-project MidProject/MidProject.csproj
+```text
+20260723023637_AddAvatarFrameRedemptionTables
+20260723064747_FixPointsStoreMappings
 ```
 
-Migration 會新增 `Tags.SortOrder int NOT NULL DEFAULT 0`，供後台標籤拖曳排序使用。
+建議直接執行 EF CLI，兩個 Migration 會依序套用：
 
-無法使用 EF CLI 時，請在既有的 `MidProjectDb` 執行：
+```bash
+dotnet ef database update \
+  --project MidProject/MidProject.csproj \
+  --startup-project MidProject/MidProject.csproj
+```
+
+無法使用 EF CLI 時，請在既有 `MidProjectDb` 依序執行，不能顛倒：
+
+```text
+1. database/20260723023637_AddAvatarFrameRedemptionTables.sql
+2. database/20260723064747_FixPointsStoreMappings.sql
+```
+
+第一份會建立 `AvatarFrames`、`MemberAvatarFrames`、`PointsTransactions`，
+並新增 `Members.EquippedFrameID`、相關 FK、索引與 Check Constraints。
+第二份會補上點數商城查詢索引及 `CK_AvatarFrames_PointsPrice`。
+
+EF CLI 與 SQL 腳本二選一即可，不要重複執行兩種方式。
+
+### 已有資料庫的組員：檢舉結果多收件者通知
+
+`20260727083522_UniqueSourceReportPerMember` 會把通知的檢舉來源唯一索引改為
+`ReportID + Outcome + MemberID`，讓檢舉成立時可分別通知檢舉者與被檢舉內容擁有者，
+同時避免同一收件者收到重複的同結果通知。
+
+建議使用 EF CLI 更新。無法使用 EF CLI 時，可在既有資料庫執行
+`database/MidProject_CreateDatabaseAndSchema.sql`；該腳本為 idempotent，只會套用
+`__EFMigrationsHistory` 尚未記錄的 migration。
+
+### 已有資料庫的組員：強化點數異動規則
+
+拉到包含 `20260727160000_StrengthenPointsTransactionRules` 的版本後，先確認
+既有資料沒有違反新規則：
+
+```sql
+SELECT *
+FROM PointsTransactions
+WHERE NOT (
+    ([Type] = 'Redeem' AND [Amount] < 0 AND [CreatedBy] IS NULL)
+    OR ([Type] = 'Earn' AND [Amount] > 0 AND [CreatedBy] IS NULL)
+    OR ([Type] = 'AdminAdjust' AND [Amount] <> 0 AND [CreatedBy] IS NOT NULL)
+);
+```
+
+查詢應為零筆；若有資料，請先依實際來源修正，不要刪除歷史紀錄。接著執行 EF CLI，
+或在既有 `MidProjectDb` 執行：
+
+```text
+database/20260727160000_StrengthenPointsTransactionRules.sql
+```
+
+新限制會保證兌換為負數、獲得點數為正數、管理員調整不得為零，且只有管理員調整
+必須記錄 `CreatedBy`。
+
+### 已有資料庫的組員：新增 Tags.SortOrder
+
+`20260728070110_AddTagSortOrder` 會新增
+`Tags.SortOrder int NOT NULL DEFAULT 0`，供後台標籤拖曳排序使用。
+
+建議使用 EF CLI；無法使用 EF CLI 時，請在既有 `MidProjectDb` 執行：
 
 ```text
 database/20260728070110_AddTagSortOrder.sql
@@ -118,22 +183,23 @@ EF CLI 和這份 SQL 二選一即可，不要重複執行。
 database/MidProject_CreateDatabaseAndSchema.sql
 ```
 
-這份會做：
+請先建立並切換到目標資料庫，再執行這份腳本。它會：
 
 ```text
-1. 如果沒有 MidProjectDb，就建立資料庫
-2. USE MidProjectDb
-3. 建立 EF Core Migration 產生的所有資料表 / FK / Index / Check Constraints
+1. 建立 __EFMigrationsHistory（若尚不存在）
+2. 依序套用尚未執行的 Migration
+3. 建立或更新資料表 / FK / Index / Check Constraints
 4. 寫入 __EFMigrationsHistory
 ```
 
-備用檔案：
+歷史 Initial Migration 備份：
 
 ```text
 database/MidProject_InitialCreate.sql
 ```
 
-這份只建立 Schema，不會建立資料庫；使用前要自己先建立並切到 MidProjectDb。
+這份只包含最初版本 Schema，不含後續通知、會員警告次數或點數商城變更，
+不應用來建立目前最新版資料庫。
 
 ---
 
@@ -213,6 +279,9 @@ FavoriteFolders
 Favorites
 Reports
 Notifications
+AvatarFrames
+MemberAvatarFrames
+PointsTransactions
 __EFMigrationsHistory
 ```
 
@@ -325,9 +394,10 @@ dotnet run --project MidProject/MidProject.csproj
 Development 環境預設執行 `SeedData.InitializeAsync`：
 
 ```text
-1. 如果 Members 已有資料，直接結束，不重複新增。
-2. 如果 Members 沒有資料，建立會員等級、會員、餐廳、圖片路徑、評論、收藏、檢舉與通知 Demo 資料。
-3. SeedData 不會建立 Schema；必須先套用 Migration 或 SQL 腳本。
+1. 會員等級、會員、餐廳、評論、收藏、檢舉與通知分模組檢查並補齊。
+2. 各模組使用固定自然鍵，重複執行不會新增相同 Demo 資料。
+3. PointsStoreDemoSeeder 獨立建立三種稀有度商品，以及成對的持有與扣點紀錄。
+4. SeedData 不會建立 Schema；必須先套用 Migration 或 SQL 腳本。
 ```
 
 如果成功，瀏覽器開啟終端機顯示的網址。

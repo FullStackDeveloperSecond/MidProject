@@ -284,17 +284,6 @@ public class RestaurantRepository : IRestaurantRepository
         await _db.SaveChangesAsync();
     }
 
-    public async Task<int> GetDefaultAdminMemberIdAsync()
-    {
-        var adminId = await _db.Members.Where(m => m.UserName == "admin").Select(m => m.MemberID).FirstOrDefaultAsync();
-        if (adminId != 0)
-        {
-            return adminId;
-        }
-
-        return await _db.Members.OrderBy(m => m.MemberID).Select(m => m.MemberID).FirstOrDefaultAsync();
-    }
-
     public async Task<RestaurantStats> GetStatsAsync(RestaurantFilterQuery filter)
     {
         // Stats reflect the same Search/City/District/Tag scope as the list below

@@ -1192,6 +1192,434 @@ GO
 
 IF NOT EXISTS (
     SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260723023637_AddAvatarFrameRedemptionTables'
+)
+BEGIN
+    ALTER TABLE [Images] DROP CONSTRAINT [CK_Images_ImageType];
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260723023637_AddAvatarFrameRedemptionTables'
+)
+BEGIN
+    ALTER TABLE [Members] ADD [EquippedFrameID] int NULL;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260723023637_AddAvatarFrameRedemptionTables'
+)
+BEGIN
+    CREATE TABLE [AvatarFrames] (
+        [FrameID] int NOT NULL IDENTITY,
+        [Name] nvarchar(50) NOT NULL,
+        [Description] nvarchar(500) NULL,
+        [Rarity] nvarchar(10) NOT NULL DEFAULT N'Common',
+        [PointsPrice] int NOT NULL,
+        [ImageID] int NULL,
+        [SortOrder] int NOT NULL DEFAULT 0,
+        [IsActive] bit NOT NULL DEFAULT CAST(1 AS bit),
+        [CreatedAt] datetime2 NOT NULL DEFAULT (GETDATE()),
+        [UpdatedAt] datetime2 NOT NULL DEFAULT (GETDATE()),
+        [IsDeleted] bit NOT NULL DEFAULT CAST(0 AS bit),
+        [DeletedAt] datetime2 NULL,
+        [DeletedBy] int NULL,
+        CONSTRAINT [PK_AvatarFrames] PRIMARY KEY ([FrameID]),
+        CONSTRAINT [CK_AvatarFrames_Rarity] CHECK ([Rarity] IN ('Common', 'Rare', 'Limited')),
+        CONSTRAINT [FK_AvatarFrames_Images_ImageID] FOREIGN KEY ([ImageID]) REFERENCES [Images] ([ImageID]),
+        CONSTRAINT [FK_AvatarFrames_Members_DeletedBy] FOREIGN KEY ([DeletedBy]) REFERENCES [Members] ([MemberID])
+    );
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260723023637_AddAvatarFrameRedemptionTables'
+)
+BEGIN
+    CREATE TABLE [MemberAvatarFrames] (
+        [MemberAvatarFrameID] int NOT NULL IDENTITY,
+        [MemberID] int NOT NULL,
+        [FrameID] int NOT NULL,
+        [RedeemedAt] datetime2 NOT NULL DEFAULT (GETDATE()),
+        CONSTRAINT [PK_MemberAvatarFrames] PRIMARY KEY ([MemberAvatarFrameID]),
+        CONSTRAINT [FK_MemberAvatarFrames_AvatarFrames_FrameID] FOREIGN KEY ([FrameID]) REFERENCES [AvatarFrames] ([FrameID]),
+        CONSTRAINT [FK_MemberAvatarFrames_Members_MemberID] FOREIGN KEY ([MemberID]) REFERENCES [Members] ([MemberID])
+    );
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260723023637_AddAvatarFrameRedemptionTables'
+)
+BEGIN
+    CREATE TABLE [PointsTransactions] (
+        [TransactionID] int NOT NULL IDENTITY,
+        [MemberID] int NOT NULL,
+        [Amount] int NOT NULL,
+        [BalanceAfter] int NOT NULL,
+        [Type] nvarchar(20) NOT NULL,
+        [RelatedFrameID] int NULL,
+        [Note] nvarchar(200) NULL,
+        [CreatedAt] datetime2 NOT NULL DEFAULT (GETDATE()),
+        [CreatedBy] int NULL,
+        CONSTRAINT [PK_PointsTransactions] PRIMARY KEY ([TransactionID]),
+        CONSTRAINT [CK_PointsTransactions_BalanceAfter] CHECK ([BalanceAfter] >= 0),
+        CONSTRAINT [CK_PointsTransactions_RelatedFrame] CHECK (([Type] = 'Redeem' AND [RelatedFrameID] IS NOT NULL) OR ([Type] <> 'Redeem' AND [RelatedFrameID] IS NULL)),
+        CONSTRAINT [CK_PointsTransactions_Type] CHECK ([Type] IN ('Redeem', 'AdminAdjust', 'Earn')),
+        CONSTRAINT [FK_PointsTransactions_AvatarFrames_RelatedFrameID] FOREIGN KEY ([RelatedFrameID]) REFERENCES [AvatarFrames] ([FrameID]),
+        CONSTRAINT [FK_PointsTransactions_Members_CreatedBy] FOREIGN KEY ([CreatedBy]) REFERENCES [Members] ([MemberID]),
+        CONSTRAINT [FK_PointsTransactions_Members_MemberID] FOREIGN KEY ([MemberID]) REFERENCES [Members] ([MemberID])
+    );
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260723023637_AddAvatarFrameRedemptionTables'
+)
+BEGIN
+    CREATE INDEX [IX_Members_EquippedFrameID] ON [Members] ([EquippedFrameID]);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260723023637_AddAvatarFrameRedemptionTables'
+)
+BEGIN
+    EXEC(N'ALTER TABLE [Images] ADD CONSTRAINT [CK_Images_ImageType] CHECK ([ImageType] IN (''RestaurantCover'', ''RestaurantEnvironment'', ''ReviewImage'', ''MemberAvatar'', ''AvatarFrame''))');
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260723023637_AddAvatarFrameRedemptionTables'
+)
+BEGIN
+    CREATE INDEX [IX_AvatarFrames_DeletedBy] ON [AvatarFrames] ([DeletedBy]);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260723023637_AddAvatarFrameRedemptionTables'
+)
+BEGIN
+    CREATE INDEX [IX_AvatarFrames_ImageID] ON [AvatarFrames] ([ImageID]);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260723023637_AddAvatarFrameRedemptionTables'
+)
+BEGIN
+    CREATE INDEX [IX_MemberAvatarFrames_FrameID] ON [MemberAvatarFrames] ([FrameID]);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260723023637_AddAvatarFrameRedemptionTables'
+)
+BEGIN
+    CREATE UNIQUE INDEX [IX_MemberAvatarFrames_MemberID_FrameID] ON [MemberAvatarFrames] ([MemberID], [FrameID]);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260723023637_AddAvatarFrameRedemptionTables'
+)
+BEGIN
+    CREATE INDEX [IX_PointsTransactions_CreatedBy] ON [PointsTransactions] ([CreatedBy]);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260723023637_AddAvatarFrameRedemptionTables'
+)
+BEGIN
+    CREATE INDEX [IX_PointsTransactions_MemberID] ON [PointsTransactions] ([MemberID]);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260723023637_AddAvatarFrameRedemptionTables'
+)
+BEGIN
+    CREATE INDEX [IX_PointsTransactions_RelatedFrameID] ON [PointsTransactions] ([RelatedFrameID]);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260723023637_AddAvatarFrameRedemptionTables'
+)
+BEGIN
+    ALTER TABLE [Members] ADD CONSTRAINT [FK_Members_AvatarFrames_EquippedFrameID] FOREIGN KEY ([EquippedFrameID]) REFERENCES [AvatarFrames] ([FrameID]);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260723023637_AddAvatarFrameRedemptionTables'
+)
+BEGIN
+    ALTER TABLE [Notifications] ADD CONSTRAINT [FK_Notifications_Reports_SourceReportID] FOREIGN KEY ([SourceReportID]) REFERENCES [Reports] ([ReportID]);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260723023637_AddAvatarFrameRedemptionTables'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20260723023637_AddAvatarFrameRedemptionTables', N'8.0.22');
+END;
+GO
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260723064747_FixPointsStoreMappings'
+)
+BEGIN
+    DROP INDEX [IX_PointsTransactions_MemberID] ON [PointsTransactions];
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260723064747_FixPointsStoreMappings'
+)
+BEGIN
+    CREATE INDEX [IX_PointsTransactions_MemberID_CreatedAt] ON [PointsTransactions] ([MemberID], [CreatedAt]);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260723064747_FixPointsStoreMappings'
+)
+BEGIN
+    CREATE INDEX [IX_PointsTransactions_Type] ON [PointsTransactions] ([Type]);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260723064747_FixPointsStoreMappings'
+)
+BEGIN
+    CREATE INDEX [IX_AvatarFrames_IsActive] ON [AvatarFrames] ([IsActive]);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260723064747_FixPointsStoreMappings'
+)
+BEGIN
+    CREATE INDEX [IX_AvatarFrames_IsDeleted] ON [AvatarFrames] ([IsDeleted]);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260723064747_FixPointsStoreMappings'
+)
+BEGIN
+    EXEC(N'ALTER TABLE [AvatarFrames] ADD CONSTRAINT [CK_AvatarFrames_PointsPrice] CHECK ([PointsPrice] >= 0)');
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260723064747_FixPointsStoreMappings'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20260723064747_FixPointsStoreMappings', N'8.0.22');
+END;
+GO
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260723081106_RemoveUniqueSourceReportIndex'
+)
+BEGIN
+    DROP INDEX [IX_Notifications_SourceReportID_SourceReportOutcome] ON [Notifications];
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260723081106_RemoveUniqueSourceReportIndex'
+)
+BEGIN
+    EXEC(N'CREATE INDEX [IX_Notifications_SourceReportID_SourceReportOutcome] ON [Notifications] ([SourceReportID], [SourceReportOutcome]) WHERE [SourceReportID] IS NOT NULL AND [SourceReportOutcome] IS NOT NULL');
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260723081106_RemoveUniqueSourceReportIndex'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20260723081106_RemoveUniqueSourceReportIndex', N'8.0.22');
+END;
+GO
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260724061013_AddFailedLoginCountToMembers'
+)
+BEGIN
+    ALTER TABLE [Members] ADD [FailedLoginCount] int NOT NULL DEFAULT 0;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260724061013_AddFailedLoginCountToMembers'
+)
+BEGIN
+    EXEC(N'ALTER TABLE [Members] ADD CONSTRAINT [CK_Members_FailedLoginCount] CHECK ([FailedLoginCount] >= 0)');
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260724061013_AddFailedLoginCountToMembers'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20260724061013_AddFailedLoginCountToMembers', N'8.0.22');
+END;
+GO
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260727083522_UniqueSourceReportPerMember'
+)
+BEGIN
+    DROP INDEX [IX_Notifications_SourceReportID_SourceReportOutcome] ON [Notifications];
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260727083522_UniqueSourceReportPerMember'
+)
+BEGIN
+
+    WITH dup AS (
+        SELECT NotificationID,
+               ROW_NUMBER() OVER (
+                   PARTITION BY SourceReportID, SourceReportOutcome, MemberID
+                   ORDER BY NotificationID) AS rn
+        FROM Notifications
+        WHERE SourceReportID IS NOT NULL AND SourceReportOutcome IS NOT NULL
+    )
+    DELETE FROM Notifications WHERE NotificationID IN (SELECT NotificationID FROM dup WHERE rn > 1);
+
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260727083522_UniqueSourceReportPerMember'
+)
+BEGIN
+    EXEC(N'CREATE UNIQUE INDEX [IX_Notifications_SourceReportID_SourceReportOutcome_MemberID] ON [Notifications] ([SourceReportID], [SourceReportOutcome], [MemberID]) WHERE [SourceReportID] IS NOT NULL AND [SourceReportOutcome] IS NOT NULL');
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260727083522_UniqueSourceReportPerMember'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20260727083522_UniqueSourceReportPerMember', N'8.0.22');
+END;
+GO
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260727160000_StrengthenPointsTransactionRules'
+)
+BEGIN
+    EXEC(N'ALTER TABLE [PointsTransactions] ADD CONSTRAINT [CK_PointsTransactions_AmountByType] CHECK (([Type] = ''Redeem'' AND [Amount] < 0) OR ([Type] = ''Earn'' AND [Amount] > 0) OR ([Type] = ''AdminAdjust'' AND [Amount] <> 0))');
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260727160000_StrengthenPointsTransactionRules'
+)
+BEGIN
+    EXEC(N'ALTER TABLE [PointsTransactions] ADD CONSTRAINT [CK_PointsTransactions_CreatedByType] CHECK (([Type] = ''AdminAdjust'' AND [CreatedBy] IS NOT NULL) OR ([Type] IN (''Redeem'', ''Earn'') AND [CreatedBy] IS NULL))');
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260727160000_StrengthenPointsTransactionRules'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20260727160000_StrengthenPointsTransactionRules', N'8.0.22');
+END;
+GO
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
     WHERE [MigrationId] = N'20260728070110_AddTagSortOrder'
 )
 BEGIN
@@ -1206,6 +1634,31 @@ IF NOT EXISTS (
 BEGIN
     INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
     VALUES (N'20260728070110_AddTagSortOrder', N'8.0.22');
+END;
+GO
+
+COMMIT;
+GO
+
+BEGIN TRANSACTION;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260728090000_AddMemberRowVersion'
+)
+BEGIN
+    ALTER TABLE [Members] ADD [RowVersion] rowversion NOT NULL;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260728090000_AddMemberRowVersion'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20260728090000_AddMemberRowVersion', N'8.0.22');
 END;
 GO
 

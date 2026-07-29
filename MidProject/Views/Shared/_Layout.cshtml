@@ -1,3 +1,4 @@
+@using MidProject.Services
 @{
     var currentController = ViewContext.RouteData.Values["controller"]?.ToString() ?? string.Empty;
     var currentAction = ViewContext.RouteData.Values["action"]?.ToString() ?? string.Empty;
@@ -9,6 +10,7 @@
     var dashboardActive = currentController is "Home" or "Dashboard" ? "active" : string.Empty;
     var restaurantsGroupActive = currentController is "Restaurants" or "Tags";
     var pointsStoreGroupActive = currentController is "AvatarFrames" or "PointsStoreRedemptions";
+    var showAdminNavigation = AdminContext.IsValidated(Context);
 }
 <!DOCTYPE html>
 <html lang="zh-Hant">
@@ -25,6 +27,8 @@
 </head>
 <body class="admin-body">
     <div class="admin-shell">
+        @if (showAdminNavigation)
+        {
         <aside class="admin-sidebar collapse d-lg-flex" id="adminSidebar">
             <a class="admin-brand" asp-controller="Home" asp-action="Index">
                 <i class="fas fa-utensils"></i>
@@ -94,9 +98,12 @@
                 }
             </div>
         </aside>
+        }
 
         <div class="admin-main">
             <div class="admin-topbar-accent"></div>
+            @if (showAdminNavigation)
+            {
             <header class="admin-topbar navbar navbar-expand bg-white border-bottom shadow-sm d-lg-none">
                 <div class="container-fluid px-3">
                     <button class="btn btn-outline-secondary" type="button" data-bs-toggle="collapse"
@@ -125,6 +132,7 @@
                     </div>
                 </div>
             </header>
+            }
 
             <main class="admin-content" role="main">
                 <div class="container-fluid px-3 px-lg-4 py-3">

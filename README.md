@@ -1,8 +1,7 @@
 # 美食地圖｜MidProject 基礎專案
 
-這個分支提供五人協作開發所需的共用基礎，只包含 ASP.NET Core MVC 架構、Entity、`AppDbContext`、Initial Migration 與開發用 SeedData。
-
-目前不包含會員、餐廳、評論、檢舉、通知等功能模組的 Controller、ViewModel、Service 或 CRUD 頁面。
+這是美食地圖後台管理系統，包含會員、餐廳、評論、檢舉、通知與點數商城模組，
+採 ASP.NET Core MVC、Entity Framework Core 與 SQL Server。
 
 ## 技術
 
@@ -20,7 +19,8 @@ MidProject/
 ├── Data/
 │   ├── AppDbContext.cs   # DbSet、關聯、索引與限制
 │   ├── AppDbContextFactory.cs # EF CLI Design-time DbContext
-│   └── SeedData.cs       # Development Demo 資料
+│   ├── SeedData.cs       # Development Demo 資料
+│   └── PointsStoreDemoSeeder.cs # 點數商城獨立 Demo 資料
 ├── Migrations/           # Initial Migration 與 Model Snapshot
 ├── Models/               # 資料庫 Entity
 ├── Services/
@@ -32,9 +32,18 @@ MidProject/
 database/
 ├── 20260715153559_AddCategoryToReports.sql # 已有資料庫單獨升級用
 ├── 20260718074506_AddWarningCountToMembers.sql # 已有資料庫新增會員警告次數
+├── 20260723023637_AddAvatarFrameRedemptionTables.sql # 點數商城資料表
+├── 20260723064747_FixPointsStoreMappings.sql # 點數商城索引與限制修正
+├── 20260727160000_StrengthenPointsTransactionRules.sql # 點數異動規則
+├── 20260728070110_AddTagSortOrder.sql # 餐廳標籤排序
 ├── MidProject_CreateDatabaseAndSchema.sql
 ├── MidProject_InitialCreate.sql
 └── README_資料庫建置教學.md
+
+Notification.AcceptanceTests/
+├── Scenarios/acceptance-scenarios.json # 27 個核准準則／50 次 suite 執行
+├── fixtures/fixture-contract.json      # 獨立驗收環境契約
+└── setup.md                            # 外部 driver 與執行方式
 ```
 
 ## 第一次啟動
@@ -58,11 +67,19 @@ dotnet user-secrets set "ConnectionStrings:DefaultConnection" \
   --project MidProject/MidProject.csproj
 ```
 
+確認本機已設定但不輸出到 Git：
+
+```bash
+dotnet user-secrets list --project MidProject/MidProject.csproj
+```
+
 也可使用環境變數：
 
 ```text
 ConnectionStrings__DefaultConnection
 ```
+
+若 SQL 密碼或其他憑證曾提交到 Git，從設定檔刪除並不能使舊憑證失效；必須另外在 SQL Server 端輪替該憑證，再更新每位開發者的 User Secrets。
 
 ### 3. 建立／更新資料庫
 
@@ -76,28 +93,60 @@ dotnet ef database update \
 
 ### 4. 啟動
 
+Development 預設會建立 Demo 會員，但密碼不會保存於 Git。第一次啟動前，請透過
+.NET User Secrets 設定本機專用密碼：
+
+```bash
+dotnet user-secrets set "SeedData:AdminPassword" \
+  "YOUR_LOCAL_DEMO_ADMIN_PASSWORD" \
+  --project MidProject/MidProject.csproj
+
+dotnet user-secrets set "SeedData:UserPassword" \
+  "YOUR_LOCAL_DEMO_USER_PASSWORD" \
+  --project MidProject/MidProject.csproj
+```
+
+CI、容器或其他受控環境也可使用 `SeedData__AdminPassword` 與
+`SeedData__UserPassword` 環境變數。啟用 Development SeedData 卻未提供任一密碼時，
+應用程式會在寫入 Demo 資料前停止，避免建立可預測的帳號憑證。
+
 ```bash
 dotnet run --project MidProject/MidProject.csproj
 ```
 
-Development 環境預設啟用 SeedData；當 `Members` 已經有資料時不會重複建立 Demo 資料。
+Development 環境預設啟用模組化 SeedData；各模組使用固定自然鍵獨立補齊 Demo
+資料，重複啟動不會新增相同資料。點數商城 Demo 由獨立 Seeder 建立商品、持有紀錄與
+成對的點數異動。
+
+### 圖片上傳規則
+
+- 接受 JPEG、PNG、WebP，單檔最多 5MB、長寬最多 4096×4096。
+- 伺服器會辨識實際格式、完整解碼並重新輸出；副檔名偽裝、損毀與多幀圖片會被拒絕。
+- runtime 圖片存放於 `MidProject/wwwroot/uploads/`，不納入 Git。
+- Git 只保留各目錄 `.gitkeep`、預設會員頭像及兩張評論 Demo 圖片。
+- 餐廳與外框商品的圖片異動使用資料庫交易；資料庫失敗會移除本次新檔，
+  換圖後的舊檔只會在確認沒有餐廳、評論、會員、商品或檢舉引用時清理。
 
 ## 驗證
 
 ```bash
 dotnet build MidProject.sln --no-restore
-dotnet ef migrations has-pending-model-changes \
-  --project MidProject/MidProject.csproj \
-  --startup-project MidProject/MidProject.csproj
+dotnet test MidProject.sln --no-build --filter "Suite=Protocol"
+./scripts/verify-migration-drift.sh
 ```
 
-## 模組範圍說明
+Notifications 的 50 次完整整合驗收需要獨立站台、fixture 與外部 driver，設定方式見
+[Notification.AcceptanceTests/setup.md](Notification.AcceptanceTests/setup.md)。
 
-### 收藏（Favorites）— 僅提供資料，不實作頁面（out of scope）
+Migration drift 腳本直接比較執行時 model 與最新 Snapshot，不建立 Web Host、不執行
+SeedData、不需要本機 SQL Server，也不會修改資料庫；命令以非 0 結束即代表兩者不一致。
 
-- 收藏屬於 **out of scope**：本專案**只提供 `Favorite` / `FavoriteFolder` Entity 與 SeedData 假資料**，用來支援資料模型與 Dashboard／Demo 的資料存在性。
-- **不提供收藏功能的 Controller、Service 或 CRUD 頁面**。側邊欄的「收藏」連結目前沒有對應頁面，屬預留。
-- SeedData 已建立少量收藏資料（多個會員、資料夾與收藏餐廳），足以支援 Demo 展示；若後續要正式開發收藏功能，再另行擴充規格與頁面。
+PR 與 `dev` push 會由 `.github/workflows/ci.yml` 自動執行 solution build、
+Notifications protocol tests 與 Migration drift。
+
+Notifications 的 Information 以上操作日誌會寫入 `MidProject/App_Data/logs/` 的每日
+JSONL 分段檔，每段上限 20MB，僅保留台灣日期最近 14 天；目錄、天數與單檔上限可由
+`NotificationLogging` 設定覆寫。
 
 ## 開發邊界
 

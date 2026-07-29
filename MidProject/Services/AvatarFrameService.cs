@@ -14,19 +14,25 @@ public class AvatarFrameService : IAvatarFrameService
 
     private readonly IAvatarFrameRepository _frameRepository;
     private readonly IImageUploadService _imageUploadService;
+    private readonly IImageLifecycleService _imageLifecycleService;
     private readonly AppDbContext _dbContext;
     private readonly ITaipeiClock _clock;
+    private readonly ILogger<AvatarFrameService> _logger;
 
     public AvatarFrameService(
         IAvatarFrameRepository frameRepository,
         IImageUploadService imageUploadService,
+        IImageLifecycleService imageLifecycleService,
         AppDbContext dbContext,
-        ITaipeiClock clock)
+        ITaipeiClock clock,
+        ILogger<AvatarFrameService> logger)
     {
         _frameRepository = frameRepository;
         _imageUploadService = imageUploadService;
+        _imageLifecycleService = imageLifecycleService;
         _dbContext = dbContext;
         _clock = clock;
+        _logger = logger;
     }
 
     public async Task<AvatarFramesIndexViewModel> GetIndexAsync(
@@ -218,12 +224,18 @@ public class AvatarFrameService : IAvatarFrameService
                 throw;
             }
         }
-        catch
+        catch (Exception exception)
         {
+            _dbContext.ChangeTracker.Clear();
             // DB 交易無法建立或交易內容失敗時，清除已經寫入硬碟的檔案，
             // 避免留下資料庫裡完全沒有紀錄指向的孤兒檔案。
             await _imageUploadService.DeleteAsync(image.ImageURL);
-            return (false, "新增失敗，請重試。");
+            _logger.LogError(
+                exception,
+                "Avatar frame create failed; Operation=AvatarFrameCreate; AdminID={AdminID}; ExceptionType={ExceptionType}",
+                adminId,
+                exception.GetType().Name);
+            return (false, "商品新增失敗，已清理本次上傳檔案，請稍後再試。");
         }
 
         return (true, null);
@@ -285,18 +297,6 @@ public class AvatarFrameService : IAvatarFrameService
 
                 await _frameRepository.SaveChangesAsync();
 
-                if (newImage != null && oldImageId.HasValue)
-                {
-                    var oldImage = await _dbContext.Images.FindAsync(oldImageId.Value);
-                    if (oldImage != null)
-                    {
-                        oldImage.IsDeleted = true;
-                        oldImage.DeletedAt = now;
-                        oldImage.DeletedBy = adminId;
-                        await _dbContext.SaveChangesAsync();
-                    }
-                }
-
                 await transaction.CommitAsync();
             }
             catch
@@ -305,13 +305,25 @@ public class AvatarFrameService : IAvatarFrameService
                 throw;
             }
         }
-        catch
+        catch (Exception exception)
         {
+            _dbContext.ChangeTracker.Clear();
             if (newImage != null)
             {
                 await _imageUploadService.DeleteAsync(newImage.ImageURL);
             }
-            return (false, "更新失敗，請重試。");
+            _logger.LogError(
+                exception,
+                "Avatar frame update failed; Operation=AvatarFrameUpdate; FrameID={FrameID}; AdminID={AdminID}; ExceptionType={ExceptionType}",
+                id,
+                adminId,
+                exception.GetType().Name);
+            return (false, "商品更新失敗，已回復資料並清理本次上傳檔案，請稍後再試。");
+        }
+
+        if (newImage != null && oldImageId.HasValue)
+        {
+            await _imageLifecycleService.CleanupIfUnreferencedAsync([oldImageId.Value], adminId);
         }
 
         return (true, null);

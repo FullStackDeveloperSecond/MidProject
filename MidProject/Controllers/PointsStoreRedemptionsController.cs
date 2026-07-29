@@ -1,10 +1,10 @@
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using MidProject.Services;
 using MidProject.Services.IServices;
 
 namespace MidProject.Controllers;
 
-[Authorize(Roles = "Admin")]
+[ServiceFilter(typeof(AdminAuthorizationFilter))]
 public class PointsStoreRedemptionsController : Controller
 {
     private readonly IPointsStoreRedemptionService _redemptionService;

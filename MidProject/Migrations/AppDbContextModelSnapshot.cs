@@ -647,7 +647,11 @@ namespace MidProject.Migrations
 
                     b.ToTable("PointsTransactions", t =>
                         {
+                            t.HasCheckConstraint("CK_PointsTransactions_AmountByType", "([Type] = 'Redeem' AND [Amount] < 0) OR ([Type] = 'Earn' AND [Amount] > 0) OR ([Type] = 'AdminAdjust' AND [Amount] <> 0)");
+
                             t.HasCheckConstraint("CK_PointsTransactions_BalanceAfter", "[BalanceAfter] >= 0");
+
+                            t.HasCheckConstraint("CK_PointsTransactions_CreatedByType", "([Type] = 'AdminAdjust' AND [CreatedBy] IS NOT NULL) OR ([Type] IN ('Redeem', 'Earn') AND [CreatedBy] IS NULL)");
 
                             t.HasCheckConstraint("CK_PointsTransactions_RelatedFrame", "([Type] = 'Redeem' AND [RelatedFrameID] IS NOT NULL) OR ([Type] <> 'Redeem' AND [RelatedFrameID] IS NULL)");
 

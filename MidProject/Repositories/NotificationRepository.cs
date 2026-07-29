@@ -147,10 +147,14 @@ public sealed class NotificationRepository : INotificationRepository
             cancellationToken);
     }
 
-    public Task<bool> ReportSourceExistsAsync(int reportId, string outcome, CancellationToken cancellationToken = default)
+    public Task<bool> ReportSourceExistsAsync(
+        int reportId,
+        string outcome,
+        CancellationToken cancellationToken = default)
     {
         return _dbContext.Notifications.AsNoTracking().AnyAsync(x =>
-            x.SourceReportID == reportId && x.SourceReportOutcome == outcome,
+            x.SourceReportID == reportId &&
+            x.SourceReportOutcome == outcome,
             cancellationToken);
     }
 
