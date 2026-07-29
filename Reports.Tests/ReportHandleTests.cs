@@ -1,4 +1,5 @@
 using MidProject.Models.DTOs;
+using Microsoft.EntityFrameworkCore;
 using Xunit;
 
 namespace Reports.Tests;
@@ -22,6 +23,90 @@ public sealed class ReportHandleTests : ReportTestBase
         Assert.Equal(OwnerId, updated.ReportedMemberID);        // 被檢舉會員＝評論擁有者
         Assert.Equal(Clock.GetNow(), updated.HandledAt);         // HandledAt 用共用時間服務
         Assert.Equal("admin", updated.HandledByUserName);        // 由目前登入管理員處理
+
+        Db.ChangeTracker.Clear();
+        var deletedReview = await Db.Reviews.FindAsync(ReviewId);
+        var punishedOwner = await Db.Members.FindAsync(OwnerId);
+        var recalculatedRestaurant = await Db.Restaurants.FindAsync(RestaurantId);
+        Assert.True(deletedReview!.IsDeleted);
+        Assert.Equal(AdminId, deletedReview.DeletedBy);
+        Assert.Equal("Warning", punishedOwner!.Status);
+        Assert.Equal(1, punishedOwner.WarningCount);
+        Assert.Equal(0, recalculatedRestaurant!.ReviewCount);
+        Assert.Equal(0m, recalculatedRestaurant.AverageRating);
+    }
+
+    [Fact]
+    public async Task Handle_ApprovedRestaurant_SoftDeletesRestaurantWithReportReason()
+    {
+        var id = AddReport(restaurantId: RestaurantId);
+
+        var outcome = await Service.HandleReportAsync(id, Dto(category: "不實資訊"), AdminId);
+
+        Assert.Equal(ReportHandleOutcome.Handled, outcome);
+        Db.ChangeTracker.Clear();
+        var restaurant = await Db.Restaurants.FindAsync(RestaurantId);
+        Assert.True(restaurant!.IsDeleted);
+        Assert.Equal(AdminId, restaurant.DeletedBy);
+        Assert.Equal(Clock.GetNow(), restaurant.DeletedAt);
+        Assert.NotNull(restaurant.DeleteReason);
+        Assert.Contains($"案件 #{id}", restaurant.DeleteReason!);
+        Assert.Contains("不實資訊", restaurant.DeleteReason!);
+    }
+
+    [Fact]
+    public async Task Handle_ApprovedImage_SoftDeletesImage()
+    {
+        var id = AddReport(imageId: ImageId);
+
+        var outcome = await Service.HandleReportAsync(id, Dto(category: "色情內容"), AdminId);
+
+        Assert.Equal(ReportHandleOutcome.Handled, outcome);
+        Db.ChangeTracker.Clear();
+        var image = await Db.Images.FindAsync(ImageId);
+        Assert.True(image!.IsDeleted);
+        Assert.Equal(AdminId, image.DeletedBy);
+        Assert.Equal(Clock.GetNow(), image.DeletedAt);
+    }
+
+    [Fact]
+    public async Task Handle_Rejected_DoesNotDeleteContentOrPunishOwner()
+    {
+        var id = AddReport(reviewId: ReviewId);
+
+        var outcome = await Service.HandleReportAsync(id, Dto(status: "Rejected"), AdminId);
+
+        Assert.Equal(ReportHandleOutcome.Handled, outcome);
+        Db.ChangeTracker.Clear();
+        var review = await Db.Reviews.FindAsync(ReviewId);
+        var owner = await Db.Members.FindAsync(OwnerId);
+        Assert.False(review!.IsDeleted);
+        Assert.Equal("Normal", owner!.Status);
+        Assert.Equal(0, owner.WarningCount);
+    }
+
+    [Fact]
+    public async Task Handle_FourthApprovedReport_ImmediatelySuspendsOwner()
+    {
+        for (var i = 0; i < 3; i++)
+        {
+            AddReport(
+                status: "Approved",
+                reportedMemberId: OwnerId,
+                handledAt: Clock.GetNow().AddDays(-(i + 1)));
+        }
+        var id = AddReport(reviewId: ReviewId);
+
+        var outcome = await Service.HandleReportAsync(id, Dto(), AdminId);
+
+        Assert.Equal(ReportHandleOutcome.Handled, outcome);
+        Db.ChangeTracker.Clear();
+        var owner = await Db.Members.FindAsync(OwnerId);
+        Assert.Equal("Suspended", owner!.Status);
+        Assert.Equal(4, owner.WarningCount);
+        Assert.True(owner.IsDeleted);
+        Assert.Equal(AdminId, owner.DeletedBy);
+        Assert.Equal(Clock.GetNow(), owner.DeletedAt);
     }
 
     [Fact]

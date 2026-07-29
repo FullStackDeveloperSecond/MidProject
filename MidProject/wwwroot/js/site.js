@@ -4,7 +4,7 @@
 // 各模組詳情頁共用的「← 返回」行為：優先回到使用者實際的上一頁（history.back()），
 // 只有在沒有同源上一頁可回（例如直接開連結、新分頁打開）時，才 fallback 用 href 導到列表頁。
 document.addEventListener('DOMContentLoaded', function () {
-    // GET 表單中的 select 視為列表篩選條件。選值不是第一個預設選項時，
+    // GET 表單中的 select 與日期欄位視為列表篩選條件。有實際篩選值時，
     // 統一套用餐廳頁既有的 filter-changed 視覺提示。
     document.querySelectorAll('form[method="get"] select').forEach(function (select) {
         function syncFilterHighlight() {
@@ -14,6 +14,97 @@ document.addEventListener('DOMContentLoaded', function () {
 
         select.addEventListener('change', syncFilterHighlight);
         syncFilterHighlight();
+    });
+
+    document.querySelectorAll(
+        'form[method="get"] input[type="date"], form[method="get"] input[type="datetime-local"]'
+    ).forEach(function (input) {
+        function syncDateHighlight() {
+            input.classList.toggle('filter-changed', Boolean(input.value));
+        }
+
+        input.addEventListener('change', syncDateHighlight);
+        syncDateHighlight();
+    });
+
+    // 自動篩選前先把關鍵字還原成「伺服器目前已套用的值」，避免使用者只是先輸入文字、
+    // 再調整下拉或日期時，尚未按搜尋的文字也被一併送出。
+    function prepareFilterAutoSubmit(form) {
+        if (!form) {
+            return;
+        }
+
+        var keywordName = form.dataset.filterKeywordName;
+        if (!keywordName) {
+            return;
+        }
+
+        var keywordInput = form.elements.namedItem(keywordName);
+        if (keywordInput) {
+            keywordInput.value = form.dataset.appliedKeyword || '';
+        }
+    }
+    window.prepareFilterAutoSubmit = prepareFilterAutoSubmit;
+
+    // 使用事件委派，讓餐廳頁 AJAX 更新後新產生的下拉選單也能維持立即篩選。
+    document.addEventListener('change', function (event) {
+        var field = event.target.closest('[data-auto-submit]');
+        if (!field || !field.form) {
+            return;
+        }
+
+        prepareFilterAutoSubmit(field.form);
+        if (field.form.checkValidity()) {
+            field.form.requestSubmit();
+        }
+    });
+
+    // 日期區間可從任一側開始：
+    // 先選開始日期＝查該日以後；先選結束日期＝查該日以前；兩側都有值＝查完整區間。
+    // 每次日期完成變更後立即送出，行為與下拉式篩選一致。
+    document.querySelectorAll('form[data-date-range-filter]').forEach(function (form) {
+        var start = form.querySelector('[data-date-range-start]');
+        var end = form.querySelector('[data-date-range-end]');
+        var error = form.querySelector('.js-date-range-error');
+        if (!start || !end) {
+            return;
+        }
+
+        function syncDateRange() {
+            start.max = end.value || '';
+            end.min = start.value || '';
+
+            var invalid = Boolean(start.value && end.value && start.value > end.value);
+            start.setCustomValidity(invalid ? '開始日期不可晚於結束日期' : '');
+            end.setCustomValidity(invalid ? '結束日期不可早於開始日期' : '');
+            if (error) {
+                error.textContent = invalid
+                    ? '開始日期不可晚於結束日期，結束日期也不可早於開始日期。'
+                    : '';
+            }
+            return !invalid;
+        }
+
+        function submitDateFilter() {
+            if (syncDateRange() && form.checkValidity()) {
+                prepareFilterAutoSubmit(form);
+                form.requestSubmit();
+            } else {
+                form.reportValidity();
+            }
+        }
+
+        start.addEventListener('input', syncDateRange);
+        end.addEventListener('input', syncDateRange);
+        start.addEventListener('change', submitDateFilter);
+        end.addEventListener('change', submitDateFilter);
+        form.addEventListener('submit', function (event) {
+            if (!syncDateRange()) {
+                event.preventDefault();
+                form.reportValidity();
+            }
+        });
+        syncDateRange();
     });
 
     document.querySelectorAll('.js-back-btn').forEach(function (btn) {

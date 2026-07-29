@@ -819,6 +819,7 @@ const RestaurantAdmin = (() => {
 
         citySelect.addEventListener("change", () => {
             populate("");
+            window.prepareFilterAutoSubmit?.(citySelect.form);
             citySelect.form.requestSubmit();
         });
 

@@ -83,7 +83,9 @@ public class ReportsController : Controller
         var outcome = await _reportService.HandleReportAsync(id, dto, adminMemberId);
         var message = outcome switch
         {
-            ReportHandleOutcome.Handled => "檢舉已處理。",
+            ReportHandleOutcome.Handled when dto.Status == "Approved" =>
+                "檢舉已成立，違規內容已下架並完成會員累積懲處。",
+            ReportHandleOutcome.Handled => "檢舉已駁回。",
             ReportHandleOutcome.AlreadyHandled => "此檢舉已由其他管理員處理，請重新整理後確認。",
             ReportHandleOutcome.InvalidStatus => "處理結果不正確（僅能為檢舉成立或駁回檢舉）。",
             ReportHandleOutcome.InvalidCategory => "檢舉分類不正確。",

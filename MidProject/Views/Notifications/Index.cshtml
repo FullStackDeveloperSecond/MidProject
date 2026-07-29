@@ -110,13 +110,17 @@
         <div class="notification-filter-heading">
             <div>
                 <h2 id="notificationFilterTitle">搜尋與篩選</h2>
-                <p>搜尋條件按下「搜尋」後套用；下拉選單變更後會立即更新列表。</p>
+                <p>關鍵字按下「搜尋」後套用；下拉選單與日期變更後會立即更新列表。</p>
             </div>
             <a asp-action="Index" class="btn ds-btn-clear">清除全部</a>
         </div>
 
         <div class="notification-filter-body">
-            <form asp-action="Index" method="get" class="notification-search-form">
+            <form asp-action="Index"
+                  method="get"
+                  class="notification-search-form"
+                  data-filter-keyword-name="Keyword"
+                  data-applied-keyword="@query.Keyword">
                 <input type="hidden" name="NotificationType" value="@query.NotificationType" />
                 <input type="hidden" name="IsSent" value="@query.IsSent?.ToString().ToLowerInvariant()" />
                 <input type="hidden" name="DeletionScope" value="@query.DeletionScope" />
@@ -142,7 +146,8 @@
                                type="datetime-local"
                                id="ScheduledAtMinute"
                                name="ScheduledAtMinute"
-                               value="@query.ScheduledAtMinute?.ToString("yyyy-MM-ddTHH:mm")" />
+                               value="@query.ScheduledAtMinute?.ToString("yyyy-MM-ddTHH:mm")"
+                               data-auto-submit />
                     </div>
                     <button type="submit" class="btn ds-btn-query notification-search-button">
                         <i class="fas fa-search"></i>
@@ -337,10 +342,6 @@
 
 @section Scripts {
     <script>
-        document.querySelectorAll('[data-auto-submit]').forEach(select => {
-            select.addEventListener('change', () => select.form.requestSubmit());
-        });
-
         document.querySelector('.notification-batch-form')?.addEventListener('submit', event => {
             if (!window.confirm('將發送所有已到期且尚未發送的通知，確定要繼續嗎？')) {
                 event.preventDefault();

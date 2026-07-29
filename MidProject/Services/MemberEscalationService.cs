@@ -18,15 +18,6 @@ public sealed class MemberEscalationService : IMemberEscalationService
     private static readonly SemaphoreSlim ProcessRunGate = new(1, 1);
     private const string SqlServerLockResource = "MidProject.MemberEscalation.RunOnce";
 
-    private static readonly Dictionary<string, int> StatusSeverity = new()
-    {
-        ["Normal"] = 0,
-        ["Warning"] = 1,
-        ["Muted"] = 2,
-        ["Suspended"] = 3,
-        ["Deleted"] = 4
-    };
-
     private readonly AppDbContext _context;
     private readonly ITaipeiClock _clock;
 
@@ -190,58 +181,12 @@ public sealed class MemberEscalationService : IMemberEscalationService
         foreach (var member in membersToEscalate)
         {
             handledByMemberLookup.TryGetValue(member.MemberID, out var handledByMemberId);
-            ApplyEscalation(member, approvedCounts[member.MemberID], now, handledByMemberId);
+            MemberPenaltyPolicy.Apply(member, approvedCounts[member.MemberID], now, handledByMemberId);
         }
 
         // 3. 全部會員的變更（含第 1 步處分到期恢復正常的部分）一次性儲存，而不是每個人各自呼叫一次 SaveChanges
         await _context.SaveChangesAsync(cancellationToken);
 
         return new MemberEscalationRunResult(expiredMembers.Count, membersToEscalate.Count);
-    }
-
-    private static void ApplyEscalation(Member member, int approvedCount, DateTime now, int? handledByMemberId)
-    {
-        string targetStatus;
-        DateTime? targetPenaltyEndAt;
-
-        if (approvedCount >= 4)
-        {
-            targetStatus = "Suspended";
-            targetPenaltyEndAt = null;
-        }
-        else if (approvedCount == 3)
-        {
-            targetStatus = "Muted";
-            targetPenaltyEndAt = now.AddMonths(1);
-        }
-        else if (approvedCount == 2)
-        {
-            targetStatus = "Muted";
-            targetPenaltyEndAt = now.AddDays(7);
-        }
-        else if (approvedCount == 1)
-        {
-            targetStatus = "Warning";
-            targetPenaltyEndAt = null;
-        }
-        else
-        {
-            return;
-        }
-
-        // 不反向降級
-        if (StatusSeverity[targetStatus] < StatusSeverity[member.Status]) return;
-
-        member.Status = targetStatus;
-        member.PenaltyEndAt = targetPenaltyEndAt;
-        member.WarningCount = approvedCount;
-        member.UpdatedAt = now;
-
-        if (targetStatus == "Suspended")
-        {
-            member.IsDeleted = true;
-            member.DeletedAt = now;
-            member.DeletedBy = handledByMemberId;
-        }
     }
 }

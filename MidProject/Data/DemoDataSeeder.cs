@@ -98,7 +98,9 @@ public static class DemoDataSeeder
                 transaction => transaction.Note != null &&
                                demoPointNotes.Contains(transaction.Note))
         };
-        const int expectedDemoRecordCount = 100;
+        // 固定 Demo 主資料共 102 筆，仍維持「約 100 筆」的小規模展示範圍。
+        // MemberAvatarFrames 的 2 筆擁有紀錄是商城關聯測試不可少的正式展示資料。
+        const int expectedDemoRecordCount = 102;
         var demoRecordCount = demoCounts.Values.Sum();
         if (demoRecordCount != expectedDemoRecordCount)
         {

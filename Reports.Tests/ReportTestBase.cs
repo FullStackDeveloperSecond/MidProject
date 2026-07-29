@@ -106,7 +106,16 @@ public abstract class ReportTestBase : IDisposable
         OwnerId = owner.MemberID;
         DeletedReporterId = deletedReporter.MemberID;
 
-        var restaurant = new Restaurant { Name = "測試餐廳", City = "台北市", District = "中正區", DetailedAddress = "測試路 1 號", MemberID = owner.MemberID };
+        var restaurant = new Restaurant
+        {
+            Name = "測試餐廳",
+            City = "台北市",
+            District = "中正區",
+            DetailedAddress = "測試路 1 號",
+            MemberID = owner.MemberID,
+            AverageRating = 3,
+            ReviewCount = 1
+        };
         Db.Restaurants.Add(restaurant);
         Db.SaveChanges();
         RestaurantId = restaurant.RestaurantID;

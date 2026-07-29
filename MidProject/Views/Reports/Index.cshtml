@@ -93,7 +93,11 @@
 <div class="ds-toolbar">
     <h6 class="ds-block-label">篩選條件</h6>
     <div>
-        <form method="get" id="reportFilterForm">
+        <form method="get"
+              id="reportFilterForm"
+              data-date-range-filter
+              data-filter-keyword-name="Keyword"
+              data-applied-keyword="@Context.Request.Query["Keyword"]">
             @if (Context.Request.Query.ContainsKey("RestaurantID"))
             {
                 <input type="hidden" name="RestaurantID" value="@Context.Request.Query["RestaurantID"]" />
@@ -117,32 +121,32 @@
                 </div>
                 <div class="ds-filter-field">
                     <label>處理狀態</label>
-                    <select name="Status" class="form-select" asp-items="statusOptions" onchange="this.form.requestSubmit()">
+                    <select name="Status" class="form-select" asp-items="statusOptions" data-auto-submit>
                         <option value="">全部</option>
                     </select>
                 </div>
                 <div class="ds-filter-field">
                     <label>檢舉目標</label>
-                    <select name="TargetType" class="form-select" asp-items="targetTypeOptions" onchange="this.form.requestSubmit()">
+                    <select name="TargetType" class="form-select" asp-items="targetTypeOptions" data-auto-submit>
                         <option value="">全部</option>
                     </select>
                 </div>
                 <div class="ds-filter-field">
                     <label>檢舉分類</label>
-                    <select name="Category" class="form-select" asp-items="categoryOptions" onchange="this.form.requestSubmit()">
+                    <select name="Category" class="form-select" asp-items="categoryOptions" data-auto-submit>
                         <option value="">全部</option>
                     </select>
                 </div>
                 <div class="ds-filter-field">
                     <label for="reportDateFrom">檢舉日期（從）</label>
-                    <input type="date" id="reportDateFrom" name="DateFrom" value="@Context.Request.Query["DateFrom"]" class="form-control" />
+                    <input type="date" id="reportDateFrom" name="DateFrom" value="@Context.Request.Query["DateFrom"]" class="form-control" data-date-range-start />
                 </div>
                 <div class="ds-filter-field">
                     <label for="reportDateTo">檢舉日期（至）</label>
-                    <input type="date" id="reportDateTo" name="DateTo" value="@Context.Request.Query["DateTo"]" class="form-control" />
+                    <input type="date" id="reportDateTo" name="DateTo" value="@Context.Request.Query["DateTo"]" class="form-control" data-date-range-end />
                 </div>
             </div>
-            <div id="reportDateRangeError" class="text-danger small mt-2" role="alert" aria-live="polite"></div>
+            <div id="reportDateRangeError" class="text-danger small mt-2 js-date-range-error" role="alert" aria-live="polite"></div>
         </form>
     </div>
 </div>
@@ -263,38 +267,4 @@
             </ul>
         </nav>
     </div>
-}
-
-@section Scripts {
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            var form = document.getElementById('reportFilterForm');
-            var dateFrom = document.getElementById('reportDateFrom');
-            var dateTo = document.getElementById('reportDateTo');
-            var error = document.getElementById('reportDateRangeError');
-
-            function syncDateRange() {
-                dateFrom.max = dateTo.value || '';
-                dateTo.min = dateFrom.value || '';
-
-                var invalid = dateFrom.value && dateTo.value && dateFrom.value > dateTo.value;
-                dateFrom.setCustomValidity(invalid ? '開始日期不可晚於結束日期' : '');
-                dateTo.setCustomValidity(invalid ? '結束日期不可早於開始日期' : '');
-                error.textContent = invalid
-                    ? '開始日期不可晚於結束日期，結束日期也不可早於開始日期。'
-                    : '';
-                return !invalid;
-            }
-
-            dateFrom.addEventListener('input', syncDateRange);
-            dateTo.addEventListener('input', syncDateRange);
-            form.addEventListener('submit', function (event) {
-                if (!syncDateRange()) {
-                    event.preventDefault();
-                    form.reportValidity();
-                }
-            });
-            syncDateRange();
-        });
-    </script>
 }

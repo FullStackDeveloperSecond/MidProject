@@ -46,7 +46,11 @@
     <div class="alert alert-danger">@Model.DateRangeError</div>
 }
 
-<form method="get" class="ds-toolbar">
+<form method="get"
+      class="ds-toolbar"
+      data-date-range-filter
+      data-filter-keyword-name="keyword"
+      data-applied-keyword="@Model.Keyword">
     <h6 class="ds-block-label">篩選條件</h6>
     <div class="ds-filter-row">
         <div class="ds-filter-search-group">
@@ -55,7 +59,7 @@
         </div>
     <div class="ds-filter-field">
         <label for="frameFilter">商品</label>
-        <select id="frameFilter" name="frameFilter" class="form-select" onchange="this.form.requestSubmit()">
+        <select id="frameFilter" name="frameFilter" class="form-select" data-auto-submit>
             <option value="">所有商品</option>
             @foreach (var f in Model.AvailableFrames)
             {
@@ -65,13 +69,14 @@
     </div>
     <div class="ds-filter-field">
         <label for="startDate">起始日期</label>
-        <input id="startDate" type="date" name="startDate" class="form-control" value="@Model.StartDate?.ToString("yyyy-MM-dd")" />
+        <input id="startDate" type="date" name="startDate" class="form-control" value="@Model.StartDate?.ToString("yyyy-MM-dd")" data-date-range-start />
     </div>
     <div class="ds-filter-field">
         <label for="endDate">結束日期</label>
-        <input id="endDate" type="date" name="endDate" class="form-control" value="@Model.EndDate?.ToString("yyyy-MM-dd")" />
+        <input id="endDate" type="date" name="endDate" class="form-control" value="@Model.EndDate?.ToString("yyyy-MM-dd")" data-date-range-end />
     </div>
     </div>
+    <div class="text-danger small js-date-range-error" role="alert" aria-live="polite"></div>
 </form>
 
 <div class="ds-block-title-row"><h6>兌換紀錄列表</h6><span class="ds-muted small">共 @Model.TotalItems 筆</span></div>

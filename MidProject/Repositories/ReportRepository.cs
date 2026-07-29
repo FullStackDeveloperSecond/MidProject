@@ -1,7 +1,9 @@
+using System.Data;
 using Microsoft.EntityFrameworkCore;
 using MidProject.Data;
 using MidProject.Models.DTOs;
 using MidProject.Models;
+using MidProject.Services;
 
 namespace MidProject.Repositories;
 
@@ -162,17 +164,145 @@ public class ReportRepository : IReportRepository
 
     public async Task<int> TryHandleAsync(int reportId, string status, string category, string adminNote, int? reportedMemberId, int adminMemberId, DateTime handledAt)
     {
-        // 條件式原子更新：WHERE Status='Pending'，資料庫層保證只有一人能把待處理改為已處理
-        return await _context.Reports
-            .Where(r => r.ReportID == reportId && r.Status == "Pending" && !r.IsDeleted)
-            .ExecuteUpdateAsync(s => s
-                .SetProperty(r => r.Status, status)
-                .SetProperty(r => r.Category, category)
-                .SetProperty(r => r.AdminNote, adminNote)
-                .SetProperty(r => r.ReportedMemberID, reportedMemberId)
-                .SetProperty(r => r.HandledByMemberID, adminMemberId)
-                .SetProperty(r => r.HandledAt, handledAt));
+        // 定案、違規內容軟刪除、餐廳統計重算及會員累積懲處必須一起成功或一起回滾。
+        // Serializable 同時保護同一會員多筆檢舉並行成立時的累積次數計算。
+        await using var transaction = await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+        try
+        {
+            // 條件式原子更新：WHERE Status='Pending'，資料庫層保證只有一人能把待處理改為已處理。
+            var affected = await _context.Reports
+                .Where(r => r.ReportID == reportId && r.Status == "Pending" && !r.IsDeleted)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(r => r.Status, status)
+                    .SetProperty(r => r.Category, category)
+                    .SetProperty(r => r.AdminNote, adminNote)
+                    .SetProperty(r => r.ReportedMemberID, reportedMemberId)
+                    .SetProperty(r => r.HandledByMemberID, adminMemberId)
+                    .SetProperty(r => r.HandledAt, handledAt));
+
+            if (affected == 0)
+            {
+                await transaction.RollbackAsync();
+                return 0;
+            }
+
+            if (status == "Approved")
+            {
+                await ApplyApprovedConsequencesAsync(reportId, reportedMemberId, adminMemberId, handledAt);
+                await _context.SaveChangesAsync();
+            }
+
+            await transaction.CommitAsync();
+            return affected;
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+            _context.ChangeTracker.Clear();
+            throw;
+        }
     }
+
+    private async Task ApplyApprovedConsequencesAsync(
+        int reportId,
+        int? reportedMemberId,
+        int adminMemberId,
+        DateTime handledAt)
+    {
+        var target = await _context.Reports
+            .AsNoTracking()
+            .Where(report => report.ReportID == reportId)
+            .Select(report => new
+            {
+                report.RestaurantID,
+                report.ReviewID,
+                report.ImageID,
+                report.Category
+            })
+            .SingleAsync();
+
+        if (target.RestaurantID.HasValue)
+        {
+            var restaurant = await _context.Restaurants
+                .FirstOrDefaultAsync(item => item.RestaurantID == target.RestaurantID.Value);
+            if (restaurant is { IsDeleted: false })
+            {
+                restaurant.IsDeleted = true;
+                restaurant.DeletedAt = handledAt;
+                restaurant.DeletedBy = adminMemberId;
+                restaurant.DeleteReason = BuildReportDeleteReason(reportId, target.Category);
+                restaurant.UpdatedAt = handledAt;
+            }
+        }
+        else if (target.ReviewID.HasValue)
+        {
+            var review = await _context.Reviews
+                .FirstOrDefaultAsync(item => item.ReviewID == target.ReviewID.Value);
+            if (review is { IsDeleted: false })
+            {
+                review.IsDeleted = true;
+                review.DeletedAt = handledAt;
+                review.DeletedBy = adminMemberId;
+                review.UpdatedAt = handledAt;
+
+                var stats = await _context.Reviews
+                    .Where(item =>
+                        item.RestaurantID == review.RestaurantID &&
+                        item.ReviewID != review.ReviewID &&
+                        !item.IsDeleted &&
+                        item.Status == "Active")
+                    .GroupBy(_ => 1)
+                    .Select(group => new
+                    {
+                        Count = group.Count(),
+                        Average = group.Average(item => (decimal)item.Rating)
+                    })
+                    .FirstOrDefaultAsync();
+                var restaurant = await _context.Restaurants
+                    .FirstOrDefaultAsync(item => item.RestaurantID == review.RestaurantID);
+                if (restaurant != null)
+                {
+                    restaurant.ReviewCount = stats?.Count ?? 0;
+                    restaurant.AverageRating = stats?.Average ?? 0;
+                    restaurant.UpdatedAt = handledAt;
+                }
+            }
+        }
+        else if (target.ImageID.HasValue)
+        {
+            var image = await _context.Images
+                .FirstOrDefaultAsync(item => item.ImageID == target.ImageID.Value);
+            if (image is { IsDeleted: false })
+            {
+                image.IsDeleted = true;
+                image.DeletedAt = handledAt;
+                image.DeletedBy = adminMemberId;
+            }
+        }
+
+        if (!reportedMemberId.HasValue)
+        {
+            return;
+        }
+
+        var member = await _context.Members
+            .FirstOrDefaultAsync(item =>
+                item.MemberID == reportedMemberId.Value &&
+                item.Role != "Admin");
+        if (member == null)
+        {
+            return;
+        }
+
+        var approvedCount = await _context.Reports.CountAsync(report =>
+            report.ReportedMemberID == reportedMemberId.Value &&
+            report.Status == "Approved" &&
+            !report.IsDeleted);
+        MemberPenaltyPolicy.Apply(member, approvedCount, handledAt, adminMemberId);
+    }
+
+    private static string BuildReportDeleteReason(int reportId, string category) =>
+        $"檢舉成立（案件 #{reportId}，分類：{category}）";
 
     public async Task<List<Notification>> GetNotificationsByReportAsync(int reportId)
     {

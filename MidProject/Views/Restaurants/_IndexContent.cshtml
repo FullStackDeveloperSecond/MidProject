@@ -70,7 +70,12 @@
     var tagChanged = Model.Filter.TagId.HasValue ? "filter-changed" : "";
     var sortChanged = Model.Filter.Sort != "newest" ? "filter-changed" : "";
 }
-<form method="get" asp-action="Index" class="toolbar ds-toolbar" id="filterForm">
+<form method="get"
+      asp-action="Index"
+      class="toolbar ds-toolbar"
+      id="filterForm"
+      data-filter-keyword-name="Search"
+      data-applied-keyword="@Model.Filter.Search">
     <h6 class="ds-block-label">篩選條件</h6>
     <div class="ds-filter-row">
         <div class="ds-filter-search-group">
@@ -95,7 +100,7 @@
         </div>
         <div class="ds-filter-field">
             <label for="filterDistrictSelect">行政區</label>
-            <select class="select @districtChanged" name="District" id="filterDistrictSelect" data-selected="@Model.Filter.District" onchange="this.form.requestSubmit()">
+            <select class="select @districtChanged" name="District" id="filterDistrictSelect" data-selected="@Model.Filter.District" data-auto-submit>
                 <option value="">全部行政區</option>
                 @foreach (var city in RestaurantOptions.CityDistricts.Keys)
                 {
@@ -110,7 +115,7 @@
         </div>
         <div class="ds-filter-field">
             <label>標籤</label>
-            <select class="select @tagChanged" name="TagId" onchange="this.form.requestSubmit()">
+            <select class="select @tagChanged" name="TagId" data-auto-submit>
                 <option value="">全部標籤</option>
                 @foreach (var tag in Model.AvailableTags)
                 {
@@ -120,7 +125,7 @@
         </div>
         <div class="ds-filter-field">
             <label>排序</label>
-            <select class="select @sortChanged" name="Sort" onchange="this.form.requestSubmit()">
+            <select class="select @sortChanged" name="Sort" data-auto-submit>
                 <option value="newest" selected="@(Model.Filter.Sort == "newest")">最新新增</option>
                 <option value="rating" selected="@(Model.Filter.Sort == "rating")">星級最高</option>
                 <option value="review" selected="@(Model.Filter.Sort == "review")">評論最多</option>
