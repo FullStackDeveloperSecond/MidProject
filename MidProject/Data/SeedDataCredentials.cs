@@ -13,6 +13,14 @@ public sealed record SeedDataCredentials
     public string AdminPassword { get; }
     public string UserPassword { get; }
 
+    public static bool AreConfigured(IConfiguration configuration)
+    {
+        ArgumentNullException.ThrowIfNull(configuration);
+
+        return !string.IsNullOrWhiteSpace(configuration["SeedData:AdminPassword"])
+            && !string.IsNullOrWhiteSpace(configuration["SeedData:UserPassword"]);
+    }
+
     public static SeedDataCredentials FromConfiguration(IConfiguration configuration)
     {
         ArgumentNullException.ThrowIfNull(configuration);

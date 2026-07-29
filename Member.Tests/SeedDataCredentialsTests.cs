@@ -6,6 +6,38 @@ namespace Member.Tests;
 
 public sealed class SeedDataCredentialsTests
 {
+    [Fact]
+    public void AreConfigured_WhenBothPasswordsExist_ReturnsTrue()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["SeedData:AdminPassword"] = Guid.NewGuid().ToString("N"),
+                ["SeedData:UserPassword"] = Guid.NewGuid().ToString("N")
+            })
+            .Build();
+
+        Assert.True(SeedDataCredentials.AreConfigured(configuration));
+    }
+
+    [Theory]
+    [InlineData("SeedData:AdminPassword")]
+    [InlineData("SeedData:UserPassword")]
+    public void AreConfigured_WhenPasswordIsMissing_ReturnsFalse(string missingKey)
+    {
+        var values = new Dictionary<string, string?>
+        {
+            ["SeedData:AdminPassword"] = Guid.NewGuid().ToString("N"),
+            ["SeedData:UserPassword"] = Guid.NewGuid().ToString("N")
+        };
+        values.Remove(missingKey);
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(values)
+            .Build();
+
+        Assert.False(SeedDataCredentials.AreConfigured(configuration));
+    }
+
     [Theory]
     [InlineData("SeedData:AdminPassword")]
     [InlineData("SeedData:UserPassword")]

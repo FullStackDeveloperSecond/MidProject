@@ -93,7 +93,8 @@ dotnet ef database update \
 
 ### 4. 啟動
 
-Development 預設會建立 Demo 會員，但密碼不會保存於 Git。第一次啟動前，請透過
+Development 預設會嘗試建立 Demo 會員，但 Demo 密碼不會保存於 Git。若尚未設定
+以下兩項密碼，應用程式會略過 Demo SeedData 並正常啟動；需要 Demo 資料時，再透過
 .NET User Secrets 設定本機專用密碼：
 
 ```bash
@@ -107,16 +108,17 @@ dotnet user-secrets set "SeedData:UserPassword" \
 ```
 
 CI、容器或其他受控環境也可使用 `SeedData__AdminPassword` 與
-`SeedData__UserPassword` 環境變數。啟用 Development SeedData 卻未提供任一密碼時，
-應用程式會在寫入 Demo 資料前停止，避免建立可預測的帳號憑證。
+`SeedData__UserPassword` 環境變數。一般 Development 啟動若缺少任一密碼，只會略過
+Demo SeedData；明確執行 `--seed-test-data` 時仍會停止並回報缺少的設定，避免建立
+可預測的帳號憑證。
 
 ```bash
 dotnet run --project MidProject/MidProject.csproj
 ```
 
-Development 環境預設啟用模組化 SeedData；各模組使用固定自然鍵獨立補齊 Demo
-資料，重複啟動不會新增相同資料。點數商城 Demo 由獨立 Seeder 建立商品、持有紀錄與
-成對的點數異動。
+Development 環境預設啟用模組化 SeedData；只有兩項 Demo 密碼皆已設定時才會執行。
+各模組使用固定自然鍵獨立補齊 Demo 資料，重複啟動不會新增相同資料。點數商城 Demo
+由獨立 Seeder 建立商品、持有紀錄與成對的點數異動。
 
 若只要灌入完整功能測試資料後立即結束，不啟動網站，可執行：
 

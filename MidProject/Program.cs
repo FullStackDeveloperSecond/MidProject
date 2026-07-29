@@ -181,7 +181,17 @@ if (seedTestData)
 
 if (app.Environment.IsDevelopment() && builder.Configuration.GetValue<bool>("SeedData:Enabled"))
 {
-    await DevelopmentTestDataSeeder.SeedAsync(app.Services);
+    if (SeedDataCredentials.AreConfigured(builder.Configuration))
+    {
+        await DevelopmentTestDataSeeder.SeedAsync(app.Services);
+    }
+    else
+    {
+        app.Logger.LogWarning(
+            "Development SeedData is enabled but was skipped because its local passwords are not configured. "
+            + "The application will continue without creating Demo accounts. "
+            + "Set SeedData:AdminPassword and SeedData:UserPassword to enable automatic seeding.");
+    }
 }
 
 await using (var scope = app.Services.CreateAsyncScope())
