@@ -6,6 +6,7 @@ namespace MidProject.Repositories.IRepositories;
 public interface INotificationRepository
 {
     Task<NotificationQueryResult> QueryAsync(NotificationIndexQuery query, DateTime? scheduledMinute, CancellationToken cancellationToken = default);
+    Task<NotificationSummaryRecord> GetSummaryAsync(CancellationToken cancellationToken = default);
     Task<NotificationReadRecord?> GetReadAsync(int id, CancellationToken cancellationToken = default);
     Task<Notification?> GetForUpdateAsync(int id, CancellationToken cancellationToken = default);
     Task AddAsync(Notification notification, CancellationToken cancellationToken = default);
@@ -26,6 +27,11 @@ public interface INotificationRepository
 }
 
 public sealed record NotificationQueryResult(IReadOnlyList<NotificationReadRecord> Items, int TotalCount);
+public sealed record NotificationSummaryRecord(
+    int ActiveCount,
+    int UnsentCount,
+    int SentCount,
+    int DeletedCount);
 
 public sealed class NotificationReadRecord
 {

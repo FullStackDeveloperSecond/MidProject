@@ -15,7 +15,26 @@ if (args.Contains(MigrationDriftVerifier.CommandArgument, StringComparer.Ordinal
     return;
 }
 
+var seedTestData = args.Contains(
+    DevelopmentTestDataSeeder.CommandArgument,
+    StringComparer.Ordinal);
+if (seedTestData)
+{
+    args = args
+        .Where(argument => !string.Equals(
+            argument,
+            DevelopmentTestDataSeeder.CommandArgument,
+            StringComparison.Ordinal))
+        .ToArray();
+}
+
 var builder = WebApplication.CreateBuilder(args);
+if (seedTestData)
+{
+    builder.Logging.AddFilter(
+        "Microsoft.EntityFrameworkCore.Database.Command",
+        LogLevel.Warning);
+}
 
 // Local-only connection string / overrides. Matches the `appsettings.*.local.json` pattern
 // already reserved in .gitignore. Loaded unconditionally (not gated by ASPNETCORE_ENVIRONMENT)
@@ -148,11 +167,21 @@ builder.Services.AddHostedService<MemberEscalationBackgroundService>();
 
 var app = builder.Build();
 
+if (seedTestData)
+{
+    if (!app.Environment.IsDevelopment())
+    {
+        throw new InvalidOperationException(
+            "The development test-data seeder can run only in the Development environment.");
+    }
+
+    await DevelopmentTestDataSeeder.SeedAsync(app.Services);
+    return;
+}
+
 if (app.Environment.IsDevelopment() && builder.Configuration.GetValue<bool>("SeedData:Enabled"))
 {
-    await SeedData.InitializeAsync(app.Services);
-    await PointsStoreDemoSeeder.InitializeAsync(app.Services);
-    await ReportsTestDataSeeder.SeedAsync(app.Services);
+    await DevelopmentTestDataSeeder.SeedAsync(app.Services);
 }
 
 await using (var scope = app.Services.CreateAsyncScope())

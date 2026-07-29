@@ -3,6 +3,20 @@
 @{
     ViewData["Title"] = "通知管理";
     var query = Model.Query;
+    var summary = Model.Summary;
+
+    string StatusFilterUrl(bool? isSent, NotificationDeletionScope deletionScope) =>
+        Url.Action("Index", new
+        {
+            query.Keyword,
+            query.NotificationType,
+            IsSent = isSent,
+            query.ScheduledAtMinute,
+            DeletionScope = deletionScope,
+            query.SortField,
+            query.SortDirection,
+            Page = 1
+        }) ?? string.Empty;
 }
 
 @section Styles {
@@ -12,23 +26,29 @@
 }
 
 <div class="notification-admin">
-    <div class="ds-page-header d-flex justify-content-between align-items-center">
+    <div class="ds-page-header notification-page-header">
         <div>
             <h1 class="ds-h2 mb-1">通知管理</h1>
-            <p class="mb-0">建立、查詢與手動處理站內通知</p>
+            <p class="mb-0">集中查看排程狀態、鎖定通知對象，並處理待發送項目。</p>
         </div>
-        <div class="d-flex gap-2">
-            <form asp-action="SendDue" method="post">
+        <div class="notification-header-actions">
+            <form asp-action="SendDue" method="post" class="notification-batch-form">
                 @Html.AntiForgeryToken()
-                <button type="submit" class="btn btn-success"><i class="fas fa-paper-plane me-1"></i>批次發送到期通知</button>
+                <button type="submit" class="btn btn-outline-success">
+                    <i class="fas fa-paper-plane me-1"></i>
+                    發送到期通知
+                </button>
             </form>
-            <a asp-action="Create" class="btn btn-primary"><i class="fas fa-plus me-1"></i>新增通知</a>
+            <a asp-action="Create" class="btn btn-primary">
+                <i class="fas fa-plus me-1"></i>
+                新增通知
+            </a>
         </div>
     </div>
 
     @if (TempData["NotificationSuccess"] is string success)
     {
-        <div class="alert alert-success" role="alert">@success</div>
+        <div class="alert alert-success" role="status">@success</div>
     }
     @if (TempData["NotificationError"] is string error)
     {
@@ -43,129 +63,250 @@
         <div class="alert alert-danger" role="alert">@Model.QueryError</div>
     }
 
-    <div class="ds-toolbar mb-4">
-        <h6 class="ds-block-label">篩選條件</h6>
-        <div>
-            <form asp-action="Index" method="get">
-                <div class="ds-filter-row">
-                    <div class="ds-filter-search-group">
-                        <div class="ds-filter-field">
-                            <label for="Keyword">關鍵字</label>
-                            <input class="form-control ds-search-input-fill" id="Keyword" name="Keyword" value="@query.Keyword" placeholder="搜尋標題或內容" />
+    <nav class="notification-summary-grid" aria-label="通知狀態快速篩選">
+        <a href="@StatusFilterUrl(null, NotificationDeletionScope.All)"
+           class="notification-stat-card @(query.DeletionScope == NotificationDeletionScope.All && query.IsSent is null ? "is-active" : null)">
+            <span class="notification-stat-icon notification-stat-icon-primary"><i class="fas fa-inbox"></i></span>
+            <span>
+                <span class="notification-stat-label">全部通知</span>
+                <strong>@(summary.ActiveCount + summary.DeletedCount)</strong>
+            </span>
+        </a>
+        <a href="@StatusFilterUrl(null, NotificationDeletionScope.Active)"
+           class="notification-stat-card @(query.DeletionScope == NotificationDeletionScope.Active && query.IsSent is null ? "is-active" : null)">
+            <span class="notification-stat-icon notification-stat-icon-purple"><i class="fas fa-layer-group"></i></span>
+            <span>
+                <span class="notification-stat-label">有效通知</span>
+                <strong>@summary.ActiveCount</strong>
+            </span>
+        </a>
+        <a href="@StatusFilterUrl(false, NotificationDeletionScope.Active)"
+           class="notification-stat-card @(query.DeletionScope == NotificationDeletionScope.Active && query.IsSent == false ? "is-active" : null)">
+            <span class="notification-stat-icon notification-stat-icon-warning"><i class="fas fa-clock"></i></span>
+            <span>
+                <span class="notification-stat-label">待發送</span>
+                <strong>@summary.UnsentCount</strong>
+            </span>
+        </a>
+        <a href="@StatusFilterUrl(true, NotificationDeletionScope.Active)"
+           class="notification-stat-card @(query.DeletionScope == NotificationDeletionScope.Active && query.IsSent == true ? "is-active" : null)">
+            <span class="notification-stat-icon notification-stat-icon-success"><i class="fas fa-check-circle"></i></span>
+            <span>
+                <span class="notification-stat-label">已發送</span>
+                <strong>@summary.SentCount</strong>
+            </span>
+        </a>
+        <a href="@StatusFilterUrl(null, NotificationDeletionScope.Deleted)"
+           class="notification-stat-card @(query.DeletionScope == NotificationDeletionScope.Deleted ? "is-active" : null)">
+            <span class="notification-stat-icon notification-stat-icon-danger"><i class="fas fa-trash"></i></span>
+            <span>
+                <span class="notification-stat-label">已刪除</span>
+                <strong>@summary.DeletedCount</strong>
+            </span>
+        </a>
+    </nav>
+
+    <section class="notification-filter-panel" aria-labelledby="notificationFilterTitle">
+        <div class="notification-filter-heading">
+            <div>
+                <h2 id="notificationFilterTitle">搜尋與篩選</h2>
+                <p>搜尋條件按下「搜尋」後套用；下拉選單變更後會立即更新列表。</p>
+            </div>
+            <a asp-action="Index" class="btn ds-btn-clear">清除全部</a>
+        </div>
+
+        <div class="notification-filter-body">
+            <form asp-action="Index" method="get" class="notification-search-form">
+                <input type="hidden" name="NotificationType" value="@query.NotificationType" />
+                <input type="hidden" name="IsSent" value="@query.IsSent?.ToString().ToLowerInvariant()" />
+                <input type="hidden" name="DeletionScope" value="@query.DeletionScope" />
+                <input type="hidden" name="SortField" value="@query.SortField" />
+                <input type="hidden" name="SortDirection" value="@query.SortDirection" />
+
+                <div class="notification-search-fields">
+                    <div class="ds-filter-field notification-keyword-field">
+                        <label for="Keyword">關鍵字</label>
+                        <div class="notification-search-input">
+                            <i class="fas fa-search" aria-hidden="true"></i>
+                            <input class="form-control"
+                                   id="Keyword"
+                                   name="Keyword"
+                                   value="@query.Keyword"
+                                   placeholder="搜尋通知標題或內容"
+                                   autocomplete="off" />
                         </div>
-                        <div class="ds-filter-actions">
-                            <button type="submit" class="btn ds-btn-query"><i class="fas fa-search"></i> 查詢</button>
-                            <a asp-action="Index" class="btn ds-btn-clear">清除</a>
-                        </div>
                     </div>
-                    <div class="ds-filter-field">
-                        <label for="NotificationType">類型</label>
-                        <select class="form-select" id="NotificationType" name="NotificationType">
-                            <option value="">全部</option>
-                            <option value="Personal" selected="@(query.NotificationType == "Personal")">Personal</option>
-                            <option value="Condition" selected="@(query.NotificationType == "Condition")">Condition</option>
-                        </select>
+                    <div class="ds-filter-field notification-date-field">
+                        <label for="ScheduledAtMinute">排程時間（精確至分鐘）</label>
+                        <input class="form-control"
+                               type="datetime-local"
+                               id="ScheduledAtMinute"
+                               name="ScheduledAtMinute"
+                               value="@query.ScheduledAtMinute?.ToString("yyyy-MM-ddTHH:mm")" />
                     </div>
-                    <div class="ds-filter-field">
-                        <label for="IsSent">發送狀態</label>
-                        <select class="form-select" id="IsSent" name="IsSent">
-                            <option value="">全部</option>
-                            <option value="false" selected="@(query.IsSent == false)">未發送</option>
-                            <option value="true" selected="@(query.IsSent == true)">已發送</option>
-                        </select>
-                    </div>
-                    <div class="ds-filter-field">
-                        <label for="ScheduledAtMinute">排程分鐘</label>
-                        <input class="form-control" type="datetime-local" id="ScheduledAtMinute" name="ScheduledAtMinute" value="@query.ScheduledAtMinute?.ToString("yyyy-MM-ddTHH:mm")" />
-                    </div>
-                    <div class="ds-filter-field">
-                        <label for="DeletionScope">刪除狀態</label>
-                        <select class="form-select" id="DeletionScope" name="DeletionScope">
-                            <option value="Active" selected="@(query.DeletionScope == NotificationDeletionScope.Active)">未刪除</option>
-                            <option value="Deleted" selected="@(query.DeletionScope == NotificationDeletionScope.Deleted)">已刪除</option>
-                            <option value="All" selected="@(query.DeletionScope == NotificationDeletionScope.All)">全部</option>
-                        </select>
-                    </div>
-                    <div class="ds-filter-field">
-                        <label for="SortField">排序欄位</label>
-                        <select class="form-select" id="SortField" name="SortField">
-                            <option value="ScheduledAt" selected="@(query.SortField == NotificationSortField.ScheduledAt)">ScheduledAt</option>
-                            <option value="CreatedAt" selected="@(query.SortField == NotificationSortField.CreatedAt)">CreatedAt</option>
-                        </select>
-                    </div>
-                    <div class="ds-filter-field">
-                        <label for="SortDirection">排序方向</label>
-                        <select class="form-select" id="SortDirection" name="SortDirection">
-                            <option value="Ascending" selected="@(query.SortDirection == NotificationSortDirection.Ascending)">升冪</option>
-                            <option value="Descending" selected="@(query.SortDirection == NotificationSortDirection.Descending)">降冪</option>
-                        </select>
-                    </div>
+                    <button type="submit" class="btn ds-btn-query notification-search-button">
+                        <i class="fas fa-search"></i>
+                        搜尋
+                    </button>
+                </div>
+            </form>
+
+            <form asp-action="Index" method="get" class="notification-select-form" id="notificationSelectForm">
+                <input type="hidden" name="Keyword" value="@query.Keyword" />
+                <input type="hidden" name="IsSent" value="@query.IsSent?.ToString().ToLowerInvariant()" />
+                <input type="hidden" name="ScheduledAtMinute" value="@query.ScheduledAtMinute?.ToString("yyyy-MM-ddTHH:mm")" />
+                <input type="hidden" name="DeletionScope" value="@query.DeletionScope" />
+
+                <div class="ds-filter-field">
+                    <label for="NotificationType">通知類型</label>
+                    <select class="form-select" id="NotificationType" name="NotificationType" data-auto-submit>
+                        <option value="">全部類型</option>
+                        <option value="Personal" selected="@(query.NotificationType == "Personal")">個人通知</option>
+                        <option value="Condition" selected="@(query.NotificationType == "Condition")">條件式通知</option>
+                    </select>
+                </div>
+                <div class="ds-filter-field">
+                    <label for="SortField">排序依據</label>
+                    <select class="form-select" id="SortField" name="SortField" data-auto-submit>
+                        <option value="ScheduledAt" selected="@(query.SortField == NotificationSortField.ScheduledAt)">排程時間</option>
+                        <option value="CreatedAt" selected="@(query.SortField == NotificationSortField.CreatedAt)">建立時間</option>
+                    </select>
+                </div>
+                <div class="ds-filter-field">
+                    <label for="SortDirection">排序方向</label>
+                    <select class="form-select" id="SortDirection" name="SortDirection" data-auto-submit>
+                        <option value="Ascending" selected="@(query.SortDirection == NotificationSortDirection.Ascending)">由早到晚</option>
+                        <option value="Descending" selected="@(query.SortDirection == NotificationSortDirection.Descending)">由晚到早</option>
+                    </select>
                 </div>
             </form>
         </div>
+    </section>
+
+    <div class="ds-block-title-row notification-list-heading">
+        <div>
+            <h6>通知列表</h6>
+            <span class="ds-muted small">點選任一列可查看完整內容與通知對象。</span>
+        </div>
+        <span class="notification-result-count">共 @Model.TotalCount 筆</span>
     </div>
 
-    <div class="ds-block-title-row">
-        <h6>通知列表</h6>
-        <span class="ds-muted small">共 @Model.TotalCount 筆</span>
-    </div>
-    <div class="ds-table-wrap">
-            <div class="table-responsive">
-                <table class="ds-table mb-0">
-                    <thead>
-                        <tr>
-                            <th style="width:70px;">ID</th><th>類型</th><th>標題</th><th>對象</th><th>排程時間</th><th>狀態</th><th>發送時間</th><th>建立時間</th><th>建立者</th><th>操作</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                    @if (Model.Items.Count == 0)
+    <div class="ds-table-wrap notification-list">
+        <div class="table-responsive">
+            <table class="ds-table mb-0">
+                <thead>
+                    <tr>
+                        <th style="width:76px;">編號</th>
+                        <th>通知內容與對象</th>
+                        <th>排程與發送時間</th>
+                        <th>狀態</th>
+                        <th>建立資訊</th>
+                        <th class="text-end">操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @if (Model.Items.Count == 0)
+                {
+                    <tr class="notification-empty-row">
+                        <td colspan="6">
+                            <div class="notification-empty-state">
+                                <span><i class="fas fa-bell-slash"></i></span>
+                                <strong>找不到符合條件的通知</strong>
+                                <p>請調整搜尋條件，或清除篩選後再試一次。</p>
+                            </div>
+                        </td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var item in Model.Items)
                     {
-                        <tr><td colspan="10" class="text-center text-muted py-4">目前沒有符合條件的通知。</td></tr>
-                    }
-                    else
-                    {
-                        @foreach (var item in Model.Items)
-                        {
-                            <tr class="notification-row" data-href="@Url.Action("Details", new { id = item.NotificationID })" tabindex="0">
-                                <td>@item.NotificationID</td>
-                                <td>@item.NotificationType</td>
-                                <td class="notification-title">@item.Title</td>
-                                <td>@item.AudienceSummary</td>
-                                <td>@item.ScheduledAt.ToString("yyyy/MM/dd HH:mm")</td>
-                                <td>
-                                    @if (item.IsDeleted)
+                        <tr class="notification-row"
+                            data-href="@Url.Action("Details", new { id = item.NotificationID })"
+                            tabindex="0"
+                            aria-label="查看通知 @item.NotificationID：@item.Title">
+                            <td data-label="編號">
+                                <span class="notification-id">#@item.NotificationID</span>
+                            </td>
+                            <td data-label="通知">
+                                <div class="notification-title-line">
+                                    <span class="ds-badge @(item.NotificationType == "Personal" ? "ds-badge-primary" : "ds-badge-purple")">
+                                        @(item.NotificationType == "Personal" ? "個人" : "條件式")
+                                    </span>
+                                    <strong class="notification-title">@item.Title</strong>
+                                </div>
+                                <div class="notification-audience">
+                                    <i class="fas fa-users" aria-hidden="true"></i>
+                                    @item.AudienceSummary
+                                </div>
+                            </td>
+                            <td data-label="排程">
+                                <time datetime="@item.ScheduledAt.ToString("O")">@item.ScheduledAt.ToString("yyyy/MM/dd HH:mm")</time>
+                                <span class="notification-cell-note">
+                                    @if (item.SentAt.HasValue)
                                     {
-                                        <span class="ds-badge ds-badge-danger">已刪除</span>
-                                    }
-                                    else if (item.IsSent)
-                                    {
-                                        <span class="ds-badge ds-badge-success">已發送</span>
+                                        <text>發送於 @item.SentAt.Value.ToString("yyyy/MM/dd HH:mm")</text>
                                     }
                                     else
                                     {
-                                        <span class="ds-badge ds-badge-warning">未發送</span>
+                                        <text>尚未發送</text>
                                     }
-                                </td>
-                                <td>@(item.SentAt?.ToString("yyyy/MM/dd HH:mm") ?? "—")</td>
-                                <td>@item.CreatedAt.ToString("yyyy/MM/dd HH:mm")</td>
-                                <td>@item.CreatedBy</td>
-                                <td class="notification-actions">
-                                    <a asp-action="Details" asp-route-id="@item.NotificationID" class="btn btn-secondary btn-sm">查看</a>
+                                </span>
+                            </td>
+                            <td data-label="狀態">
+                                @if (item.IsDeleted)
+                                {
+                                    <span class="ds-badge ds-badge-danger"><i class="fas fa-trash me-1"></i>已刪除</span>
+                                }
+                                else if (item.IsSent)
+                                {
+                                    <span class="ds-badge ds-badge-success"><i class="fas fa-check-circle me-1"></i>已發送</span>
+                                }
+                                else
+                                {
+                                    <span class="ds-badge ds-badge-warning"><i class="fas fa-clock me-1"></i>待發送</span>
+                                }
+                            </td>
+                            <td data-label="建立資訊">
+                                <time datetime="@item.CreatedAt.ToString("O")">@item.CreatedAt.ToString("yyyy/MM/dd HH:mm")</time>
+                                <span class="notification-cell-note">管理員 #@item.CreatedBy</span>
+                            </td>
+                            <td data-label="操作" class="notification-actions">
+                                <div class="notification-action-group">
+                                    <a asp-action="Details"
+                                       asp-route-id="@item.NotificationID"
+                                       class="ds-icon-btn ds-icon-btn-view"
+                                       title="查看通知"
+                                       aria-label="查看通知 @item.NotificationID">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
                                     @if (item.CanMutate)
                                     {
-                                        <form asp-action="Send" asp-route-id="@item.NotificationID" method="post" class="d-inline">
+                                        <form asp-action="Send" asp-route-id="@item.NotificationID" method="post">
                                             @Html.AntiForgeryToken()
-                                            <button class="btn btn-success btn-sm" type="submit">發送</button>
+                                            <button class="ds-icon-btn notification-send-button"
+                                                    type="submit"
+                                                    title="立即發送"
+                                                    aria-label="立即發送通知 @item.NotificationID">
+                                                <i class="fas fa-paper-plane"></i>
+                                            </button>
                                         </form>
-                                        <a asp-action="Delete" asp-route-id="@item.NotificationID" class="btn btn-danger btn-sm">刪除</a>
+                                        <a asp-action="Delete"
+                                           asp-route-id="@item.NotificationID"
+                                           class="ds-icon-btn ds-icon-btn-delete"
+                                           title="刪除通知"
+                                           aria-label="刪除通知 @item.NotificationID">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
                                     }
-                                </td>
-                            </tr>
-                        }
+                                </div>
+                            </td>
+                        </tr>
                     }
-                    </tbody>
-                </table>
-            </div>
+                }
+                </tbody>
+            </table>
+        </div>
     </div>
 
     @if (Model.TotalCount > 0)
@@ -196,10 +337,28 @@
 
 @section Scripts {
     <script>
+        document.querySelectorAll('[data-auto-submit]').forEach(select => {
+            select.addEventListener('change', () => select.form.requestSubmit());
+        });
+
+        document.querySelector('.notification-batch-form')?.addEventListener('submit', event => {
+            if (!window.confirm('將發送所有已到期且尚未發送的通知，確定要繼續嗎？')) {
+                event.preventDefault();
+            }
+        });
+
         document.querySelectorAll('.notification-row').forEach(row => {
             const open = () => window.location.href = row.dataset.href;
-            row.addEventListener('click', event => { if (!event.target.closest('.notification-actions')) open(); });
-            row.addEventListener('keydown', event => { if (event.key === 'Enter') open(); });
+            row.addEventListener('click', event => {
+                if (!event.target.closest('.notification-actions')) {
+                    open();
+                }
+            });
+            row.addEventListener('keydown', event => {
+                if (event.key === 'Enter' && event.target === row) {
+                    open();
+                }
+            });
         });
     </script>
 }

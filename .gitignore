@@ -24,6 +24,12 @@ logs/
 !/MidProject/wwwroot/uploads/MemberAvatar/avatar24-01.jpg
 !/MidProject/wwwroot/uploads/ReviewImage/義大利麵.jpg
 !/MidProject/wwwroot/uploads/ReviewImage/蛋餅.jpg
+!/MidProject/wwwroot/uploads/RestaurantCover/demo-cover-*.jpg
+!/MidProject/wwwroot/uploads/RestaurantEnvironment/demo-environment-*.jpg
+!/MidProject/wwwroot/uploads/ReviewImage/demo-review-*.jpg
+!/MidProject/wwwroot/uploads/MemberAvatar/demo-avatar-*.jpg
+!/MidProject/wwwroot/uploads/AvatarFrame/
+!/MidProject/wwwroot/uploads/AvatarFrame/demo-frame-*.jpg
 
 # OS files
 .DS_Store

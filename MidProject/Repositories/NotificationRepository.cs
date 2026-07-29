@@ -74,6 +74,22 @@ public sealed class NotificationRepository : INotificationRepository
         return new NotificationQueryResult(items, totalCount);
     }
 
+    public async Task<NotificationSummaryRecord> GetSummaryAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var summary = await _dbContext.Notifications
+            .AsNoTracking()
+            .GroupBy(_ => 1)
+            .Select(group => new NotificationSummaryRecord(
+                group.Count(notification => !notification.IsDeleted),
+                group.Count(notification => !notification.IsDeleted && !notification.IsSent),
+                group.Count(notification => !notification.IsDeleted && notification.IsSent),
+                group.Count(notification => notification.IsDeleted)))
+            .SingleOrDefaultAsync(cancellationToken);
+
+        return summary ?? new NotificationSummaryRecord(0, 0, 0, 0);
+    }
+
     public Task<NotificationReadRecord?> GetReadAsync(int id, CancellationToken cancellationToken = default)
     {
         return Project(_dbContext.Notifications.AsNoTracking().Where(x => x.NotificationID == id))

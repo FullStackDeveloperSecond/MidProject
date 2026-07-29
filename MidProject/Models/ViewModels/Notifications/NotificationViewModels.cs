@@ -36,11 +36,20 @@ public sealed class NotificationIndexQuery
 public sealed class NotificationIndexViewModel
 {
     public required NotificationIndexQuery Query { get; init; }
+    public required NotificationSummaryViewModel Summary { get; init; }
     public required IReadOnlyList<NotificationIndexRowViewModel> Items { get; init; }
     public int TotalCount { get; init; }
     public int PageSize { get; init; } = 10;
     public string? QueryError { get; set; }
     public int TotalPages => Math.Max(1, (int)Math.Ceiling(TotalCount / (double)PageSize));
+}
+
+public sealed class NotificationSummaryViewModel
+{
+    public int ActiveCount { get; init; }
+    public int UnsentCount { get; init; }
+    public int SentCount { get; init; }
+    public int DeletedCount { get; init; }
 }
 
 public sealed class NotificationIndexRowViewModel

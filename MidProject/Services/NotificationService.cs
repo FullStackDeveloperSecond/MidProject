@@ -47,9 +47,17 @@ public sealed class NotificationService : INotificationService
             : null;
 
         var result = await _repository.QueryAsync(query, scheduledMinute, cancellationToken);
+        var summary = await _repository.GetSummaryAsync(cancellationToken);
         return new NotificationIndexViewModel
         {
             Query = query,
+            Summary = new NotificationSummaryViewModel
+            {
+                ActiveCount = summary.ActiveCount,
+                UnsentCount = summary.UnsentCount,
+                SentCount = summary.SentCount,
+                DeletedCount = summary.DeletedCount
+            },
             TotalCount = result.TotalCount,
             PageSize = PageSize,
             QueryError = queryError,

@@ -36,21 +36,24 @@ public static class SeedData
             ("鑑味師", 8800, "VIP 標章"),
             ("食之神", 23000, "尊爵頭銜")
         };
-        var existingNames = (await context.UserLevels
-            .Select(level => level.LevelName)
-            .ToListAsync()).ToHashSet();
+        var existingLevels = await context.UserLevels.ToListAsync();
 
         foreach (var (name, minExp, rewards) in definitions)
         {
-            if (!existingNames.Contains(name))
+            if (existingLevels.Any(level =>
+                    level.LevelName == name || level.MinExp == minExp))
             {
-                context.UserLevels.Add(new UserLevel
-                {
-                    LevelName = name,
-                    MinExp = minExp,
-                    Rewards = rewards
-                });
+                continue;
             }
+
+            var level = new UserLevel
+            {
+                LevelName = name,
+                MinExp = minExp,
+                Rewards = rewards
+            };
+            context.UserLevels.Add(level);
+            existingLevels.Add(level);
         }
 
         await context.SaveChangesAsync();
@@ -63,7 +66,16 @@ public static class SeedData
     {
         ArgumentNullException.ThrowIfNull(credentials);
 
-        var levels = await context.UserLevels.ToDictionaryAsync(level => level.LevelName);
+        var levels = await context.UserLevels.ToListAsync();
+        var expectedMinimumExperience = new Dictionary<string, int>
+        {
+            ["新食客"] = 0,
+            ["尋味人"] = 500,
+            ["品味家"] = 1300,
+            ["老饕客"] = 3400,
+            ["鑑味師"] = 8800,
+            ["食之神"] = 23000
+        };
         var definitions = new[]
         {
             new MemberSeed("admin", "系統管理員", "admin@example.com", "Admin", "Normal", "品味家", 2000, 1000),
@@ -95,7 +107,9 @@ public static class SeedData
                 Status = definition.Status,
                 WarningCount = definition.Status == "Warning" ? 1 : 0,
                 AdminNote = definition.Status == "Warning" ? "評論用語需注意" : null,
-                LevelID = levels[definition.LevelName].LevelID,
+                LevelID = levels.First(level =>
+                    level.LevelName == definition.LevelName ||
+                    level.MinExp == expectedMinimumExperience[definition.LevelName]).LevelID,
                 Experience = definition.Experience,
                 Points = definition.Points,
                 CreatedAt = now.AddDays(-30),

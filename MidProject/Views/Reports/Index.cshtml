@@ -117,19 +117,19 @@
                 </div>
                 <div class="ds-filter-field">
                     <label>處理狀態</label>
-                    <select name="Status" class="form-select" asp-items="statusOptions">
+                    <select name="Status" class="form-select" asp-items="statusOptions" onchange="this.form.requestSubmit()">
                         <option value="">全部</option>
                     </select>
                 </div>
                 <div class="ds-filter-field">
                     <label>檢舉目標</label>
-                    <select name="TargetType" class="form-select" asp-items="targetTypeOptions">
+                    <select name="TargetType" class="form-select" asp-items="targetTypeOptions" onchange="this.form.requestSubmit()">
                         <option value="">全部</option>
                     </select>
                 </div>
                 <div class="ds-filter-field">
                     <label>檢舉分類</label>
-                    <select name="Category" class="form-select" asp-items="categoryOptions">
+                    <select name="Category" class="form-select" asp-items="categoryOptions" onchange="this.form.requestSubmit()">
                         <option value="">全部</option>
                     </select>
                 </div>

@@ -118,12 +118,23 @@ Development 環境預設啟用模組化 SeedData；各模組使用固定自然�
 資料，重複啟動不會新增相同資料。點數商城 Demo 由獨立 Seeder 建立商品、持有紀錄與
 成對的點數異動。
 
+若只要灌入完整功能測試資料後立即結束，不啟動網站，可執行：
+
+```bash
+dotnet run --project MidProject/MidProject.csproj -- --seed-test-data
+```
+
+完整資料涵蓋會員狀態、餐廳、營業時間、標籤、各類圖片、評論、收藏、檢舉、
+通知、頭像框、兌換與點數異動。Seeder 使用穩定識別字並採 upsert／查重方式，
+可安全重複執行且不會清除既有資料。測試圖片來源與授權紀錄請見
+`THIRD_PARTY_NOTICES.md`。
+
 ### 圖片上傳規則
 
 - 接受 JPEG、PNG、WebP，單檔最多 5MB、長寬最多 4096×4096。
 - 伺服器會辨識實際格式、完整解碼並重新輸出；副檔名偽裝、損毀與多幀圖片會被拒絕。
 - runtime 圖片存放於 `MidProject/wwwroot/uploads/`，不納入 Git。
-- Git 只保留各目錄 `.gitkeep`、預設會員頭像及兩張評論 Demo 圖片。
+- Git 只保留各目錄 `.gitkeep` 與明確列入 `.gitignore` 例外的 Demo 圖片。
 - 餐廳與外框商品的圖片異動使用資料庫交易；資料庫失敗會移除本次新檔，
   換圖後的舊檔只會在確認沒有餐廳、評論、會員、商品或檢舉引用時清理。
 
