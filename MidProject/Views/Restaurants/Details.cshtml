@@ -7,6 +7,13 @@
     var fullStars = (int)Math.Floor(displayRating);
     var hasHalfStar = displayRating - fullStars >= 0.5m && fullStars < 5;
     var emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+    var galleryImageUrls = new List<string>();
+    if (!string.IsNullOrWhiteSpace(Model.CoverImageUrl))
+    {
+        galleryImageUrls.Add(Model.CoverImageUrl);
+    }
+    galleryImageUrls.AddRange(Model.EnvironmentImageUrls);
+    var environmentGalleryOffset = string.IsNullOrWhiteSpace(Model.CoverImageUrl) ? 0 : 1;
 }
 
 @section Styles {
@@ -60,7 +67,7 @@
                     <div class="detail-cover">
                         @if (!string.IsNullOrEmpty(Model.CoverImageUrl))
                         {
-                            <button type="button" class="detail-image-button cover js-view-image" data-src="@Model.CoverImageUrl">
+                            <button type="button" class="detail-image-button cover js-view-image" data-gallery-index="0">
                                 <img src="@Model.CoverImageUrl" alt="封面圖">
                             </button>
                         }
@@ -69,20 +76,32 @@
                             <div class="image-empty">尚未上傳封面圖</div>
                         }
                     </div>
-                    <div class="detail-env-list">
+                    <div class="detail-env-carousel" data-environment-gallery data-page-size="6">
                         @if (Model.EnvironmentImageUrls.Any())
                         {
-                            @for (var i = 0; i < Math.Min(Model.EnvironmentImageUrls.Count, 6); i++)
+                            @if (Model.EnvironmentImageUrls.Count > 6)
                             {
-                                var hiddenCount = Model.EnvironmentImageUrls.Count - 6;
-                                var isOverflow = i == 5 && hiddenCount > 0;
-                                <button type="button" class="detail-image-button environment js-view-image @(isOverflow ? "has-more" : "")" data-src="@Model.EnvironmentImageUrls[i]">
-                                    <img src="@Model.EnvironmentImageUrls[i]" alt="環境圖">
-                                    @if (isOverflow)
-                                    {
-                                        <span class="image-more-overlay">+@hiddenCount</span>
-                                    }
+                                <button type="button" class="detail-gallery-nav detail-gallery-nav-prev" data-gallery-page="prev" aria-label="上一組餐廳圖片">
+                                    <i class="fas fa-chevron-left" aria-hidden="true"></i>
                                 </button>
+                            }
+                            <div class="detail-env-list">
+                                @for (var i = 0; i < Model.EnvironmentImageUrls.Count; i++)
+                                {
+                                    <button type="button"
+                                            class="detail-image-button environment js-view-image @(i >= 6 ? "d-none" : "")"
+                                            data-environment-image
+                                            data-gallery-index="@(environmentGalleryOffset + i)">
+                                        <img src="@Model.EnvironmentImageUrls[i]" alt="環境圖 @(i + 1)">
+                                    </button>
+                                }
+                            </div>
+                            @if (Model.EnvironmentImageUrls.Count > 6)
+                            {
+                                <button type="button" class="detail-gallery-nav detail-gallery-nav-next" data-gallery-page="next" aria-label="下一組餐廳圖片">
+                                    <i class="fas fa-chevron-right" aria-hidden="true"></i>
+                                </button>
+                                <span class="detail-gallery-page" data-gallery-page-indicator aria-live="polite"></span>
                             }
                         }
                         else
@@ -219,9 +238,8 @@
         document.querySelectorAll('.js-edit-btn').forEach(btn => {
             btn.addEventListener('click', () => RestaurantAdmin.openEditModal(btn.dataset.id));
         });
-        document.querySelectorAll('.js-view-image').forEach(btn => {
-            btn.addEventListener('click', () => RestaurantAdmin.openImageLightbox(btn.dataset.src));
-        });
+        var galleryImages = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(galleryImageUrls));
+        RestaurantAdmin.initDetailImageGallery(galleryImages);
         var disableBtn = document.getElementById('disableBtn');
         var disableModalRoot = document.getElementById('disableModalRoot');
         if (disableBtn && disableModalRoot) {

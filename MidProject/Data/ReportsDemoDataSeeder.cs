@@ -8,7 +8,7 @@ namespace MidProject.Data;
 /// 建立固定 12 個月、三種狀態、三種目標的檢舉資料。
 /// 每筆使用穩定識別字，可重複執行而不重複新增。
 /// </summary>
-public static class ReportsTestDataSeeder
+public static class ReportsDemoDataSeeder
 {
     public static async Task SeedAsync(IServiceProvider serviceProvider)
     {
@@ -60,7 +60,7 @@ public static class ReportsTestDataSeeder
         for (var index = 0; index < 12; index++)
         {
             var bucketMonth = earliestMonth.AddMonths(index);
-            var identifier = $"DEMO-RPT-{bucketMonth:yyyyMM}";
+            var identifier = $"案件月份 {bucketMonth:yyyyMM}";
             var existingReport = await context.Reports
                 .FirstOrDefaultAsync(report => report.Reason.StartsWith(identifier));
             if (existingReport is not null)
@@ -120,7 +120,7 @@ public static class ReportsTestDataSeeder
                 RestaurantID = restaurantId,
                 ReviewID = reviewId,
                 ImageID = imageId,
-                Reason = $"{identifier}｜{categories[index % categories.Length]}情境測試",
+                Reason = $"{identifier}｜使用者回報疑似{categories[index % categories.Length]}內容，請協助查核。",
                 Category = categories[index % categories.Length],
                 Status = status,
                 CreatedAt = createdAt
@@ -135,8 +135,8 @@ public static class ReportsTestDataSeeder
                     ? targetOwnerId
                     : null;
                 report.AdminNote = status == "Approved"
-                    ? "DEMO：已確認違規，檢舉成立。"
-                    : "DEMO：查無違規事證，駁回檢舉。";
+                    ? "已完成內容查核，確認違反社群規範。"
+                    : "已完成內容查核，目前無足夠事證認定違規。";
             }
 
             context.Reports.Add(report);
@@ -160,8 +160,8 @@ public static class ReportsTestDataSeeder
             {
                 MemberID = report.ReporterMemberID,
                 NotificationType = "Personal",
-                Title = $"DEMO｜檢舉{(report.Status == "Approved" ? "成立" : "駁回")}通知",
-                Content = $"測試檢舉案件 {report.ReportID} 已完成審核。",
+                Title = $"檢舉案件{(report.Status == "Approved" ? "成立" : "駁回")}通知",
+                Content = $"您提交的檢舉案件 #{report.ReportID} 已完成審核，感謝您協助維護社群品質。",
                 ScheduledAt = handledAt,
                 SentAt = handledAt,
                 IsSent = true,

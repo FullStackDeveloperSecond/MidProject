@@ -9,9 +9,9 @@ public static class PointsStoreDemoSeeder
 {
     private static readonly FrameSeed[] Frames =
     {
-        new("Demo Common 外框", "Common", 50, 1),
-        new("Demo Rare 外框", "Rare", 100, 2),
-        new("Demo Limited 外框", "Limited", 200, 3)
+        new("晨光暖橙外框", "Common", 50, 1),
+        new("城市星夜外框", "Rare", 100, 2),
+        new("山海限定外框", "Limited", 200, 3)
     };
 
     public static async Task InitializeAsync(IServiceProvider serviceProvider)
@@ -28,9 +28,9 @@ public static class PointsStoreDemoSeeder
 
         var redemptions = new[]
         {
-            new RedemptionSeed("aiden@example.com", "Demo Common 外框"),
-            new RedemptionSeed("admin@example.com", "Demo Rare 外框"),
-            new RedemptionSeed("admin@example.com", "Demo Limited 外框")
+            new RedemptionSeed("aiden@example.com", "晨光暖橙外框"),
+            new RedemptionSeed("admin@example.com", "城市星夜外框"),
+            new RedemptionSeed("admin@example.com", "山海限定外框")
         };
         foreach (var redemption in redemptions)
         {
@@ -62,7 +62,7 @@ public static class PointsStoreDemoSeeder
             context.AvatarFrames.Add(new AvatarFrame
             {
                 Name = frame.Name,
-                Description = "SeedData 產生的點數商城示範商品。",
+                Description = "會員可使用點數兌換並套用於個人頭像。",
                 Rarity = frame.Rarity,
                 PointsPrice = frame.PointsPrice,
                 SortOrder = frame.SortOrder,
@@ -154,7 +154,7 @@ public static class PointsStoreDemoSeeder
         pointsTransaction.Amount = -frame.PointsPrice;
         pointsTransaction.BalanceAfter = member.Points;
         pointsTransaction.CreatedBy = null;
-        pointsTransaction.Note = $"示範兌換外框：{frame.Name}";
+        pointsTransaction.Note = $"兌換頭像外框：{frame.Name}";
     }
 
     private static MemberAvatarFrame CreateOwnership(
@@ -182,7 +182,7 @@ public static class PointsStoreDemoSeeder
             BalanceAfter = member.Points,
             Type = "Redeem",
             RelatedFrameID = frame.FrameID,
-            Note = $"示範兌換外框：{frame.Name}",
+            Note = $"兌換頭像外框：{frame.Name}",
             CreatedAt = createdAt,
             CreatedBy = null
         };

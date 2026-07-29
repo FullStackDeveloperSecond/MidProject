@@ -5,6 +5,7 @@
 
 @section Styles {
     <link rel="stylesheet" href="~/css/design-system.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/dashboard.css" asp-append-version="true" />
 }
 
 <div class="d-flex justify-content-between align-items-end mb-4">
@@ -51,3 +52,286 @@
         </div>
     }
 </div>
+
+<section class="dashboard-analytics">
+    <div class="dashboard-section-heading">
+        <div>
+            <span class="dashboard-section-eyebrow">營運分析</span>
+            <h2>平台數據趨勢</h2>
+            <p>快速掌握熱門餐廳、內容成長與需要關注的會員及檢舉狀態。</p>
+        </div>
+    </div>
+
+    @if (!Model.Analytics.IsAvailable)
+    {
+        <div class="alert alert-warning" role="alert">
+            <i class="fas fa-exclamation-triangle me-2" aria-hidden="true"></i>
+            @Model.Analytics.UnavailableReason
+        </div>
+    }
+    else
+    {
+        <div class="row g-4">
+            <div class="col-12 col-xl-6">
+                <article class="dashboard-chart-card">
+                    <header class="dashboard-chart-header">
+                        <div>
+                            <span class="dashboard-chart-kicker">人氣排行</span>
+                            <h3>餐廳收藏排行</h3>
+                            <p>依有效收藏數排列前 8 名餐廳</p>
+                        </div>
+                        <a asp-controller="Restaurants" asp-action="Index">餐廳管理 <i class="fas fa-arrow-right"></i></a>
+                    </header>
+                    @if (Model.Analytics.FavoriteRestaurants.Count > 0)
+                    {
+                        <div class="dashboard-chart-body">
+                            <canvas id="favoriteRestaurantsChart" aria-label="餐廳收藏排行圖表"></canvas>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="dashboard-chart-empty">目前沒有可統計的餐廳收藏資料</div>
+                    }
+                </article>
+            </div>
+
+            <div class="col-12 col-xl-6">
+                <article class="dashboard-chart-card">
+                    <header class="dashboard-chart-header">
+                        <div>
+                            <span class="dashboard-chart-kicker">內容表現</span>
+                            <h3>餐廳評論與評分</h3>
+                            <p>比較評論數量及平均評分前 8 名餐廳</p>
+                        </div>
+                        <a asp-controller="Reviews" asp-action="Index">評論管理 <i class="fas fa-arrow-right"></i></a>
+                    </header>
+                    @if (Model.Analytics.RestaurantPerformance.Count > 0)
+                    {
+                        <div class="dashboard-chart-body">
+                            <canvas id="restaurantPerformanceChart" aria-label="餐廳評論與評分圖表"></canvas>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="dashboard-chart-empty">目前沒有可統計的餐廳評論資料</div>
+                    }
+                </article>
+            </div>
+
+            <div class="col-12">
+                <article class="dashboard-chart-card">
+                    <header class="dashboard-chart-header">
+                        <div>
+                            <span class="dashboard-chart-kicker">成長趨勢</span>
+                            <h3>近 6 個月平台活動</h3>
+                            <p>每月新增會員、餐廳與評論數量</p>
+                        </div>
+                    </header>
+                    <div class="dashboard-chart-body dashboard-chart-body-wide">
+                        <canvas id="monthlyActivityChart" aria-label="近六個月平台活動圖表"></canvas>
+                    </div>
+                </article>
+            </div>
+
+            <div class="col-12 col-lg-6">
+                <article class="dashboard-chart-card">
+                    <header class="dashboard-chart-header">
+                        <div>
+                            <span class="dashboard-chart-kicker">社群健康</span>
+                            <h3>會員狀態分布</h3>
+                            <p>包含正常、警告、禁言、停權及已刪除會員</p>
+                        </div>
+                        <a asp-controller="AdminMembers" asp-action="Index">會員管理 <i class="fas fa-arrow-right"></i></a>
+                    </header>
+                    @if (Model.Analytics.MemberStatuses.Count > 0)
+                    {
+                        <div class="dashboard-chart-body dashboard-chart-body-doughnut">
+                            <canvas id="memberStatusChart" aria-label="會員狀態分布圖表"></canvas>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="dashboard-chart-empty">目前沒有會員狀態資料</div>
+                    }
+                </article>
+            </div>
+
+            <div class="col-12 col-lg-6">
+                <article class="dashboard-chart-card">
+                    <header class="dashboard-chart-header">
+                        <div>
+                            <span class="dashboard-chart-kicker">案件處理</span>
+                            <h3>檢舉處理狀態</h3>
+                            <p>待處理、成立與駁回案件的占比</p>
+                        </div>
+                        <a asp-controller="Reports" asp-action="Dashboard">檢舉統計 <i class="fas fa-arrow-right"></i></a>
+                    </header>
+                    @if (Model.Analytics.ReportStatuses.Count > 0)
+                    {
+                        <div class="dashboard-chart-body dashboard-chart-body-doughnut">
+                            <canvas id="reportStatusChart" aria-label="檢舉處理狀態圖表"></canvas>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="dashboard-chart-empty">目前沒有檢舉案件資料</div>
+                    }
+                </article>
+            </div>
+        </div>
+    }
+</section>
+
+@section Scripts {
+    @if (Model.Analytics.IsAvailable)
+    {
+        <script src="~/vendor/chart.js/Chart.min.js"></script>
+        <script>
+            (function () {
+                var favoriteRestaurants = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Analytics.FavoriteRestaurants));
+                var restaurantPerformance = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Analytics.RestaurantPerformance));
+                var monthlyActivity = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Analytics.MonthlyActivity));
+                var memberStatuses = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Analytics.MemberStatuses));
+                var reportStatuses = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Analytics.ReportStatuses));
+                var restaurantDetailsBaseUrl = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Url.Action("Details", "Restaurants")));
+
+                Chart.defaults.global.defaultFontFamily = '"Noto Sans TC", "Microsoft JhengHei", sans-serif';
+                Chart.defaults.global.defaultFontColor = '#6F675F';
+
+                function openRestaurant(items, chartElements) {
+                    if (!chartElements || chartElements.length === 0) return;
+                    var index = chartElements[0]._index;
+                    if (items[index]) {
+                        window.location.href = restaurantDetailsBaseUrl + '/' + items[index].RestaurantID;
+                    }
+                }
+
+                var favoriteCanvas = document.getElementById('favoriteRestaurantsChart');
+                if (favoriteCanvas) {
+                    new Chart(favoriteCanvas, {
+                        type: 'horizontalBar',
+                        data: {
+                            labels: favoriteRestaurants.map(function (item) { return item.Name; }),
+                            datasets: [{
+                                label: '收藏數',
+                                data: favoriteRestaurants.map(function (item) { return item.FavoriteCount; }),
+                                backgroundColor: '#FF8A5C',
+                                borderColor: '#FF6B35',
+                                borderWidth: 1,
+                                borderRadius: 6
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            legend: { display: false },
+                            onClick: function (event, elements) { openRestaurant(favoriteRestaurants, elements); },
+                            hover: { onHover: function (event, elements) { event.target.style.cursor = elements.length ? 'pointer' : 'default'; } },
+                            scales: {
+                                xAxes: [{ ticks: { beginAtZero: true, precision: 0 }, gridLines: { color: '#F0ECE6' } }],
+                                yAxes: [{ gridLines: { display: false } }]
+                            },
+                            tooltips: { callbacks: { label: function (item) { return ' 收藏 ' + item.xLabel + ' 次'; } } }
+                        }
+                    });
+                }
+
+                var performanceCanvas = document.getElementById('restaurantPerformanceChart');
+                if (performanceCanvas) {
+                    new Chart(performanceCanvas, {
+                        type: 'bar',
+                        data: {
+                            labels: restaurantPerformance.map(function (item) { return item.Name; }),
+                            datasets: [
+                                {
+                                    type: 'bar',
+                                    label: '評論數',
+                                    yAxisID: 'reviewCount',
+                                    data: restaurantPerformance.map(function (item) { return item.ReviewCount; }),
+                                    backgroundColor: '#2E8B76',
+                                    borderColor: '#17604F',
+                                    borderWidth: 1
+                                },
+                                {
+                                    type: 'line',
+                                    label: '平均評分',
+                                    yAxisID: 'rating',
+                                    data: restaurantPerformance.map(function (item) { return item.AverageRating; }),
+                                    borderColor: '#F2B134',
+                                    backgroundColor: '#F2B134',
+                                    fill: false,
+                                    lineTension: 0.2,
+                                    pointRadius: 4,
+                                    pointHoverRadius: 6
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            onClick: function (event, elements) { openRestaurant(restaurantPerformance, elements); },
+                            hover: { onHover: function (event, elements) { event.target.style.cursor = elements.length ? 'pointer' : 'default'; } },
+                            scales: {
+                                xAxes: [{ gridLines: { display: false } }],
+                                yAxes: [
+                                    { id: 'reviewCount', position: 'left', ticks: { beginAtZero: true, precision: 0 }, gridLines: { color: '#F0ECE6' }, scaleLabel: { display: true, labelString: '評論數' } },
+                                    { id: 'rating', position: 'right', ticks: { min: 0, max: 5, stepSize: 1 }, gridLines: { drawOnChartArea: false }, scaleLabel: { display: true, labelString: '平均評分' } }
+                                ]
+                            }
+                        }
+                    });
+                }
+
+                var monthlyCanvas = document.getElementById('monthlyActivityChart');
+                if (monthlyCanvas) {
+                    new Chart(monthlyCanvas, {
+                        type: 'line',
+                        data: {
+                            labels: monthlyActivity.map(function (item) { return item.MonthLabel; }),
+                            datasets: [
+                                { label: '新增會員', data: monthlyActivity.map(function (item) { return item.MemberCount; }), borderColor: '#4E73DF', backgroundColor: 'rgba(78,115,223,.08)', fill: true, lineTension: .25 },
+                                { label: '新增餐廳', data: monthlyActivity.map(function (item) { return item.RestaurantCount; }), borderColor: '#2E8B76', backgroundColor: 'rgba(46,139,118,.06)', fill: true, lineTension: .25 },
+                                { label: '新增評論', data: monthlyActivity.map(function (item) { return item.ReviewCount; }), borderColor: '#FF6B35', backgroundColor: 'rgba(255,107,53,.06)', fill: true, lineTension: .25 }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                xAxes: [{ gridLines: { display: false } }],
+                                yAxes: [{ ticks: { beginAtZero: true, precision: 0 }, gridLines: { color: '#F0ECE6' } }]
+                            }
+                        }
+                    });
+                }
+
+                function createDistributionChart(canvasId, items, colors, unit) {
+                    var canvas = document.getElementById(canvasId);
+                    if (!canvas) return;
+                    new Chart(canvas, {
+                        type: 'doughnut',
+                        data: {
+                            labels: items.map(function (item) { return item.Label; }),
+                            datasets: [{
+                                data: items.map(function (item) { return item.Count; }),
+                                backgroundColor: colors,
+                                borderColor: '#FFFFFF',
+                                borderWidth: 3
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            cutoutPercentage: 62,
+                            legend: { position: 'right', labels: { boxWidth: 12, padding: 16 } },
+                            tooltips: { callbacks: { label: function (item, data) { return ' ' + data.labels[item.index] + '：' + data.datasets[0].data[item.index] + ' ' + unit; } } }
+                        }
+                    });
+                }
+
+                createDistributionChart('memberStatusChart', memberStatuses, ['#2E8B76', '#F2B134', '#9B6EDB', '#D95D4F', '#9B948C', '#4E73DF'], '人');
+                createDistributionChart('reportStatusChart', reportStatuses, ['#F2B134', '#2E8B76', '#9B948C', '#D95D4F'], '筆');
+            })();
+        </script>
+    }
+}

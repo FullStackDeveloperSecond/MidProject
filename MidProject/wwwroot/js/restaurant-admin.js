@@ -111,6 +111,7 @@ const RestaurantAdmin = (() => {
     function closeModal() {
         const root = modalRoot();
         if (!root) return;
+        root.onkeydown = null;
         root.classList.remove("open");
         root.setAttribute("aria-hidden", "true");
         root.innerHTML = "";
@@ -224,20 +225,103 @@ const RestaurantAdmin = (() => {
         openModalHtml(await res.text());
     }
 
-    function openImageLightbox(src) {
+    function openImageLightbox(images, initialIndex = 0) {
         const root = modalRoot();
         if (!root) return;
+        const sources = (Array.isArray(images) ? images : [images]).filter(Boolean);
+        if (sources.length === 0) return;
+        let currentIndex = Math.min(Math.max(Number(initialIndex) || 0, 0), sources.length - 1);
         root.innerHTML = `
             <div class="ra-modal lightbox-modal" role="dialog" aria-modal="true" aria-label="圖片檢視">
                 <div class="modal-head">
                     <h2>圖片檢視</h2>
+                    <span class="lightbox-counter" data-lightbox-counter></span>
                     <button type="button" class="btn btn-icon" data-action="close-modal" aria-label="關閉">×</button>
                 </div>
-                <div class="lightbox-body"><img class="lightbox-image" src="${src}" alt="圖片"></div>
+                <div class="lightbox-body">
+                    <button type="button" class="lightbox-nav lightbox-nav-prev" data-lightbox-nav="prev" aria-label="上一張圖片">
+                        <i class="fas fa-chevron-left" aria-hidden="true"></i>
+                    </button>
+                    <img class="lightbox-image" alt="餐廳圖片">
+                    <button type="button" class="lightbox-nav lightbox-nav-next" data-lightbox-nav="next" aria-label="下一張圖片">
+                        <i class="fas fa-chevron-right" aria-hidden="true"></i>
+                    </button>
+                </div>
             </div>`;
+
+        const image = root.querySelector(".lightbox-image");
+        const counter = root.querySelector("[data-lightbox-counter]");
+        const previous = root.querySelector("[data-lightbox-nav='prev']");
+        const next = root.querySelector("[data-lightbox-nav='next']");
+
+        function render() {
+            image.src = sources[currentIndex];
+            image.alt = `餐廳圖片 ${currentIndex + 1}，共 ${sources.length} 張`;
+            counter.textContent = `${currentIndex + 1} / ${sources.length}`;
+            previous.hidden = sources.length <= 1;
+            next.hidden = sources.length <= 1;
+        }
+
+        function move(direction) {
+            currentIndex = (currentIndex + direction + sources.length) % sources.length;
+            render();
+        }
+
+        previous.addEventListener("click", () => move(-1));
+        next.addEventListener("click", () => move(1));
+        root.onkeydown = event => {
+            if (event.key === "ArrowLeft") move(-1);
+            if (event.key === "ArrowRight") move(1);
+            if (event.key === "Escape") closeModal();
+        };
         root.classList.add("open");
         root.setAttribute("aria-hidden", "false");
+        root.tabIndex = -1;
+        root.focus();
         bindModalChrome();
+        render();
+    }
+
+    function initDetailImageGallery(images) {
+        const sources = (Array.isArray(images) ? images : []).filter(Boolean);
+        document.querySelectorAll(".js-view-image[data-gallery-index]").forEach(button => {
+            button.addEventListener("click", () => {
+                openImageLightbox(sources, Number(button.dataset.galleryIndex));
+            });
+        });
+
+        const carousel = document.querySelector("[data-environment-gallery]");
+        if (!carousel) return;
+        const items = Array.from(carousel.querySelectorAll("[data-environment-image]"));
+        const pageSize = Math.max(Number(carousel.dataset.pageSize) || 6, 1);
+        const pageCount = Math.max(Math.ceil(items.length / pageSize), 1);
+        const previous = carousel.querySelector("[data-gallery-page='prev']");
+        const next = carousel.querySelector("[data-gallery-page='next']");
+        const indicator = carousel.querySelector("[data-gallery-page-indicator]");
+        let page = 0;
+
+        function renderPage() {
+            items.forEach((item, index) => {
+                item.classList.toggle("d-none", Math.floor(index / pageSize) !== page);
+            });
+            if (previous) previous.disabled = page === 0;
+            if (next) next.disabled = page >= pageCount - 1;
+            if (indicator) indicator.textContent = `${page + 1} / ${pageCount}`;
+        }
+
+        previous?.addEventListener("click", () => {
+            if (page > 0) {
+                page--;
+                renderPage();
+            }
+        });
+        next?.addEventListener("click", () => {
+            if (page < pageCount - 1) {
+                page++;
+                renderPage();
+            }
+        });
+        renderPage();
     }
 
     function toast(message) {
@@ -745,6 +829,7 @@ const RestaurantAdmin = (() => {
         openCreateModal,
         openEditModal,
         openImageLightbox,
+        initDetailImageGallery,
         closeModal,
         toast,
         bindAjaxContent,

@@ -15,21 +15,21 @@ if (args.Contains(MigrationDriftVerifier.CommandArgument, StringComparer.Ordinal
     return;
 }
 
-var seedTestData = args.Contains(
-    DevelopmentTestDataSeeder.CommandArgument,
+var seedDemoData = args.Contains(
+    DemoDataSeeder.CommandArgument,
     StringComparer.Ordinal);
-if (seedTestData)
+if (seedDemoData)
 {
     args = args
         .Where(argument => !string.Equals(
             argument,
-            DevelopmentTestDataSeeder.CommandArgument,
+            DemoDataSeeder.CommandArgument,
             StringComparison.Ordinal))
         .ToArray();
 }
 
 var builder = WebApplication.CreateBuilder(args);
-if (seedTestData)
+if (seedDemoData)
 {
     builder.Logging.AddFilter(
         "Microsoft.EntityFrameworkCore.Database.Command",
@@ -167,15 +167,15 @@ builder.Services.AddHostedService<MemberEscalationBackgroundService>();
 
 var app = builder.Build();
 
-if (seedTestData)
+if (seedDemoData)
 {
     if (!app.Environment.IsDevelopment())
     {
         throw new InvalidOperationException(
-            "The development test-data seeder can run only in the Development environment.");
+            "The Demo presentation-data seeder can run only in the Development environment.");
     }
 
-    await DevelopmentTestDataSeeder.SeedAsync(app.Services);
+    await DemoDataSeeder.SeedAsync(app.Services);
     return;
 }
 
@@ -183,7 +183,7 @@ if (app.Environment.IsDevelopment() && builder.Configuration.GetValue<bool>("See
 {
     if (SeedDataCredentials.AreConfigured(builder.Configuration))
     {
-        await DevelopmentTestDataSeeder.SeedAsync(app.Services);
+        await DemoDataSeeder.SeedAsync(app.Services);
     }
     else
     {

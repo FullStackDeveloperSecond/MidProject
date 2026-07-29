@@ -18,11 +18,6 @@ public static class SeedData
 
         await SeedUserLevelsAsync(context);
         await SeedMembersAsync(context, now, credentials);
-        await SeedRestaurantsAsync(context, now);
-        await SeedReviewsAsync(context, now);
-        await SeedFavoritesAsync(context, now);
-        await SeedReportsAsync(context, now);
-        await SeedNotificationsAsync(context, now);
     }
 
     public static async Task SeedUserLevelsAsync(AppDbContext context)
@@ -151,8 +146,8 @@ public static class SeedData
                 "北投義麵坊", "台北市", "北投區", "光明路 22 號",
                 "02-2891-6620", "義大利麵與燉飯。", false, new[] { "義式料理" }),
             new RestaurantSeed(
-                "晴光甜點室（已歇業）", "台北市", "中山區", "雙城街 12 號",
-                "02-2599-2300", "停用展示資料。", true, new[] { "甜點", "咖啡廳" })
+                "晴光甜點室", "台北市", "中山區", "雙城街 12 號",
+                "02-2599-2300", "店家已結束營業。", true, new[] { "甜點", "咖啡廳" })
         };
 
         foreach (var definition in definitions)
@@ -326,9 +321,9 @@ public static class SeedData
             review => review.Content == "環境乾淨，座位稍微擁擠。");
         var definitions = new[]
         {
-            new ReportSeed("示範檢舉：評論用語需要審核", "評論", "Pending", null, pendingReview.ReviewID),
-            new ReportSeed("示範檢舉：餐廳資訊已確認有誤", "餐廳", "Approved", brunch.RestaurantID, null),
-            new ReportSeed("示範檢舉：查無違規事證", "評論", "Rejected", null, pendingReview.ReviewID)
+            new ReportSeed("評論內容可能包含不適當用語，請協助審核。", "人身攻擊", "Pending", null, pendingReview.ReviewID),
+            new ReportSeed("店家營業資訊與現場公告不一致。", "不實資訊", "Approved", brunch.RestaurantID, null),
+            new ReportSeed("評論內容與實際用餐經驗相關，未發現違規。", "垃圾訊息", "Rejected", null, pendingReview.ReviewID)
         };
 
         foreach (var definition in definitions)
@@ -352,7 +347,7 @@ public static class SeedData
                 CreatedAt = now.AddDays(-3),
                 HandledAt = handled ? now.AddDays(-2) : null,
                 HandledByMemberID = handled ? admin.MemberID : null,
-                AdminNote = handled ? "SeedData 示範處理紀錄" : null
+                AdminNote = handled ? "已完成內容查核與案件紀錄。" : null
             });
         }
 
@@ -363,8 +358,8 @@ public static class SeedData
     {
         var admin = await RequiredMemberAsync(context, "admin@example.com");
         var aiden = await RequiredMemberAsync(context, "aiden@example.com");
-        const string title = "系統通知";
-        const string content = "您的測試資料已準備完成。";
+        const string title = "歡迎加入美食地圖";
+        const string content = "您的會員帳號已啟用，現在可以收藏餐廳並分享用餐心得。";
 
         if (!await context.Notifications.AnyAsync(
                 item => item.MemberID == aiden.MemberID &&

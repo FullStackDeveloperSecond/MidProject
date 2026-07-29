@@ -278,6 +278,15 @@
     box-shadow: 0 0 0 0.2rem rgba(255, 107, 53, 0.14);
 }
 
+/* 所有 GET 篩選表單的下拉選單，只要不是第一個預設選項，就沿用餐廳列表的暖橘高亮。
+   class 由 site.js 依目前選值統一套用，避免每個列表頁各寫一套判斷。 */
+form[method="get"] select.filter-changed,
+.ds-toolbar select.filter-changed {
+    border-color: var(--ds-cta);
+    background-color: #FFF3EC;
+    box-shadow: 0 0 0 2px rgba(255, 107, 53, 0.22);
+}
+
 /* 查詢 / 清除按鈕：統一取代各模組原本彩度過高的 Bootstrap 藍，改用品牌暖橘，
    用 !important 蓋過各模組舊有、選擇器特異度較高的按鈕顏色規則。 */
 .ds-btn-query {

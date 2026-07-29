@@ -1,5 +1,16 @@
 @model MidProject.Models.ViewModels.Notifications.NotificationDetailsViewModel
-@{ ViewData["Title"] = $"通知 #{Model.NotificationID}"; }
+@{
+    ViewData["Title"] = $"通知 #{Model.NotificationID}";
+    var typeLabel = Model.NotificationType switch
+    {
+        "Personal" => "個人通知",
+        "Condition" => "條件式通知",
+        _ => Model.NotificationType
+    };
+    var statusLabel = Model.IsDeleted ? "已刪除" : Model.IsSent ? "已發送" : "待發送";
+    var statusClass = Model.IsDeleted ? "danger" : Model.IsSent ? "success" : "warning";
+    var statusIcon = Model.IsDeleted ? "fa-trash" : Model.IsSent ? "fa-check-circle" : "fa-clock";
+}
 @section Styles {
     <link rel="stylesheet" href="~/css/design-system.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/notifications-admin.css" asp-append-version="true" />
@@ -7,67 +18,175 @@
 
 <div class="notification-admin">
     <div class="detail-header-bar">
-        <a class="btn btn-outline-secondary js-back-btn" href="@Url.Action("Index")">← 返回</a>
+        <a class="btn btn-outline-secondary js-back-btn" href="@Url.Action("Index")">
+            <i class="fas fa-arrow-left me-1"></i>返回通知列表
+        </a>
         <div class="detail-crumb"><a asp-action="Index">通知管理</a> / 通知 #@Model.NotificationID</div>
     </div>
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <div><h1 class="ds-h2 mb-1">通知 #@Model.NotificationID</h1><p class="ds-muted mb-0">通知完整資料</p></div>
-        <div class="d-flex gap-2">
+
+    @if (TempData["NotificationSuccess"] is string success)
+    {
+        <div class="alert alert-success notification-detail-alert" role="status">
+            <i class="fas fa-check-circle me-2"></i>@success
+        </div>
+    }
+
+    <section class="notification-detail-hero" aria-labelledby="notification-title">
+        <div class="notification-detail-hero-copy">
+            <div class="notification-detail-eyebrow">
+                <span class="ds-badge ds-badge-primary">@typeLabel</span>
+                <span class="ds-badge ds-badge-@statusClass">
+                    <i class="fas @statusIcon me-1"></i>@statusLabel
+                </span>
+                <span class="notification-detail-id">通知 #@Model.NotificationID</span>
+            </div>
+            <h1 id="notification-title">@Model.Title</h1>
+            <p>
+                <i class="fas fa-users" aria-hidden="true"></i>
+                @Model.AudienceSummary
+            </p>
+        </div>
+        <div class="notification-detail-actions">
             @if (Model.CanMutate)
             {
-                <a asp-action="Edit" asp-route-id="@Model.NotificationID" class="btn btn-warning">編輯</a>
-                <a asp-action="Delete" asp-route-id="@Model.NotificationID" class="btn btn-danger">刪除</a>
+                <a asp-action="Edit" asp-route-id="@Model.NotificationID" class="btn btn-outline-secondary">
+                    <i class="fas fa-edit me-1"></i>編輯通知
+                </a>
+                <a asp-action="Delete" asp-route-id="@Model.NotificationID" class="btn btn-danger">
+                    <i class="fas fa-trash me-1"></i>刪除
+                </a>
             }
         </div>
-    </div>
-    @if (TempData["NotificationSuccess"] is string success) { <div class="alert alert-success">@success</div> }
-    <div class="card">
-        <div class="card-header d-flex justify-content-between">
-            <span class="fw-semibold">@Model.Title</span>
-            @if (Model.IsDeleted) { <span class="ds-badge ds-badge-danger">已刪除</span> }
-            else if (Model.IsSent) { <span class="ds-badge ds-badge-success">已發送</span> }
-            else { <span class="ds-badge ds-badge-warning">未發送</span> }
-        </div>
-        <div class="card-body">
-            <dl class="row notification-details">
-                <dt class="col-sm-3">NotificationID</dt><dd class="col-sm-9">@Model.NotificationID</dd>
-                <dt class="col-sm-3">通知類型</dt><dd class="col-sm-9">@Model.NotificationType</dd>
-                <dt class="col-sm-3">對象摘要</dt><dd class="col-sm-9">@Model.AudienceSummary</dd>
-                <dt class="col-sm-3">MemberID</dt>
-                <dd class="col-sm-9">
+    </section>
+
+    <div class="notification-detail-grid">
+        <div class="notification-detail-primary">
+            <section class="notification-detail-card" aria-labelledby="content-heading">
+                <div class="notification-detail-card-heading">
+                    <span class="notification-detail-section-icon notification-detail-section-icon-primary">
+                        <i class="fas fa-bell"></i>
+                    </span>
+                    <div>
+                        <h2 id="content-heading">通知內容</h2>
+                        <p>實際傳送給通知對象的訊息</p>
+                    </div>
+                </div>
+                <div class="notification-detail-message">@Model.Content</div>
+            </section>
+
+            <section class="notification-detail-card" aria-labelledby="audience-heading">
+                <div class="notification-detail-card-heading">
+                    <span class="notification-detail-section-icon notification-detail-section-icon-purple">
+                        <i class="fas fa-users"></i>
+                    </span>
+                    <div>
+                        <h2 id="audience-heading">通知對象</h2>
+                        <p>@Model.AudienceSummary</p>
+                    </div>
+                </div>
+                <div class="notification-audience-detail">
                     @if (Model.MemberID.HasValue)
                     {
-                        <a asp-controller="AdminMembers" asp-action="Edit" asp-route-id="@Model.MemberID.Value">@Model.MemberID</a>
-                    }
-                    else
-                    {
-                        @:—
-                    }
-                </dd>
-                <dt class="col-sm-3">TargetRole</dt><dd class="col-sm-9">@(Model.TargetRole ?? "—")</dd>
-                <dt class="col-sm-3">TargetStatus</dt><dd class="col-sm-9">@(Model.TargetStatus ?? "—")</dd>
-                <dt class="col-sm-3">TargetLevelID</dt><dd class="col-sm-9">@(Model.TargetLevelID?.ToString() ?? "—")</dd>
-                <dt class="col-sm-3">內容</dt><dd class="col-sm-9 notification-content">@Model.Content</dd>
-                <dt class="col-sm-3">ScheduledAt</dt><dd class="col-sm-9">@Model.ScheduledAt.ToString("yyyy/MM/dd HH:mm")</dd>
-                <dt class="col-sm-3">SentAt</dt><dd class="col-sm-9">@(Model.SentAt?.ToString("yyyy/MM/dd HH:mm") ?? "—")</dd>
-                <dt class="col-sm-3">CreatedAt</dt><dd class="col-sm-9">@Model.CreatedAt.ToString("yyyy/MM/dd HH:mm")</dd>
-                <dt class="col-sm-3">CreatedBy</dt><dd class="col-sm-9">@Model.CreatedBy</dd>
-                <dt class="col-sm-3">DeletedAt</dt><dd class="col-sm-9">@(Model.DeletedAt?.ToString("yyyy/MM/dd HH:mm") ?? "—")</dd>
-                <dt class="col-sm-3">DeletedBy</dt><dd class="col-sm-9">@(Model.DeletedBy?.ToString() ?? "—")</dd>
-                <dt class="col-sm-3">Report 來源</dt>
-                <dd class="col-sm-9">
-                    @if (Model.SourceReportID.HasValue)
-                    {
-                        <a asp-controller="Reports" asp-action="Details" asp-route-id="@Model.SourceReportID.Value">
-                            Report @Model.SourceReportID／@Model.SourceReportOutcome
+                        <a class="notification-target-chip" asp-controller="AdminMembers" asp-action="Edit" asp-route-id="@Model.MemberID.Value">
+                            <i class="fas fa-user"></i>
+                            會員 #@Model.MemberID
+                            <i class="fas fa-external-link-alt"></i>
                         </a>
                     }
-                    else
+                    @if (!string.IsNullOrWhiteSpace(Model.TargetRole))
                     {
-                        @:—
+                        <span class="notification-target-chip"><i class="fas fa-user-shield"></i>角色：@Model.TargetRole</span>
                     }
-                </dd>
-            </dl>
+                    @if (!string.IsNullOrWhiteSpace(Model.TargetStatus))
+                    {
+                        <span class="notification-target-chip"><i class="fas fa-user-check"></i>狀態：@Model.TargetStatus</span>
+                    }
+                    @if (Model.TargetLevelID.HasValue)
+                    {
+                        <span class="notification-target-chip"><i class="fas fa-layer-group"></i>等級 #@Model.TargetLevelID</span>
+                    }
+                </div>
+            </section>
+
+            <details class="notification-record-details">
+                <summary>
+                    <span><i class="fas fa-info-circle me-2"></i>系統紀錄與來源</span>
+                    <i class="fas fa-chevron-down notification-record-chevron"></i>
+                </summary>
+                <div class="notification-record-grid">
+                    <div><span>通知編號</span><strong>#@Model.NotificationID</strong></div>
+                    <div><span>建立管理員</span><strong>#@Model.CreatedBy</strong></div>
+                    @if (Model.SourceReportID.HasValue)
+                    {
+                        <div class="notification-record-wide">
+                            <span>檢舉來源</span>
+                            <a asp-controller="Reports" asp-action="Details" asp-route-id="@Model.SourceReportID.Value">
+                                檢舉 #@Model.SourceReportID · @Model.SourceReportOutcome
+                                <i class="fas fa-external-link-alt ms-1"></i>
+                            </a>
+                        </div>
+                    }
+                    @if (Model.DeletedBy.HasValue)
+                    {
+                        <div><span>刪除管理員</span><strong>#@Model.DeletedBy</strong></div>
+                    }
+                </div>
+            </details>
         </div>
+
+        <aside class="notification-detail-card notification-timeline-card" aria-labelledby="timeline-heading">
+            <div class="notification-detail-card-heading">
+                <span class="notification-detail-section-icon notification-detail-section-icon-warning">
+                    <i class="fas fa-history"></i>
+                </span>
+                <div>
+                    <h2 id="timeline-heading">通知時程</h2>
+                    <p>建立、排程與發送狀態</p>
+                </div>
+            </div>
+            <ol class="notification-timeline">
+                <li class="is-complete">
+                    <span class="notification-timeline-marker"><i class="fas fa-plus"></i></span>
+                    <div>
+                        <strong>建立通知</strong>
+                        <time datetime="@Model.CreatedAt.ToString("O")">@Model.CreatedAt.ToString("yyyy/MM/dd HH:mm")</time>
+                    </div>
+                </li>
+                <li class="is-complete">
+                    <span class="notification-timeline-marker"><i class="fas fa-calendar-alt"></i></span>
+                    <div>
+                        <strong>排程時間</strong>
+                        <time datetime="@Model.ScheduledAt.ToString("O")">@Model.ScheduledAt.ToString("yyyy/MM/dd HH:mm")</time>
+                    </div>
+                </li>
+                @if (Model.IsSent && Model.SentAt.HasValue)
+                {
+                    <li class="is-complete">
+                        <span class="notification-timeline-marker"><i class="fas fa-paper-plane"></i></span>
+                        <div>
+                            <strong>已完成發送</strong>
+                            <time datetime="@Model.SentAt.Value.ToString("O")">@Model.SentAt.Value.ToString("yyyy/MM/dd HH:mm")</time>
+                        </div>
+                    </li>
+                }
+                else if (!Model.IsDeleted)
+                {
+                    <li>
+                        <span class="notification-timeline-marker"><i class="fas fa-clock"></i></span>
+                        <div><strong>等待發送</strong><span>到達排程時間後可執行發送</span></div>
+                    </li>
+                }
+                @if (Model.IsDeleted && Model.DeletedAt.HasValue)
+                {
+                    <li class="is-danger">
+                        <span class="notification-timeline-marker"><i class="fas fa-trash"></i></span>
+                        <div>
+                            <strong>已刪除</strong>
+                            <time datetime="@Model.DeletedAt.Value.ToString("O")">@Model.DeletedAt.Value.ToString("yyyy/MM/dd HH:mm")</time>
+                        </div>
+                    </li>
+                }
+            </ol>
+        </aside>
     </div>
 </div>

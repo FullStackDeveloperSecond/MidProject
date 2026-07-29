@@ -6,6 +6,7 @@
 
 @section Styles {
     <link rel="stylesheet" href="~/css/design-system.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/reports-admin.css" asp-append-version="true" />
 }
 
 <div class="ds-page-header d-flex flex-wrap align-items-center justify-content-between gap-3">
@@ -58,12 +59,6 @@
                 <div class="ds-info-row">
                     <div class="ds-info-key">檢舉目標</div>
                     <div>
-                        @{
-                            var targetController = Model.RestaurantID.HasValue ? "Restaurants"
-                                : Model.ReviewID.HasValue ? "Reviews"
-                                : null;
-                            var targetId = Model.RestaurantID ?? Model.ReviewID ?? Model.ImageID;
-                        }
                         @if (Model.ReviewID.HasValue)
                         {
                             <!-- 檢舉目標為評論：「評論」兩字連結至該評論詳情頁 -->
@@ -76,13 +71,33 @@
                         @if (Model.ImageID.HasValue)
                         {
                             <span class="ds-muted">#@Model.ImageID</span>
+                            @if (!string.IsNullOrWhiteSpace(Model.ImageUrl))
+                            {
+                                <a class="report-image-link"
+                                   asp-action="ImagePreview"
+                                   asp-route-id="@Model.ReportID">
+                                    <span class="report-image-thumbnail">
+                                        <img src="@Model.ImageUrl"
+                                             alt="被檢舉圖片 #@Model.ImageID"
+                                             onerror="this.hidden=true;this.nextElementSibling.hidden=false;" />
+                                        <span class="report-image-thumbnail-fallback" hidden aria-hidden="true">
+                                            <i class="fas fa-image"></i>
+                                        </span>
+                                    </span>
+                                    <span>
+                                        <strong><i class="fas fa-image me-1"></i>查看圖片</strong>
+                                        <small>在圖片檢視頁開啟</small>
+                                    </span>
+                                    <i class="fas fa-chevron-right" aria-hidden="true"></i>
+                                </a>
+                            }
                         }
                         @if (Model.RestaurantName != null)
                         {
                             @: （
-                            @if (targetController != null)
+                            @if (Model.RelatedRestaurantID.HasValue)
                             {
-                                <a asp-controller="@targetController" asp-action="Details" asp-route-id="@targetId">@Model.RestaurantName</a>
+                                <a asp-controller="Restaurants" asp-action="Details" asp-route-id="@Model.RelatedRestaurantID">@Model.RestaurantName</a>
                             }
                             else
                             {

@@ -20,8 +20,13 @@
 .admin-sidebar {
     width: var(--admin-sidebar-width);
     flex: 0 0 var(--admin-sidebar-width);
-    min-height: 100vh;
+    height: 100vh;
+    min-height: 0;
+    position: sticky;
+    top: 0;
+    align-self: flex-start;
     flex-direction: column;
+    overflow: hidden;
     background: var(--admin-sidebar-bg);
     color: #fff;
     font-family: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", -apple-system, "Segoe UI", sans-serif;
@@ -46,9 +51,14 @@
 
 .admin-nav {
     display: flex;
+    flex: 1 1 auto;
+    min-height: 0;
     flex-direction: column;
     gap: 0.25rem;
     padding: 0.75rem 0.75rem;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
 }
 
 .admin-nav-link {
@@ -135,18 +145,52 @@
 }
 
 .admin-sidebar-footer {
-    margin-top: auto;
-    padding: 0.6rem;
+    flex: 0 0 auto;
+    padding: 0.75rem;
     border-top: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(15, 28, 42, 0.16);
 }
 
 .admin-sidebar-user {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.4rem 0.5rem;
-    color: rgba(255, 255, 255, 0.7);
-    font-size: 0.82rem;
+    gap: 0.65rem;
+    min-width: 0;
+    padding: 0.35rem 0.5rem 0.65rem;
+    color: #fff;
+}
+
+.admin-sidebar-user-icon {
+    display: inline-flex;
+    width: 34px;
+    height: 34px;
+    flex: 0 0 34px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.admin-sidebar-user-copy {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    line-height: 1.25;
+}
+
+.admin-sidebar-user-copy strong {
+    overflow: hidden;
+    font-size: 0.86rem;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.admin-sidebar-user-copy small {
+    margin-top: 0.15rem;
+    color: rgba(255, 255, 255, 0.58);
+    font-size: 0.72rem;
 }
 
 .admin-sidebar-logout {
@@ -164,6 +208,10 @@
     font-size: 0.85rem;
     font-family: inherit;
     cursor: pointer;
+}
+
+.admin-sidebar-footer form {
+    margin: 0;
 }
 
 .admin-sidebar-logout:hover {
@@ -209,10 +257,26 @@
 
     .admin-sidebar {
         width: 100%;
+        height: auto;
         min-height: auto;
+        position: static;
+        overflow: visible;
     }
 
     .admin-sidebar.show {
         display: flex;
+    }
+
+    .admin-nav {
+        overflow: visible;
+    }
+
+    .admin-mobile-user-name {
+        display: inline-block;
+        max-width: 10rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        vertical-align: bottom;
+        white-space: nowrap;
     }
 }

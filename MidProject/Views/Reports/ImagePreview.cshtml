@@ -1,0 +1,90 @@
+@model MidProject.Models.DTOs.ReportDto
+
+@{
+    ViewData["Title"] = $"檢舉圖片 #{Model.ImageID}";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/design-system.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/reports-admin.css" asp-append-version="true" />
+}
+
+<div class="detail-header-bar">
+    <a class="btn btn-outline-secondary js-back-btn"
+       asp-action="Details"
+       asp-route-id="@Model.ReportID">
+        <i class="fas fa-arrow-left me-1"></i>返回檢舉詳情
+    </a>
+    <div class="detail-crumb">
+        <a asp-action="Index">檢舉管理</a> /
+        <a asp-action="Details" asp-route-id="@Model.ReportID">檢舉 #@Model.ReportID</a> /
+        圖片 #@Model.ImageID
+    </div>
+</div>
+
+<section class="report-image-page" aria-labelledby="report-image-title">
+    <header class="report-image-header">
+        <div>
+            <div class="report-image-eyebrow">
+                <span class="ds-badge ds-badge-purple"><i class="fas fa-image me-1"></i>被檢舉圖片</span>
+                @if (Model.ImageIsDeleted)
+                {
+                    <span class="ds-badge ds-badge-danger"><i class="fas fa-trash me-1"></i>圖片已刪除</span>
+                }
+            </div>
+            <h1 id="report-image-title">圖片 #@Model.ImageID</h1>
+            <p>來源檢舉案件 #@Model.ReportID · @Model.CategoryDisplay</p>
+        </div>
+        <a class="btn btn-outline-secondary"
+           asp-action="Details"
+           asp-route-id="@Model.ReportID">
+            <i class="fas fa-flag me-1"></i>查看案件資料
+        </a>
+    </header>
+
+    @if (Model.ImageIsDeleted)
+    {
+        <div class="alert alert-warning report-image-alert" role="status">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            此圖片已標記刪除；若檔案仍保留，畫面會繼續顯示供案件查核。
+        </div>
+    }
+
+    <div class="report-image-viewer">
+        <img src="@Model.ImageUrl"
+             alt="檢舉案件 #@Model.ReportID 的被檢舉圖片 #@Model.ImageID"
+             onerror="this.hidden=true;this.nextElementSibling.hidden=false;" />
+        <div class="report-image-unavailable" hidden role="status">
+            <span><i class="fas fa-image"></i></span>
+            <strong>圖片檔案無法載入</strong>
+            <p>資料庫仍保留圖片紀錄，但伺服器上找不到對應檔案。</p>
+        </div>
+    </div>
+
+    <div class="report-image-meta">
+        <div>
+            <span>圖片編號</span>
+            <strong>#@Model.ImageID</strong>
+        </div>
+        <div>
+            <span>所屬餐廳</span>
+            <strong>@(Model.RestaurantName ?? "—")</strong>
+        </div>
+        <div>
+            <span>圖片上傳時間</span>
+            <strong>@(Model.ImageUploadedAt?.ToString("yyyy/MM/dd HH:mm") ?? "—")</strong>
+        </div>
+        <div>
+            <span>檢舉日期</span>
+            <strong>@Model.CreatedAt.ToString("yyyy/MM/dd HH:mm")</strong>
+        </div>
+    </div>
+
+    <footer class="report-image-footer">
+        <a class="btn btn-primary"
+           asp-action="Details"
+           asp-route-id="@Model.ReportID">
+            <i class="fas fa-arrow-left me-1"></i>返回檢舉詳情
+        </a>
+    </footer>
+</section>

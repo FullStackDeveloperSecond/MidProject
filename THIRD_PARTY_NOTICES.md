@@ -1,7 +1,7 @@
-# Third-party demo image notices
+# Third-party presentation image notices
 
-The `demo-*.jpg` files under `MidProject/wwwroot/uploads/` are development-only
-test assets downloaded from the Unsplash image CDN on 2026-07-29.
+The `demo-*.jpg` files under `MidProject/wwwroot/uploads/` are presentation
+assets downloaded from the Unsplash image CDN on 2026-07-29.
 
 They are used under the [Unsplash License](https://unsplash.com/license), which
 permits free commercial and non-commercial use. These files must not be

@@ -54,13 +54,6 @@
             </div>
 
             <div class="mb-3">
-                <label class="form-label">排序值</label>
-                <input asp-for="SortOrder" type="number" min="0" class="form-control" />
-                <span asp-validation-for="SortOrder" class="text-danger"></span>
-                <div class="form-text">數字越小排越前面，商品列表依此排序。</div>
-            </div>
-
-            <div class="mb-3">
                 <label class="form-label">商品描述（選填）</label>
                 <textarea asp-for="Description" class="form-control" rows="3"></textarea>
                 <span asp-validation-for="Description" class="text-danger"></span>

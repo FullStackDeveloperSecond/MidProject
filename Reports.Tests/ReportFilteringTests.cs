@@ -58,6 +58,18 @@ public sealed class ReportFilteringTests : ReportTestBase
     }
 
     [Fact]
+    public async Task Details_ReviewTarget_UsesItsRestaurantAsRelatedRestaurant()
+    {
+        var reportId = AddReport(reviewId: ReviewId);
+
+        var result = await Service.GetByIdAsync(reportId);
+
+        Assert.NotNull(result);
+        Assert.Equal(RestaurantId, result.RelatedRestaurantID);
+        Assert.Equal("測試餐廳", result.RestaurantName);
+    }
+
+    [Fact]
     public async Task Filter_ByKeyword_MatchesReason()
     {
         AddReport(reviewId: ReviewId, reason: "內容含有廣告連結");

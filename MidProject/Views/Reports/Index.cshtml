@@ -7,7 +7,7 @@
 }
 
 @{
-    ViewData["Title"] = "檢舉列表";
+    ViewData["Title"] = "檢舉查詢";
 
     // 先在程式碼區塊把下拉選單選項算好存成變數，
     // 避免直接把含雙引號字串的 C# 運算式寫進 HTML 屬性裡（會被 Razor 誤判屬性提前結束）
@@ -78,7 +78,7 @@
 
 <div class="ds-page-header d-flex flex-wrap align-items-center justify-content-between gap-3">
     <div>
-        <h1 class="ds-h2 mb-1">檢舉管理</h1>
+        <h1 class="ds-h2 mb-1">檢舉查詢</h1>
         <p class="mb-0">查詢並處理會員提交的檢舉案件</p>
     </div>
     <nav aria-label="breadcrumb">
@@ -93,7 +93,7 @@
 <div class="ds-toolbar">
     <h6 class="ds-block-label">篩選條件</h6>
     <div>
-        <form method="get">
+        <form method="get" id="reportFilterForm">
             @if (Context.Request.Query.ContainsKey("RestaurantID"))
             {
                 <input type="hidden" name="RestaurantID" value="@Context.Request.Query["RestaurantID"]" />
@@ -106,7 +106,7 @@
                 <div class="ds-filter-search-group">
                     <div class="ds-filter-field">
                         <label>關鍵字</label>
-                        <input type="text" name="Keyword" value="@Context.Request.Query["Keyword"]" class="form-control ds-search-input-fill" placeholder="原因/檢舉者/被檢舉會員/處理狀態/檢舉目標/檢舉分類" />
+                        <input type="text" name="Keyword" value="@Context.Request.Query["Keyword"]" class="form-control ds-search-input-fill" placeholder="輸入關鍵字" />
                     </div>
                     <div class="ds-filter-actions">
                         <button type="submit" class="btn ds-btn-query">
@@ -134,14 +134,15 @@
                     </select>
                 </div>
                 <div class="ds-filter-field">
-                    <label>檢舉日期（從）</label>
-                    <input type="date" name="DateFrom" value="@Context.Request.Query["DateFrom"]" class="form-control" />
+                    <label for="reportDateFrom">檢舉日期（從）</label>
+                    <input type="date" id="reportDateFrom" name="DateFrom" value="@Context.Request.Query["DateFrom"]" class="form-control" />
                 </div>
                 <div class="ds-filter-field">
-                    <label>檢舉日期（至）</label>
-                    <input type="date" name="DateTo" value="@Context.Request.Query["DateTo"]" class="form-control" />
+                    <label for="reportDateTo">檢舉日期（至）</label>
+                    <input type="date" id="reportDateTo" name="DateTo" value="@Context.Request.Query["DateTo"]" class="form-control" />
                 </div>
             </div>
+            <div id="reportDateRangeError" class="text-danger small mt-2" role="alert" aria-live="polite"></div>
         </form>
     </div>
 </div>
@@ -262,4 +263,38 @@
             </ul>
         </nav>
     </div>
+}
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var form = document.getElementById('reportFilterForm');
+            var dateFrom = document.getElementById('reportDateFrom');
+            var dateTo = document.getElementById('reportDateTo');
+            var error = document.getElementById('reportDateRangeError');
+
+            function syncDateRange() {
+                dateFrom.max = dateTo.value || '';
+                dateTo.min = dateFrom.value || '';
+
+                var invalid = dateFrom.value && dateTo.value && dateFrom.value > dateTo.value;
+                dateFrom.setCustomValidity(invalid ? '開始日期不可晚於結束日期' : '');
+                dateTo.setCustomValidity(invalid ? '結束日期不可早於開始日期' : '');
+                error.textContent = invalid
+                    ? '開始日期不可晚於結束日期，結束日期也不可早於開始日期。'
+                    : '';
+                return !invalid;
+            }
+
+            dateFrom.addEventListener('input', syncDateRange);
+            dateTo.addEventListener('input', syncDateRange);
+            form.addEventListener('submit', function (event) {
+                if (!syncDateRange()) {
+                    event.preventDefault();
+                    form.reportValidity();
+                }
+            });
+            syncDateRange();
+        });
+    </script>
 }

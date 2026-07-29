@@ -47,6 +47,22 @@ public class ReportsController : Controller
         return View(report);
     }
 
+    // GET: /Reports/ImagePreview/5
+    // 以檢舉案件為導覽上下文展示被檢舉圖片，返回時能準確回到原案件。
+    [HttpGet]
+    public async Task<IActionResult> ImagePreview(int id)
+    {
+        var report = await _reportService.GetByIdAsync(id);
+        if (report == null ||
+            !report.ImageID.HasValue ||
+            string.IsNullOrWhiteSpace(report.ImageUrl))
+        {
+            return NotFound();
+        }
+
+        return View(report);
+    }
+
     // POST: /Reports/Handle/5
     [HttpPost]
     [ValidateAntiForgeryToken]

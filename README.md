@@ -109,7 +109,7 @@ dotnet user-secrets set "SeedData:UserPassword" \
 
 CI、容器或其他受控環境也可使用 `SeedData__AdminPassword` 與
 `SeedData__UserPassword` 環境變數。一般 Development 啟動若缺少任一密碼，只會略過
-Demo SeedData；明確執行 `--seed-test-data` 時仍會停止並回報缺少的設定，避免建立
+Demo SeedData；明確執行 `--seed-demo-data` 時仍會停止並回報缺少的設定，避免建立
 可預測的帳號憑證。
 
 ```bash
@@ -120,15 +120,15 @@ Development 環境預設啟用模組化 SeedData；只有兩項 Demo 密碼皆�
 各模組使用固定自然鍵獨立補齊 Demo 資料，重複啟動不會新增相同資料。點數商城 Demo
 由獨立 Seeder 建立商品、持有紀錄與成對的點數異動。
 
-若只要灌入完整功能測試資料後立即結束，不啟動網站，可執行：
+若只要灌入完整展示資料後立即結束、不啟動網站，可執行：
 
 ```bash
-dotnet run --project MidProject/MidProject.csproj -- --seed-test-data
+dotnet run --project MidProject/MidProject.csproj -- --seed-demo-data
 ```
 
 完整資料涵蓋會員狀態、餐廳、營業時間、標籤、各類圖片、評論、收藏、檢舉、
 通知、頭像框、兌換與點數異動。Seeder 使用穩定識別字並採 upsert／查重方式，
-可安全重複執行且不會清除既有資料。測試圖片來源與授權紀錄請見
+可安全重複執行且不會清除既有資料。展示圖片來源與授權紀錄請見
 `THIRD_PARTY_NOTICES.md`。
 
 ### 圖片上傳規則

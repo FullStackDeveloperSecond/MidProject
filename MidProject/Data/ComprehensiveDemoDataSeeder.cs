@@ -5,10 +5,8 @@ using MidProject.Services.IServices;
 
 namespace MidProject.Data;
 
-public static class ComprehensiveTestDataSeeder
+public static class ComprehensiveDemoDataSeeder
 {
-    private const string Prefix = "DEMO-";
-
     public static async Task SeedAsync(IServiceProvider serviceProvider)
     {
         using var scope = serviceProvider.CreateScope();
@@ -39,14 +37,14 @@ public static class ComprehensiveTestDataSeeder
         var levels = await context.UserLevels.OrderBy(level => level.MinExp).ToListAsync();
         var definitions = new[]
         {
-            new MemberSeed("demo.qa.admin", "QA 管理員", "demo.qa.admin@example.com", "Admin", "Normal", 4, 4200, 1500),
-            new MemberSeed("demo.foodie01", "小籠包控", "demo.foodie01@example.com", "User", "Normal", 2, 760, 880),
-            new MemberSeed("demo.foodie02", "咖啡旅人", "demo.foodie02@example.com", "User", "Normal", 1, 320, 430),
-            new MemberSeed("demo.warning", "需要提醒", "demo.warning@example.com", "User", "Warning", 1, 180, 250),
-            new MemberSeed("demo.muted", "暫時禁言", "demo.muted@example.com", "User", "Muted", 1, 120, 160),
-            new MemberSeed("demo.suspended", "暫時停權", "demo.suspended@example.com", "User", "Suspended", 1, 90, 200),
-            new MemberSeed("demo.deleted", "已刪除會員", "demo.deleted@example.com", "User", "Deleted", 1, 50, 50),
-            new MemberSeed("demo.locked", "登入鎖定", "demo.locked@example.com", "User", "Normal", 1, 210, 300)
+            new MemberSeed("operations.admin", "營運管理員", "demo.qa.admin@example.com", "Admin", "Normal", 4, 4200, 1500),
+            new MemberSeed("foodie.yawen", "雅雯", "demo.foodie01@example.com", "User", "Normal", 2, 760, 880),
+            new MemberSeed("coffee.ziqian", "子謙", "demo.foodie02@example.com", "User", "Normal", 1, 320, 430),
+            new MemberSeed("foodie.yijun", "怡君", "demo.warning@example.com", "User", "Warning", 1, 180, 250),
+            new MemberSeed("foodie.bohan", "柏翰", "demo.muted@example.com", "User", "Muted", 1, 120, 160),
+            new MemberSeed("foodie.jiahao", "家豪", "demo.suspended@example.com", "User", "Suspended", 1, 90, 200),
+            new MemberSeed("closed.account", "已註銷會員", "demo.deleted@example.com", "User", "Deleted", 1, 50, 50),
+            new MemberSeed("limited.account", "登入受限會員", "demo.locked@example.com", "User", "Normal", 1, 210, 300)
         };
 
         foreach (var definition in definitions)
@@ -86,10 +84,10 @@ public static class ComprehensiveTestDataSeeder
             };
             member.AdminNote = definition.Status switch
             {
-                "Warning" => $"{Prefix}測試警告狀態",
-                "Muted" => $"{Prefix}測試禁言狀態",
-                "Suspended" => $"{Prefix}測試停權狀態",
-                "Deleted" => $"{Prefix}測試刪除狀態",
+                "Warning" => "經客服確認收到一次內容警告。",
+                "Muted" => "因多次不當留言，暫停發言至期限屆滿。",
+                "Suspended" => "因嚴重違反社群規範，帳號暫停使用。",
+                "Deleted" => "會員申請註銷帳號，資料已依規定停用。",
                 _ => null
             };
             member.WarningCount = definition.Status is "Warning" or "Muted" or "Suspended" ? 1 : 0;
@@ -111,9 +109,10 @@ public static class ComprehensiveTestDataSeeder
             new TagSeed("日式料理", false),
             new TagSeed("台灣小吃", false),
             new TagSeed("咖哩", false),
+            new TagSeed("咖啡廳", false),
             new TagSeed("蔬食", false),
             new TagSeed("深夜食堂", false),
-            new TagSeed("已停用標籤", true)
+            new TagSeed("季節限定", true)
         };
         var nextSortOrder = (await context.Tags.Select(tag => (int?)tag.SortOrder).MaxAsync() ?? -1) + 1;
 
@@ -160,9 +159,17 @@ public static class ComprehensiveTestDataSeeder
                 25.054180m, 121.525040m, false, null,
                 "demo.foodie01@example.com", ["咖啡廳", "深夜食堂"]),
             new RestaurantSeed(
-                "萬華老店（測試停用）", "台北市", "萬華區", "西園路一段 50 號", "02-2300-5005",
-                25.036420m, 121.499910m, true, "資料品質測試停用",
-                "demo.qa.admin@example.com", ["台灣小吃", "已停用標籤"])
+                "萬華古早味麵店", "台北市", "萬華區", "西園路一段 50 號", "02-2300-5005",
+                25.036420m, 121.499910m, true, "店家已結束營業",
+                "demo.qa.admin@example.com", ["台灣小吃", "季節限定"])
+        };
+        var restaurantNotes = new[]
+        {
+            "供應日式定食與晚間限定料理，週六採午、晚兩段營業。",
+            "主打慢熬咖哩與季節蔬菜，可依需求調整辣度。",
+            "以在地蔬菜設計家常套餐，每週日公休。",
+            "提供單品咖啡、甜點與夜間輕食，每週日公休。",
+            "店家已結束營業，資料保留供歷史紀錄查詢。"
         };
 
         for (var index = 0; index < definitions.Length; index++)
@@ -178,7 +185,7 @@ public static class ComprehensiveTestDataSeeder
             restaurant.District = definition.District;
             restaurant.DetailedAddress = definition.Address;
             restaurant.Phone = definition.Phone;
-            restaurant.Note = $"{Prefix}功能測試餐廳 {index + 1}";
+            restaurant.Note = restaurantNotes[index];
             restaurant.Latitude = definition.Latitude;
             restaurant.Longitude = definition.Longitude;
             restaurant.MemberID = owners[definition.OwnerEmail].MemberID;
@@ -226,7 +233,7 @@ public static class ComprehensiveTestDataSeeder
             "大安咖哩研究所",
             "松山蔬食小館",
             "中山深夜咖啡",
-            "萬華老店（測試停用）"
+            "萬華古早味麵店"
         };
         var restaurants = await context.Restaurants
             .Where(restaurant => restaurantNames.Contains(restaurant.Name))
@@ -308,18 +315,18 @@ public static class ComprehensiveTestDataSeeder
             .ToDictionaryAsync(restaurant => restaurant.Name);
         var definitions = new[]
         {
-            new ReviewSeed("DEMO-REV-01｜宵夜餐點很有特色。", "demo.foodie01@example.com", "信義夜食堂", 5, "Active", false),
-            new ReviewSeed("DEMO-REV-02｜服務快速，座位舒適。", "demo.foodie02@example.com", "信義夜食堂", 4, "Active", false),
-            new ReviewSeed("DEMO-REV-03｜咖哩香氣足，辣度剛好。", "demo.warning@example.com", "大安咖哩研究所", 5, "Active", false),
-            new ReviewSeed("DEMO-REV-04｜餐點內容等待管理員確認。", "demo.foodie01@example.com", "大安咖哩研究所", 2, "PendingReview", false),
-            new ReviewSeed("DEMO-REV-05｜蔬食選擇比預期豐富。", "demo.foodie02@example.com", "松山蔬食小館", 4, "Active", false),
-            new ReviewSeed("DEMO-REV-06｜口味清爽，份量適中。", "demo.warning@example.com", "松山蔬食小館", 3, "Active", false),
-            new ReviewSeed("DEMO-REV-07｜深夜仍有穩定咖啡品質。", "demo.foodie01@example.com", "中山深夜咖啡", 5, "Active", false),
-            new ReviewSeed("DEMO-REV-08｜甜點偏甜但環境安靜。", "demo.foodie02@example.com", "中山深夜咖啡", 3, "Active", false),
-            new ReviewSeed("DEMO-REV-09｜測試待審評論。", "demo.muted@example.com", "信義夜食堂", 1, "PendingReview", false),
-            new ReviewSeed("DEMO-REV-10｜測試軟刪除評論。", "demo.suspended@example.com", "大安咖哩研究所", 2, "Active", true),
-            new ReviewSeed("DEMO-REV-11｜再次造訪仍然滿意。", "demo.warning@example.com", "信義夜食堂", 4, "Active", false),
-            new ReviewSeed("DEMO-REV-12｜適合朋友聚會。", "demo.foodie01@example.com", "松山蔬食小館", 5, "Active", false)
+            new ReviewSeed("宵夜定食很有特色，烤物火候也恰到好處。", "demo.foodie01@example.com", "信義夜食堂", 5, "Active", false),
+            new ReviewSeed("服務快速、座位舒適，下班後聚餐很方便。", "demo.foodie02@example.com", "信義夜食堂", 4, "Active", false),
+            new ReviewSeed("咖哩香氣很足，辣度與配菜搭配得剛好。", "demo.warning@example.com", "大安咖哩研究所", 5, "Active", false),
+            new ReviewSeed("這次出餐時間偏久，希望尖峰時段能改善。", "demo.foodie01@example.com", "大安咖哩研究所", 2, "PendingReview", false),
+            new ReviewSeed("蔬食選擇比預期豐富，調味有層次又不油膩。", "demo.foodie02@example.com", "松山蔬食小館", 4, "Active", false),
+            new ReviewSeed("口味清爽、份量適中，適合平日午餐。", "demo.warning@example.com", "松山蔬食小館", 3, "Active", false),
+            new ReviewSeed("深夜來訪仍有穩定的咖啡品質，店員也很親切。", "demo.foodie01@example.com", "中山深夜咖啡", 5, "Active", false),
+            new ReviewSeed("甜點稍微偏甜，但環境安靜、座位寬敞。", "demo.foodie02@example.com", "中山深夜咖啡", 3, "Active", false),
+            new ReviewSeed("餐點與菜單照片差異較大，已送交平台確認。", "demo.muted@example.com", "信義夜食堂", 1, "PendingReview", false),
+            new ReviewSeed("服務態度需要改善，不會再次造訪。", "demo.suspended@example.com", "大安咖哩研究所", 2, "Active", true),
+            new ReviewSeed("再次造訪仍然滿意，晚間限定菜色值得推薦。", "demo.warning@example.com", "信義夜食堂", 4, "Active", false),
+            new ReviewSeed("餐桌空間舒服，套餐很適合朋友一起分享。", "demo.foodie01@example.com", "松山蔬食小館", 5, "Active", false)
         };
 
         foreach (var definition in definitions)
@@ -350,11 +357,17 @@ public static class ComprehensiveTestDataSeeder
             .Where(image => image.ImageURL.StartsWith("/uploads/ReviewImage/demo-review-"))
             .OrderBy(image => image.ImageURL)
             .ToListAsync();
-        var imageReviews = await context.Reviews
-            .Where(review => review.Content != null && review.Content.StartsWith("DEMO-REV-"))
-            .OrderBy(review => review.Content)
+        var imageReviewContents = definitions
             .Take(reviewImages.Count)
+            .Select(definition => definition.Content)
+            .ToArray();
+        var imageReviewRows = await context.Reviews
+            .Where(review => review.Content != null &&
+                             imageReviewContents.Contains(review.Content))
             .ToListAsync();
+        var imageReviews = imageReviewContents
+            .Select(content => imageReviewRows.Single(review => review.Content == content))
+            .ToList();
         for (var index = 0; index < reviewImages.Count; index++)
         {
             if (!await context.ReviewImages.AnyAsync(link =>
@@ -488,14 +501,14 @@ public static class ComprehensiveTestDataSeeder
         var levels = await context.UserLevels.OrderBy(level => level.MinExp).ToListAsync();
         var definitions = new[]
         {
-            new NotificationSeed("DEMO-NOTIFY-01｜個人未發送", "Personal", "demo.foodie01@example.com", null, null, null, false, false, now.AddHours(2)),
-            new NotificationSeed("DEMO-NOTIFY-02｜個人已發送", "Personal", "demo.foodie02@example.com", null, null, null, true, false, now.AddDays(-2)),
-            new NotificationSeed("DEMO-NOTIFY-03｜個人已刪除", "Personal", "demo.warning@example.com", null, null, null, false, true, now.AddDays(1)),
-            new NotificationSeed("DEMO-NOTIFY-04｜所有一般會員", "Condition", null, "User", null, null, false, false, now.AddHours(4)),
-            new NotificationSeed("DEMO-NOTIFY-05｜正常會員", "Condition", null, null, "Normal", null, true, false, now.AddDays(-1)),
-            new NotificationSeed("DEMO-NOTIFY-06｜警告會員", "Condition", null, null, "Warning", null, false, false, now.AddHours(6)),
-            new NotificationSeed("DEMO-NOTIFY-07｜指定等級", "Condition", null, null, null, levels[1].LevelID, false, false, now.AddHours(8)),
-            new NotificationSeed("DEMO-NOTIFY-08｜管理員", "Condition", null, "Admin", null, null, true, false, now.AddDays(-3))
+            new NotificationSeed("收藏清單提醒", "您收藏的餐廳本週新增了營業資訊，出發前別忘了確認。", "Personal", "demo.foodie01@example.com", null, null, null, false, false, now.AddHours(2)),
+            new NotificationSeed("本週美食推薦", "根據您的收藏偏好，為您整理了三間本週人氣餐廳。", "Personal", "demo.foodie02@example.com", null, null, null, true, false, now.AddDays(-2)),
+            new NotificationSeed("帳號安全提醒", "我們偵測到新的登入活動，如非本人操作請立即更新密碼。", "Personal", "demo.warning@example.com", null, null, null, false, true, now.AddDays(1)),
+            new NotificationSeed("平台功能更新", "餐廳收藏與評論圖片功能已更新，歡迎登入查看。", "Condition", null, "User", null, null, false, false, now.AddHours(4)),
+            new NotificationSeed("社群活動開跑", "本月完成三篇用餐心得，即可獲得額外會員點數。", "Condition", null, null, "Normal", null, true, false, now.AddDays(-1)),
+            new NotificationSeed("社群規範提醒", "請共同維護友善交流空間，發布內容前請再次確認社群規範。", "Condition", null, null, "Warning", null, false, false, now.AddHours(6)),
+            new NotificationSeed("等級升級專屬好禮", "尋味人以上會員可於本週兌換限定頭像外框。", "Condition", null, null, null, levels[1].LevelID, false, false, now.AddHours(8)),
+            new NotificationSeed("營運公告", "管理後台將於週三凌晨進行例行維護，預計三十分鐘完成。", "Condition", null, "Admin", null, null, true, false, now.AddDays(-3))
         };
 
         foreach (var definition in definitions)
@@ -512,7 +525,7 @@ public static class ComprehensiveTestDataSeeder
             notification.TargetStatus = definition.TargetStatus;
             notification.TargetLevelID = definition.TargetLevelId;
             notification.Title = definition.Title;
-            notification.Content = $"{Prefix}通知受眾與狀態測試資料。";
+            notification.Content = definition.Content;
             notification.ScheduledAt = definition.ScheduledAt;
             notification.IsSent = definition.IsSent;
             notification.SentAt = definition.IsSent ? definition.ScheduledAt : null;
@@ -542,12 +555,12 @@ public static class ComprehensiveTestDataSeeder
         var frames = await context.AvatarFrames.OrderBy(frame => frame.SortOrder).Take(2).ToListAsync();
         var definitions = new[]
         {
-            new PointSeed("demo.foodie01@example.com", 200, 1080, "Earn", null, "DEMO-POINT-01｜活動獎勵", null, now.AddDays(-6)),
-            new PointSeed("demo.foodie01@example.com", -frames[1].PointsPrice, 980, "Redeem", frames[1].FrameID, "DEMO-POINT-02｜兌換 Rare 外框", null, now.AddDays(-5)),
-            new PointSeed("demo.foodie01@example.com", -100, 880, "AdminAdjust", null, "DEMO-POINT-03｜管理員扣點", adminMemberId, now.AddDays(-4)),
-            new PointSeed("demo.foodie02@example.com", 100, 530, "Earn", null, "DEMO-POINT-04｜評論獎勵", null, now.AddDays(-6)),
-            new PointSeed("demo.foodie02@example.com", -frames[0].PointsPrice, 480, "Redeem", frames[0].FrameID, "DEMO-POINT-05｜兌換 Common 外框", null, now.AddDays(-5)),
-            new PointSeed("demo.foodie02@example.com", -50, 430, "AdminAdjust", null, "DEMO-POINT-06｜管理員扣點", adminMemberId, now.AddDays(-4))
+            new PointSeed("demo.foodie01@example.com", 200, 1080, "Earn", null, "夏季美食募集活動獎勵", null, now.AddDays(-6)),
+            new PointSeed("demo.foodie01@example.com", -frames[1].PointsPrice, 980, "Redeem", frames[1].FrameID, "兌換城市星夜外框", null, now.AddDays(-5)),
+            new PointSeed("demo.foodie01@example.com", -100, 880, "AdminAdjust", null, "重複發放活動點數沖銷", adminMemberId, now.AddDays(-4)),
+            new PointSeed("demo.foodie02@example.com", 100, 530, "Earn", null, "優質評論獎勵", null, now.AddDays(-6)),
+            new PointSeed("demo.foodie02@example.com", -frames[0].PointsPrice, 480, "Redeem", frames[0].FrameID, "兌換晨光暖橙外框", null, now.AddDays(-5)),
+            new PointSeed("demo.foodie02@example.com", -50, 430, "AdminAdjust", null, "客服更正點數紀錄", adminMemberId, now.AddDays(-4))
         };
 
         foreach (var definition in definitions)
@@ -722,6 +735,7 @@ public static class ComprehensiveTestDataSeeder
 
     private sealed record NotificationSeed(
         string Title,
+        string Content,
         string Type,
         string? MemberEmail,
         string? TargetRole,

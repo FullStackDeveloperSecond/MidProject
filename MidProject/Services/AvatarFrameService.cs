@@ -165,7 +165,6 @@ public class AvatarFrameService : IAvatarFrameService
             Description = frame.Description,
             Rarity = frame.Rarity,
             PointsPrice = frame.PointsPrice,
-            SortOrder = frame.SortOrder,
             IsActive = frame.IsActive,
             ExistingImageId = frame.ImageID,
             ExistingImageUrl = frame.Image?.ImageURL
@@ -203,13 +202,16 @@ public class AvatarFrameService : IAvatarFrameService
                 await _dbContext.SaveChangesAsync();
 
                 var now = _clock.GetNow();
+                var nextSortOrder =
+                    (await _dbContext.AvatarFrames.MaxAsync(frame => (int?)frame.SortOrder) ?? -1) + 1;
                 await _frameRepository.AddAsync(new AvatarFrame
                 {
                     Name = form.Name.Trim(),
                     Description = string.IsNullOrWhiteSpace(form.Description) ? null : form.Description.Trim(),
                     Rarity = form.Rarity,
                     PointsPrice = form.PointsPrice,
-                    SortOrder = form.SortOrder,
+                    // 排序值不再由管理員輸入；資料庫欄位保留，新商品自動排在現有商品之後。
+                    SortOrder = nextSortOrder,
                     IsActive = form.IsActive,
                     ImageID = image.ImageID,
                     CreatedAt = now,
@@ -284,7 +286,6 @@ public class AvatarFrameService : IAvatarFrameService
                 frame.Description = string.IsNullOrWhiteSpace(form.Description) ? null : form.Description.Trim();
                 frame.Rarity = form.Rarity;
                 frame.PointsPrice = form.PointsPrice;
-                frame.SortOrder = form.SortOrder;
                 frame.IsActive = form.IsActive;
                 frame.UpdatedAt = now;
 

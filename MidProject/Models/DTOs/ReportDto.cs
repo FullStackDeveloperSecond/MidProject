@@ -14,9 +14,13 @@ public class ReportDto
     // 檢舉目標所屬的餐廳名稱：目標若直接是餐廳就是該餐廳本身，
     // 若目標是評論/圖片，則是該評論/圖片所屬的餐廳（方便管理員辨識，不論目標類型一律顯示餐廳名稱）
     public string? RestaurantName { get; set; }
+    public int? RelatedRestaurantID { get; set; }
 
     public int? ReviewID { get; set; }
     public int? ImageID { get; set; }
+    public string? ImageUrl { get; set; }
+    public bool ImageIsDeleted { get; set; }
+    public DateTime? ImageUploadedAt { get; set; }
 
     // 被檢舉會員：該檢舉目標（餐廳/評論/圖片）背後的建立者/上傳者
     public string? ReportedMemberUserName { get; set; }

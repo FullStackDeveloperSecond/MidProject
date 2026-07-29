@@ -81,8 +81,13 @@
                 @if (User.Identity?.IsAuthenticated == true)
                 {
                     <div class="admin-sidebar-user">
-                        <i class="fas fa-user-circle"></i>
-                        <span>@User.Identity.Name</span>
+                        <span class="admin-sidebar-user-icon" aria-hidden="true">
+                            <i class="fas fa-user"></i>
+                        </span>
+                        <span class="admin-sidebar-user-copy">
+                            <strong title="@User.Identity.Name">@User.Identity.Name</strong>
+                            <small>管理員帳號</small>
+                        </span>
                     </div>
                     <form asp-controller="Account" asp-action="Logout" method="post">
                         <button type="submit" class="admin-sidebar-logout">
@@ -115,7 +120,7 @@
                         {
                             <span class="navbar-text d-flex align-items-center gap-2">
                                 <i class="fas fa-user-circle text-secondary"></i>
-                                <span>@User.Identity.Name</span>
+                                <span class="admin-mobile-user-name">@User.Identity.Name</span>
                             </span>
                             <form asp-controller="Account" asp-action="Logout" method="post" class="d-inline">
                                 <button type="submit" class="btn btn-outline-secondary btn-sm">

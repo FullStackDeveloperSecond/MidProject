@@ -20,9 +20,6 @@ public class AvatarFrameFormViewModel
     [Range(0, int.MaxValue, ErrorMessage = "點數售價不可為負數")]
     public int PointsPrice { get; set; }
 
-    [Range(0, int.MaxValue, ErrorMessage = "排序值不可為負數")]
-    public int SortOrder { get; set; }
-
     public bool IsActive { get; set; } = true;
 
     public int? ExistingImageId { get; set; }

@@ -55,10 +55,12 @@ public sealed class DashboardService : IDashboardService
             .AsNoTracking()
             .CountAsync(item => !item.IsDeleted && item.Status == "Pending", cancellationToken), cancellationToken);
         var notificationResult = await _notificationWindow.GetPendingSummaryAsync(cancellationToken);
+        var analytics = await TryLoadAnalyticsAsync(startOfMonth, cancellationToken);
 
         return new DashboardIndexViewModel
         {
             PendingReportCount = pendingReportCount.Count ?? 0,
+            Analytics = analytics,
             Cards =
             [
                 BuildMetricCard(
@@ -113,6 +115,185 @@ public sealed class DashboardService : IDashboardService
             ]
         };
     }
+
+    private async Task<DashboardAnalyticsViewModel> TryLoadAnalyticsAsync(
+        DateTime currentMonthStart,
+        CancellationToken cancellationToken)
+    {
+        const string safeErrorCode = "DASHBOARD_ANALYTICS_QUERY_FAILED";
+        try
+        {
+            var favoriteRows = await _dbContext.Restaurants
+                .AsNoTracking()
+                .Where(restaurant => !restaurant.IsDeleted)
+                .Select(restaurant => new
+                {
+                    RestaurantID = restaurant.RestaurantID,
+                    restaurant.Name,
+                    FavoriteCount = restaurant.Favorites.Count(favorite => !favorite.IsDeleted)
+                })
+                .OrderByDescending(item => item.FavoriteCount)
+                .ThenBy(item => item.Name)
+                .Take(8)
+                .ToListAsync(cancellationToken);
+
+            var performanceRows = await _dbContext.Restaurants
+                .AsNoTracking()
+                .Where(restaurant => !restaurant.IsDeleted)
+                .OrderByDescending(restaurant => restaurant.ReviewCount)
+                .ThenByDescending(restaurant => restaurant.AverageRating)
+                .ThenBy(restaurant => restaurant.Name)
+                .Select(restaurant => new
+                {
+                    RestaurantID = restaurant.RestaurantID,
+                    restaurant.Name,
+                    restaurant.ReviewCount,
+                    restaurant.AverageRating
+                })
+                .Take(8)
+                .ToListAsync(cancellationToken);
+
+            var earliestMonth = currentMonthStart.AddMonths(-5);
+            var memberMonthlyRows = await _dbContext.Members
+                .AsNoTracking()
+                .Where(member => member.CreatedAt >= earliestMonth)
+                .GroupBy(member => new { member.CreatedAt.Year, member.CreatedAt.Month })
+                .Select(group => new { group.Key.Year, group.Key.Month, Count = group.Count() })
+                .ToListAsync(cancellationToken);
+            var restaurantMonthlyRows = await _dbContext.Restaurants
+                .AsNoTracking()
+                .Where(restaurant => restaurant.CreatedAt >= earliestMonth)
+                .GroupBy(restaurant => new { restaurant.CreatedAt.Year, restaurant.CreatedAt.Month })
+                .Select(group => new { group.Key.Year, group.Key.Month, Count = group.Count() })
+                .ToListAsync(cancellationToken);
+            var reviewMonthlyRows = await _dbContext.Reviews
+                .AsNoTracking()
+                .Where(review => review.CreatedAt >= earliestMonth)
+                .GroupBy(review => new { review.CreatedAt.Year, review.CreatedAt.Month })
+                .Select(group => new { group.Key.Year, group.Key.Month, Count = group.Count() })
+                .ToListAsync(cancellationToken);
+
+            var memberMonthly = memberMonthlyRows.ToDictionary(
+                item => (item.Year, item.Month),
+                item => item.Count);
+            var restaurantMonthly = restaurantMonthlyRows.ToDictionary(
+                item => (item.Year, item.Month),
+                item => item.Count);
+            var reviewMonthly = reviewMonthlyRows.ToDictionary(
+                item => (item.Year, item.Month),
+                item => item.Count);
+            var monthlyActivity = Enumerable.Range(0, 6)
+                .Select(offset =>
+                {
+                    var month = earliestMonth.AddMonths(offset);
+                    var key = (month.Year, month.Month);
+                    return new DashboardMonthlyActivityItem(
+                        month.ToString("yyyy/MM"),
+                        memberMonthly.GetValueOrDefault(key),
+                        restaurantMonthly.GetValueOrDefault(key),
+                        reviewMonthly.GetValueOrDefault(key));
+                })
+                .ToArray();
+
+            var memberStatusRows = await _dbContext.Members
+                .AsNoTracking()
+                .GroupBy(member => member.IsDeleted ? "Deleted" : member.Status)
+                .Select(group => new { Key = group.Key, Count = group.Count() })
+                .ToListAsync(cancellationToken);
+            var reportStatusRows = await _dbContext.Reports
+                .AsNoTracking()
+                .Where(report => !report.IsDeleted)
+                .GroupBy(report => report.Status)
+                .Select(group => new { Key = group.Key, Count = group.Count() })
+                .ToListAsync(cancellationToken);
+
+            return new DashboardAnalyticsViewModel
+            {
+                FavoriteRestaurants = favoriteRows
+                    .Select(item => new DashboardRestaurantFavoriteItem(
+                        item.RestaurantID,
+                        item.Name,
+                        item.FavoriteCount))
+                    .ToArray(),
+                RestaurantPerformance = performanceRows
+                    .Select(item => new DashboardRestaurantPerformanceItem(
+                        item.RestaurantID,
+                        item.Name,
+                        item.ReviewCount,
+                        item.AverageRating))
+                    .ToArray(),
+                MonthlyActivity = monthlyActivity,
+                MemberStatuses = memberStatusRows
+                    .OrderBy(item => MemberStatusOrder(item.Key))
+                    .Select(item => new DashboardDistributionItem(
+                        item.Key,
+                        MemberStatusLabel(item.Key),
+                        item.Count))
+                    .ToArray(),
+                ReportStatuses = reportStatusRows
+                    .OrderBy(item => ReportStatusOrder(item.Key))
+                    .Select(item => new DashboardDistributionItem(
+                        item.Key,
+                        ReportStatusLabel(item.Key),
+                        item.Count))
+                    .ToArray()
+            };
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(
+                exception,
+                "Dashboard analytics query failed at {TaipeiTimestamp}; Operation=DashboardAnalytics; ResultClassification=Failed; SafeErrorCode={SafeErrorCode}; ExceptionType={ExceptionType}",
+                _clock.GetNow(),
+                safeErrorCode,
+                exception.GetType().Name);
+            return new DashboardAnalyticsViewModel
+            {
+                IsAvailable = false,
+                UnavailableReason = $"統計圖表暫時無法取得，錯誤代碼：{safeErrorCode}"
+            };
+        }
+    }
+
+    private static int MemberStatusOrder(string status) => status switch
+    {
+        "Normal" => 0,
+        "Warning" => 1,
+        "Muted" => 2,
+        "Suspended" => 3,
+        "Deleted" => 4,
+        _ => 5
+    };
+
+    private static string MemberStatusLabel(string status) => status switch
+    {
+        "Normal" => "正常",
+        "Warning" => "警告",
+        "Muted" => "禁言",
+        "Suspended" => "停權",
+        "Deleted" => "已刪除",
+        _ => status
+    };
+
+    private static int ReportStatusOrder(string status) => status switch
+    {
+        "Pending" => 0,
+        "Approved" => 1,
+        "Rejected" => 2,
+        _ => 3
+    };
+
+    private static string ReportStatusLabel(string status) => status switch
+    {
+        "Pending" => "待處理",
+        "Approved" => "檢舉成立",
+        "Rejected" => "駁回檢舉",
+        _ => status
+    };
 
     private string GetPath(string action, string controller, object? values = null)
     {

@@ -4,6 +4,18 @@
 // 各模組詳情頁共用的「← 返回」行為：優先回到使用者實際的上一頁（history.back()），
 // 只有在沒有同源上一頁可回（例如直接開連結、新分頁打開）時，才 fallback 用 href 導到列表頁。
 document.addEventListener('DOMContentLoaded', function () {
+    // GET 表單中的 select 視為列表篩選條件。選值不是第一個預設選項時，
+    // 統一套用餐廳頁既有的 filter-changed 視覺提示。
+    document.querySelectorAll('form[method="get"] select').forEach(function (select) {
+        function syncFilterHighlight() {
+            var defaultValue = select.options.length > 0 ? select.options[0].value : '';
+            select.classList.toggle('filter-changed', select.value !== defaultValue);
+        }
+
+        select.addEventListener('change', syncFilterHighlight);
+        syncFilterHighlight();
+    });
+
     document.querySelectorAll('.js-back-btn').forEach(function (btn) {
         btn.addEventListener('click', function (e) {
             var sameOriginReferrer = document.referrer && new URL(document.referrer).origin === location.origin;

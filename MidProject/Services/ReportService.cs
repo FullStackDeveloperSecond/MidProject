@@ -260,8 +260,15 @@ public class ReportService : IReportService
             ?? r.Review?.Restaurant?.Name
             ?? r.Image?.RestaurantImages.Select(ri => ri.Restaurant?.Name).FirstOrDefault(n => n != null)
             ?? r.Image?.ReviewImages.Select(rvi => rvi.Review?.Restaurant?.Name).FirstOrDefault(n => n != null),
+        RelatedRestaurantID = r.RestaurantID
+            ?? r.Review?.RestaurantID
+            ?? r.Image?.RestaurantImages.Select(ri => (int?)ri.RestaurantID).FirstOrDefault()
+            ?? r.Image?.ReviewImages.Select(rvi => (int?)rvi.Review!.RestaurantID).FirstOrDefault(),
         ReviewID = r.ReviewID,
         ImageID = r.ImageID,
+        ImageUrl = r.Image?.ImageURL,
+        ImageIsDeleted = r.Image?.IsDeleted ?? false,
+        ImageUploadedAt = r.Image?.UploadedAt,
         // 被檢舉會員：該檢舉目標（餐廳/評論/圖片）背後的建立者/上傳者。
         // 名稱維持顯示原擁有者；ID 則排除 Admin（管理員不列為被檢舉會員、不連結、不通知、不計懲處），
         // 與 HandleReportAsync／NotifyReportedMemberAsync 的規則一致
