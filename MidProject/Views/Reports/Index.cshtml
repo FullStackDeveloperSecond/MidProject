@@ -46,6 +46,7 @@
     // 組出排序連結：點同一欄位會切換 asc/desc，點別的欄位預設從 desc 開始
     var currentSortBy = ViewBag.CurrentSortBy as string ?? "CreatedAt";
     var currentSortDirection = ViewBag.CurrentSortDirection as string ?? "desc";
+    var currentListUrl = $"{Context.Request.PathBase}{Context.Request.Path}{Context.Request.QueryString}";
 
     string SortUrl(string column)
     {
@@ -229,7 +230,12 @@
                             <td>@report.ProcessingDays</td>
                             <td>@(report.HandledByUserName ?? "—")</td>
                             <td class="text-end">
-                                <a asp-action="Details" asp-route-id="@report.ReportID" class="ds-icon-btn ds-icon-btn-view" title="查看" aria-label="查看">
+                                <a asp-action="Details"
+                                   asp-route-id="@report.ReportID"
+                                   asp-route-returnUrl="@currentListUrl"
+                                   class="ds-icon-btn ds-icon-btn-view"
+                                   title="查看"
+                                   aria-label="查看">
                                     <i class="fas fa-eye"></i>
                                 </a>
                             </td>

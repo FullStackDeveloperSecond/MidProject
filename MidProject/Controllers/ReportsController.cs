@@ -40,17 +40,18 @@ public class ReportsController : Controller
     }
 
     // GET: /Reports/Details/5
-    public async Task<IActionResult> Details(int id)
+    public async Task<IActionResult> Details(int id, string? returnUrl = null)
     {
         var report = await _reportService.GetByIdAsync(id);
         if (report == null) return NotFound();
+        ViewBag.ReturnUrl = ResolveReportsReturnUrl(returnUrl);
         return View(report);
     }
 
     // GET: /Reports/ImagePreview/5
     // 以檢舉案件為導覽上下文展示被檢舉圖片，返回時能準確回到原案件。
     [HttpGet]
-    public async Task<IActionResult> ImagePreview(int id)
+    public async Task<IActionResult> ImagePreview(int id, string? returnUrl = null)
     {
         var report = await _reportService.GetByIdAsync(id);
         if (report == null ||
@@ -60,13 +61,14 @@ public class ReportsController : Controller
             return NotFound();
         }
 
+        ViewBag.ReturnUrl = ResolveReportsReturnUrl(returnUrl);
         return View(report);
     }
 
     // POST: /Reports/Handle/5
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Handle(int id, ReportHandleDto dto)
+    public async Task<IActionResult> Handle(int id, ReportHandleDto dto, string? returnUrl = null)
     {
         if (!ModelState.IsValid)
         {
@@ -74,6 +76,7 @@ public class ReportsController : Controller
                 return BadRequest(new { success = false, message = "資料驗證失敗" });
 
             var report = await _reportService.GetByIdAsync(id);
+            ViewBag.ReturnUrl = ResolveReportsReturnUrl(returnUrl);
             return View("Details", report);
         }
 
@@ -99,7 +102,11 @@ public class ReportsController : Controller
             return Json(new { success = outcome == ReportHandleOutcome.Handled, message });
 
         TempData["Message"] = message;
-        return RedirectToAction(nameof(Details), new { id });
+        return RedirectToAction(nameof(Details), new
+        {
+            id,
+            returnUrl = ResolveReportsReturnUrl(returnUrl)
+        });
     }
 
     // POST: /Reports/NotifyReporter/5 — 管理員按「儲存」交由通知模組通知檢舉者（建立未發送通知）
@@ -138,4 +145,9 @@ public class ReportsController : Controller
     }
 
     private bool IsAjaxRequest() => Request.Headers["X-Requested-With"] == "XMLHttpRequest";
+
+    private string ResolveReportsReturnUrl(string? returnUrl) =>
+        !string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl)
+            ? returnUrl
+            : Url.Action(nameof(Index), "Reports") ?? "/Reports";
 }

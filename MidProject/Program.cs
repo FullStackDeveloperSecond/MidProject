@@ -18,18 +18,36 @@ if (args.Contains(MigrationDriftVerifier.CommandArgument, StringComparer.Ordinal
 var seedDemoData = args.Contains(
     DemoDataSeeder.CommandArgument,
     StringComparer.Ordinal);
-if (seedDemoData)
+var resetFormalDemoData = args.Contains(
+    FormalDemoDataSeeder.CommandArgument,
+    StringComparer.Ordinal);
+if (resetFormalDemoData &&
+    !args.Contains(FormalDemoDataSeeder.ConfirmationArgument, StringComparer.Ordinal))
+{
+    throw new InvalidOperationException(
+        $"Formal presentation reset requires both '{FormalDemoDataSeeder.CommandArgument}' " +
+        $"and '{FormalDemoDataSeeder.ConfirmationArgument}'.");
+}
+if (seedDemoData || resetFormalDemoData)
 {
     args = args
         .Where(argument => !string.Equals(
             argument,
             DemoDataSeeder.CommandArgument,
-            StringComparison.Ordinal))
+            StringComparison.Ordinal) &&
+            !string.Equals(
+                argument,
+                FormalDemoDataSeeder.CommandArgument,
+                StringComparison.Ordinal) &&
+            !string.Equals(
+                argument,
+                FormalDemoDataSeeder.ConfirmationArgument,
+                StringComparison.Ordinal))
         .ToArray();
 }
 
 var builder = WebApplication.CreateBuilder(args);
-if (seedDemoData)
+if (seedDemoData || resetFormalDemoData)
 {
     builder.Logging.AddFilter(
         "Microsoft.EntityFrameworkCore.Database.Command",
@@ -176,6 +194,18 @@ if (seedDemoData)
     }
 
     await DemoDataSeeder.SeedAsync(app.Services);
+    return;
+}
+
+if (resetFormalDemoData)
+{
+    if (!app.Environment.IsDevelopment())
+    {
+        throw new InvalidOperationException(
+            "The formal presentation-data reset can run only in the Development environment.");
+    }
+
+    await FormalDemoDataSeeder.ResetAndSeedAsync(app.Services);
     return;
 }
 

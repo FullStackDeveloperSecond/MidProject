@@ -10,6 +10,11 @@ public static class MemberLoginPolicy
     public const int MaxFailedAttempts = 3;
     public static readonly TimeSpan LoginLockoutDuration = TimeSpan.FromMinutes(15);
 
+    public static string GetLockoutMessage(DateTime? lockoutEndAt) =>
+        lockoutEndAt.HasValue
+            ? $"密碼輸入錯誤已達 {MaxFailedAttempts} 次，帳號已暫時鎖定至 {lockoutEndAt.Value:yyyy/MM/dd HH:mm}，請稍後再試。"
+            : "帳號已鎖定，請聯繫管理員解除鎖定。";
+
     public static bool HasExpiredLoginLockout(Member member, DateTime now) =>
         member.IsLocked &&
         member.LoginLockoutEndAt.HasValue &&
@@ -35,7 +40,7 @@ public static class MemberLoginPolicy
         }
         if (member.IsLocked)
         {
-            return "帳號已因密碼輸入錯誤過多次被鎖定，請聯繫管理員解除鎖定。";
+            return GetLockoutMessage(member.LoginLockoutEndAt);
         }
         if (!member.IsActive)
         {

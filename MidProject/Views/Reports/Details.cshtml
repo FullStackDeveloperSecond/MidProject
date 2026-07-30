@@ -2,12 +2,17 @@
 
 @{
     ViewData["Title"] = "檢舉詳情";
+    var reportsReturnUrl = ViewBag.ReturnUrl as string ?? Url.Action("Index", "Reports") ?? "/Reports";
 }
 
 @section Styles {
     <link rel="stylesheet" href="~/css/design-system.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/reports-admin.css" asp-append-version="true" />
 }
+
+<a class="btn btn-outline-secondary js-back-btn mb-2" href="@reportsReturnUrl">
+    <i class="fas fa-arrow-left me-1"></i>返回檢舉查詢
+</a>
 
 <div class="ds-page-header d-flex flex-wrap align-items-center justify-content-between gap-3">
     <div>
@@ -17,7 +22,7 @@
     <nav aria-label="breadcrumb">
         <ol class="breadcrumb bg-transparent mb-0 p-0">
             <li class="breadcrumb-item"><a asp-action="Dashboard">檢舉統計</a></li>
-            <li class="breadcrumb-item"><a asp-action="Index">檢舉查詢</a></li>
+            <li class="breadcrumb-item"><a href="@reportsReturnUrl">檢舉查詢</a></li>
             <li class="breadcrumb-item active">檢舉詳情</li>
         </ol>
     </nav>
@@ -75,7 +80,8 @@
                             {
                                 <a class="report-image-link"
                                    asp-action="ImagePreview"
-                                   asp-route-id="@Model.ReportID">
+                                   asp-route-id="@Model.ReportID"
+                                   asp-route-returnUrl="@reportsReturnUrl">
                                     <span class="report-image-thumbnail">
                                         <img src="@Model.ImageUrl"
                                              alt="被檢舉圖片 #@Model.ImageID"
@@ -158,6 +164,7 @@
                 }
                 <form id="handleForm" asp-action="Handle" asp-route-id="@Model.ReportID" method="post">
                     @Html.AntiForgeryToken()
+                    <input type="hidden" name="returnUrl" value="@reportsReturnUrl" />
                     <div class="mb-3">
                         <label class="form-label">處理結果</label>
                         <select name="Status" class="form-select" disabled="@isHandled">

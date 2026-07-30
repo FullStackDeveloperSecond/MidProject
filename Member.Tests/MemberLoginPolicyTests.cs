@@ -131,4 +131,25 @@ public class MemberLoginPolicyTests
 
         Assert.False(MemberLoginPolicy.HasExpiredLoginLockout(member, DateTime.Now));
     }
+
+    [Fact]
+    public void GetLockoutMessage_WhenTemporaryLockout_ReturnsThresholdAndEndTime()
+    {
+        var lockoutEnd = new DateTime(2026, 7, 30, 14, 25, 0);
+
+        var result = MemberLoginPolicy.GetLockoutMessage(lockoutEnd);
+
+        Assert.Contains("3 次", result);
+        Assert.Contains("帳號已暫時鎖定", result);
+        Assert.Contains("2026/07/30 14:25", result);
+    }
+
+    [Fact]
+    public void GetLockoutMessage_WhenManualLock_ReturnsContactAdministratorMessage()
+    {
+        var result = MemberLoginPolicy.GetLockoutMessage(null);
+
+        Assert.Contains("帳號已鎖定", result);
+        Assert.Contains("聯繫管理員", result);
+    }
 }

@@ -86,7 +86,11 @@ public class AccountController : Controller
         var eligibilityError = MemberLoginPolicy.CheckEligibility(admin);
         if (eligibilityError != null)
         {
-            ModelState.AddModelError("", GenericLoginError);
+            ModelState.AddModelError(
+                "",
+                admin.IsLocked
+                    ? MemberLoginPolicy.GetLockoutMessage(admin.LoginLockoutEndAt)
+                    : GenericLoginError);
             return View();
         }
 
@@ -108,6 +112,7 @@ public class AccountController : Controller
                 .Select(m => m.FailedLoginCount)
                 .SingleAsync();
 
+            var loginError = GenericLoginError;
             if (failedLoginCount >= MemberLoginPolicy.MaxFailedAttempts)
             {
                 var lockoutEnd = now.Add(MemberLoginPolicy.LoginLockoutDuration);
@@ -115,9 +120,11 @@ public class AccountController : Controller
                     .ExecuteUpdateAsync(s => s
                         .SetProperty(m => m.IsLocked, true)
                         .SetProperty(m => m.LoginLockoutEndAt, lockoutEnd));
+
+                loginError = MemberLoginPolicy.GetLockoutMessage(lockoutEnd);
             }
 
-            ModelState.AddModelError("", GenericLoginError);
+            ModelState.AddModelError("", loginError);
             return View();
         }
 

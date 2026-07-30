@@ -2,6 +2,7 @@
 
 @{
     ViewData["Title"] = $"檢舉圖片 #{Model.ImageID}";
+    var reportsReturnUrl = ViewBag.ReturnUrl as string ?? Url.Action("Index", "Reports") ?? "/Reports";
 }
 
 @section Styles {
@@ -12,12 +13,13 @@
 <div class="detail-header-bar">
     <a class="btn btn-outline-secondary js-back-btn"
        asp-action="Details"
-       asp-route-id="@Model.ReportID">
+       asp-route-id="@Model.ReportID"
+       asp-route-returnUrl="@reportsReturnUrl">
         <i class="fas fa-arrow-left me-1"></i>返回檢舉詳情
     </a>
     <div class="detail-crumb">
-        <a asp-action="Index">檢舉管理</a> /
-        <a asp-action="Details" asp-route-id="@Model.ReportID">檢舉 #@Model.ReportID</a> /
+        <a href="@reportsReturnUrl">檢舉查詢</a> /
+        <a asp-action="Details" asp-route-id="@Model.ReportID" asp-route-returnUrl="@reportsReturnUrl">檢舉 #@Model.ReportID</a> /
         圖片 #@Model.ImageID
     </div>
 </div>
@@ -37,7 +39,8 @@
         </div>
         <a class="btn btn-outline-secondary"
            asp-action="Details"
-           asp-route-id="@Model.ReportID">
+           asp-route-id="@Model.ReportID"
+           asp-route-returnUrl="@reportsReturnUrl">
             <i class="fas fa-flag me-1"></i>查看案件資料
         </a>
     </header>
@@ -83,7 +86,8 @@
     <footer class="report-image-footer">
         <a class="btn btn-primary"
            asp-action="Details"
-           asp-route-id="@Model.ReportID">
+           asp-route-id="@Model.ReportID"
+           asp-route-returnUrl="@reportsReturnUrl">
             <i class="fas fa-arrow-left me-1"></i>返回檢舉詳情
         </a>
     </footer>
