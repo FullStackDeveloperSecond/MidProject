@@ -21,6 +21,12 @@ var seedDemoData = args.Contains(
 var resetFormalDemoData = args.Contains(
     FormalDemoDataSeeder.CommandArgument,
     StringComparer.Ordinal);
+var refreshFormalMemberAvatars = args.Contains(
+    FormalDemoDataSeeder.RefreshMemberAvatarsCommandArgument,
+    StringComparer.Ordinal);
+var refreshFormalDashboardDistribution = args.Contains(
+    FormalDemoDataSeeder.RefreshDashboardDistributionCommandArgument,
+    StringComparer.Ordinal);
 if (resetFormalDemoData &&
     !args.Contains(FormalDemoDataSeeder.ConfirmationArgument, StringComparer.Ordinal))
 {
@@ -28,7 +34,30 @@ if (resetFormalDemoData &&
         $"Formal presentation reset requires both '{FormalDemoDataSeeder.CommandArgument}' " +
         $"and '{FormalDemoDataSeeder.ConfirmationArgument}'.");
 }
-if (seedDemoData || resetFormalDemoData)
+if (refreshFormalMemberAvatars &&
+    !args.Contains(
+        FormalDemoDataSeeder.RefreshMemberAvatarsConfirmationArgument,
+        StringComparer.Ordinal))
+{
+    throw new InvalidOperationException(
+        $"Formal member-avatar refresh requires both " +
+        $"'{FormalDemoDataSeeder.RefreshMemberAvatarsCommandArgument}' and " +
+        $"'{FormalDemoDataSeeder.RefreshMemberAvatarsConfirmationArgument}'.");
+}
+if (refreshFormalDashboardDistribution &&
+    !args.Contains(
+        FormalDemoDataSeeder.RefreshDashboardDistributionConfirmationArgument,
+        StringComparer.Ordinal))
+{
+    throw new InvalidOperationException(
+        $"Formal dashboard-distribution refresh requires both " +
+        $"'{FormalDemoDataSeeder.RefreshDashboardDistributionCommandArgument}' and " +
+        $"'{FormalDemoDataSeeder.RefreshDashboardDistributionConfirmationArgument}'.");
+}
+if (seedDemoData ||
+    resetFormalDemoData ||
+    refreshFormalMemberAvatars ||
+    refreshFormalDashboardDistribution)
 {
     args = args
         .Where(argument => !string.Equals(
@@ -42,12 +71,31 @@ if (seedDemoData || resetFormalDemoData)
             !string.Equals(
                 argument,
                 FormalDemoDataSeeder.ConfirmationArgument,
+                StringComparison.Ordinal) &&
+            !string.Equals(
+                argument,
+                FormalDemoDataSeeder.RefreshMemberAvatarsCommandArgument,
+                StringComparison.Ordinal) &&
+            !string.Equals(
+                argument,
+                FormalDemoDataSeeder.RefreshMemberAvatarsConfirmationArgument,
+                StringComparison.Ordinal) &&
+            !string.Equals(
+                argument,
+                FormalDemoDataSeeder.RefreshDashboardDistributionCommandArgument,
+                StringComparison.Ordinal) &&
+            !string.Equals(
+                argument,
+                FormalDemoDataSeeder.RefreshDashboardDistributionConfirmationArgument,
                 StringComparison.Ordinal))
         .ToArray();
 }
 
 var builder = WebApplication.CreateBuilder(args);
-if (seedDemoData || resetFormalDemoData)
+if (seedDemoData ||
+    resetFormalDemoData ||
+    refreshFormalMemberAvatars ||
+    refreshFormalDashboardDistribution)
 {
     builder.Logging.AddFilter(
         "Microsoft.EntityFrameworkCore.Database.Command",
@@ -206,6 +254,30 @@ if (resetFormalDemoData)
     }
 
     await FormalDemoDataSeeder.ResetAndSeedAsync(app.Services);
+    return;
+}
+
+if (refreshFormalMemberAvatars)
+{
+    if (!app.Environment.IsDevelopment())
+    {
+        throw new InvalidOperationException(
+            "The formal member-avatar refresh can run only in the Development environment.");
+    }
+
+    await FormalDemoDataSeeder.RefreshMemberAvatarsAsync(app.Services);
+    return;
+}
+
+if (refreshFormalDashboardDistribution)
+{
+    if (!app.Environment.IsDevelopment())
+    {
+        throw new InvalidOperationException(
+            "The formal dashboard-distribution refresh can run only in the Development environment.");
+    }
+
+    await FormalDemoDataSeeder.RefreshDashboardDistributionAsync(app.Services);
     return;
 }
 

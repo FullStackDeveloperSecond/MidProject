@@ -325,7 +325,7 @@
                     <li class="page-item @(query.Page <= 1 ? "disabled" : "")">
                         <a class="page-link" href="@Url.Action("Index", new { query.Keyword, query.NotificationType, query.IsSent, query.ScheduledAtMinute, query.DeletionScope, query.SortField, query.SortDirection, Page = Math.Max(1, query.Page - 1) })">上一頁</a>
                     </li>
-                    @for (var pageNumber = 1; pageNumber <= Model.TotalPages; pageNumber++)
+                    @foreach (var pageNumber in PaginationWindow.GetPageNumbers(query.Page, Model.TotalPages))
                     {
                         <li class="page-item @(pageNumber == query.Page ? "active" : null)">
                             <a class="page-link" href="@Url.Action("Index", new { query.Keyword, query.NotificationType, query.IsSent, query.ScheduledAtMinute, query.DeletionScope, query.SortField, query.SortDirection, Page = pageNumber })">@pageNumber</a>

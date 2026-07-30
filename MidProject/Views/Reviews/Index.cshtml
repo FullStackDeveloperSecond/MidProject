@@ -200,7 +200,7 @@
                 <li class="page-item @(Model.Page <= 1 ? "disabled" : "")">
                     <a class="page-link" href="@Url.Action("Index", new { tab = Model.Tab, search = Model.Search, rating = Model.Rating, time = Model.Time, sortBy = Model.SortBy, sortDir = Model.SortDir, page = Math.Max(1, Model.Page - 1), restaurantId = Model.RestaurantID })">上一頁</a>
                 </li>
-                @for (int p = 1; p <= Model.TotalPages; p++)
+                @foreach (var p in PaginationWindow.GetPageNumbers(Model.Page, Model.TotalPages))
                 {
                     <li class="page-item @(p == Model.Page ? "active" : "")">
                         <a class="page-link" href="@Url.Action("Index", new { tab = Model.Tab, search = Model.Search, rating = Model.Rating, time = Model.Time, sortBy = Model.SortBy, sortDir = Model.SortDir, page = p, restaurantId = Model.RestaurantID })">@p</a>

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title description">
+  <title id="title">預設會員頭像</title>
+  <desc id="description">暖色圓形背景上的會員剪影</desc>
+  <defs>
+    <linearGradient id="background" x1="16" y1="12" x2="112" y2="116" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff2e8"/>
+      <stop offset="1" stop-color="#ffd4bd"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="64" fill="url(#background)"/>
+  <circle cx="64" cy="49" r="24" fill="#c86b45"/>
+  <path d="M23 118c3-27 19-43 41-43s38 16 41 43" fill="#c86b45"/>
+  <circle cx="64" cy="64" r="61" fill="none" stroke="#fff" stroke-opacity=".72" stroke-width="6"/>
+</svg>

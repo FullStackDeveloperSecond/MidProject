@@ -17,7 +17,7 @@
     };
     var currentStatus = StatusInfo(Model.Status);
     var avatarUrl = Model.AvatarImage?.ImageURL;
-    var defaultAvatar = "/uploads/MemberAvatar/avatar24-01.jpg";
+    var defaultAvatar = MemberAvatarPresentation.DefaultImageUrl;
     var isSuspended = Model.Status == "Suspended";
     var removeAvatarRequested = ViewBag.RemoveAvatarRequested is true;
     var unlockAccountRequested = ViewBag.UnlockAccountRequested is true;
@@ -57,7 +57,7 @@
 @if (Model.IsLocked)
 {
     <div class="alert alert-secondary d-flex justify-content-between align-items-center">
-        <span>🔒 此帳號因密碼輸入錯誤已達 3 次被鎖定（累計失敗 @Model.FailedLoginCount 次），無法登入。</span>
+        <span>🔒 此帳號因密碼輸入錯誤已達 3 次被鎖定，無法登入。</span>
         <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#unlockAccountModal">
             🔓 解除鎖定
         </button>
@@ -87,7 +87,14 @@
                 <input type="hidden" name="UnlockReason" id="unlockReasonInput" value="@ViewBag.UnlockReason" />
 
                 <div class="text-center mb-3">
-                    <img id="avatarPreviewImg" src="@(avatarUrl ?? defaultAvatar)" width="100" height="100" class="rounded-circle" />
+                    <img id="avatarPreviewImg"
+                         src="@(avatarUrl ?? defaultAvatar)"
+                         width="100"
+                         height="100"
+                         class="rounded-circle"
+                         style="object-fit:cover;"
+                         alt="@Model.NickName 的頭像"
+                         onerror="this.onerror=null;this.src='@defaultAvatar';" />
                     <div class="mt-2">
                         <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#avatarModal" disabled="@isSuspended">
                             🗑️ 移除照片

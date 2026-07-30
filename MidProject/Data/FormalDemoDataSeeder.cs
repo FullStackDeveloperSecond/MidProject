@@ -15,11 +15,27 @@ public static class FormalDemoDataSeeder
 {
     public const string CommandArgument = "--reset-formal-demo-data";
     public const string ConfirmationArgument = "--confirm-reset-midprojectdb";
+    public const string RefreshMemberAvatarsCommandArgument = "--refresh-formal-demo-avatars";
+    public const string RefreshMemberAvatarsConfirmationArgument = "--confirm-refresh-midprojectdb";
+    public const string RefreshDashboardDistributionCommandArgument =
+        "--refresh-formal-dashboard-distribution";
+    public const string RefreshDashboardDistributionConfirmationArgument =
+        "--confirm-refresh-dashboard-distribution";
 
     private const string RequiredDatabaseName = "MidProjectDb";
     private const string AdminEmail = "admin@example.com";
     private const int ExpectedRecordCount = 10_000;
     private const int ExpectedPhysicalImageCount = 120;
+    private const int ExpectedCustomMemberAvatarCount = 560;
+
+    private static readonly int[] MemberRecentMonthlyCounts = [28, 44, 67, 31, 82, 56];
+    private static readonly int[] RestaurantRecentMonthlyCounts = [8, 19, 12, 34, 15, 27];
+    private static readonly int[] ReviewRecentMonthlyCounts = [35, 68, 51, 120, 83, 144];
+    private static readonly int[] ReportRecentMonthlyCounts = [11, 24, 9, 36, 18, 42];
+    private static readonly int[] PopularRestaurantIndexes = [100, 101, 103, 104, 105, 106, 107, 108];
+    private static readonly int[] PopularRestaurantFavoriteCounts = [118, 92, 70, 52, 38, 27, 18, 11];
+    private static readonly int[] PopularRestaurantReviewCounts = [148, 121, 96, 74, 57, 41, 29, 19];
+    private static readonly int[] PopularRestaurantBaseRatings = [5, 4, 4, 3, 5, 2, 4, 3];
 
     private static readonly string[] ApplicationTables =
     [
@@ -101,13 +117,7 @@ public static class FormalDemoDataSeeder
             .GetRequiredService<ILoggerFactory>()
             .CreateLogger("MidProject.Data.FormalDemoDataSeeder");
 
-        var databaseName = context.Database.GetDbConnection().Database;
-        if (!string.Equals(databaseName, RequiredDatabaseName, StringComparison.OrdinalIgnoreCase))
-        {
-            throw new InvalidOperationException(
-                $"Formal data reset refused: expected database '{RequiredDatabaseName}', " +
-                $"but the configured database is '{databaseName}'.");
-        }
+        var databaseName = EnsureRequiredDatabase(context, "Formal data reset");
 
         var adminPassword = configuration["FormalDemoData:AdminPassword"];
         if (string.IsNullOrWhiteSpace(adminPassword))
@@ -182,6 +192,240 @@ public static class FormalDemoDataSeeder
             ExpectedRecordCount,
             ExpectedPhysicalImageCount,
             AdminEmail);
+    }
+
+    public static async Task RefreshMemberAvatarsAsync(IServiceProvider serviceProvider)
+    {
+        await using var scope = serviceProvider.CreateAsyncScope();
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var logger = scope.ServiceProvider
+            .GetRequiredService<ILoggerFactory>()
+            .CreateLogger("MidProject.Data.FormalDemoDataSeeder");
+        var databaseName = EnsureRequiredDatabase(context, "Formal member-avatar refresh");
+
+        var users = await context.Members
+            .Where(member => member.Role == "User")
+            .OrderBy(member => member.MemberID)
+            .ToListAsync();
+        var avatarImages = await context.Images
+            .Where(image => image.ImageType == "MemberAvatar")
+            .OrderBy(image => image.ImageID)
+            .ToListAsync();
+
+        await AssignMemberAvatarsAsync(context, users, avatarImages);
+
+        logger.LogInformation(
+            "Formal member avatars refreshed; Database={Database}; CustomAvatars={CustomAvatars}; DefaultAvatars={DefaultAvatars}",
+            databaseName,
+            ExpectedCustomMemberAvatarCount,
+            await context.Members.CountAsync(member => member.AvatarImageID == null));
+    }
+
+    public static async Task RefreshDashboardDistributionAsync(IServiceProvider serviceProvider)
+    {
+        await using var scope = serviceProvider.CreateAsyncScope();
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var clock = scope.ServiceProvider.GetRequiredService<ITaipeiClock>();
+        var logger = scope.ServiceProvider
+            .GetRequiredService<ILoggerFactory>()
+            .CreateLogger("MidProject.Data.FormalDemoDataSeeder");
+        var databaseName = EnsureRequiredDatabase(
+            context,
+            "Formal dashboard-distribution refresh");
+        var now = clock.GetNow();
+
+        var users = await context.Members
+            .Where(member => member.Role == "User")
+            .OrderBy(member => member.MemberID)
+            .ToListAsync();
+        var restaurants = await context.Restaurants
+            .OrderBy(restaurant => restaurant.RestaurantID)
+            .ToListAsync();
+        var reviews = await context.Reviews
+            .OrderBy(review => review.ReviewID)
+            .ToListAsync();
+        var favorites = await context.Favorites
+            .OrderBy(favorite => favorite.FavoriteID)
+            .ToListAsync();
+        var reports = await context.Reports
+            .OrderBy(report => report.ReportID)
+            .ToListAsync();
+
+        for (var index = 0; index < users.Count; index++)
+        {
+            users[index].CreatedAt = GetWeightedCreatedAt(
+                now,
+                index,
+                MemberRecentMonthlyCounts);
+        }
+
+        for (var index = 0; index < restaurants.Count; index++)
+        {
+            restaurants[index].CreatedAt = GetWeightedCreatedAt(
+                now,
+                index,
+                RestaurantRecentMonthlyCounts);
+        }
+
+        for (var index = 0; index < reviews.Count; index++)
+        {
+            var restaurantIndex = GetWeightedRestaurantIndex(
+                index,
+                restaurants.Count,
+                PopularRestaurantReviewCounts);
+            reviews[index].RestaurantID = restaurants[restaurantIndex].RestaurantID;
+            reviews[index].Rating = GetReviewRating(index, restaurantIndex);
+            reviews[index].CreatedAt = GetWeightedCreatedAt(
+                now,
+                index,
+                ReviewRecentMonthlyCounts);
+        }
+
+        for (var index = 0; index < favorites.Count; index++)
+        {
+            var restaurantIndex = GetWeightedRestaurantIndex(
+                index,
+                restaurants.Count,
+                PopularRestaurantFavoriteCounts);
+            favorites[index].RestaurantID = restaurants[restaurantIndex].RestaurantID;
+        }
+
+        for (var index = 0; index < reports.Count; index++)
+        {
+            var status = index < 100
+                ? "Approved"
+                : index < 170
+                    ? "Rejected"
+                    : "Pending";
+            var createdAt = GetWeightedCreatedAt(
+                now,
+                index,
+                ReportRecentMonthlyCounts);
+            reports[index].Status = status;
+            reports[index].CreatedAt = createdAt;
+
+            if (status == "Pending")
+            {
+                reports[index].HandledAt = null;
+                reports[index].HandledByMemberID = null;
+                reports[index].AdminNote = null;
+            }
+            else
+            {
+                var handledAt = createdAt.AddHours(index % 72 + 1);
+                reports[index].HandledAt = handledAt <= now ? handledAt : now;
+            }
+        }
+
+        await context.SaveChangesAsync();
+        await RecalculateRestaurantStatsAsync(context);
+
+        var reportStatusCounts = await context.Reports
+            .GroupBy(report => report.Status)
+            .ToDictionaryAsync(group => group.Key, group => group.Count());
+        logger.LogInformation(
+            "Formal dashboard distribution refreshed; Database={Database}; Members={Members}; Restaurants={Restaurants}; Reviews={Reviews}; Favorites={Favorites}; ApprovedReports={ApprovedReports}; RejectedReports={RejectedReports}; PendingReports={PendingReports}",
+            databaseName,
+            users.Count,
+            restaurants.Count,
+            reviews.Count,
+            favorites.Count,
+            reportStatusCounts.GetValueOrDefault("Approved"),
+            reportStatusCounts.GetValueOrDefault("Rejected"),
+            reportStatusCounts.GetValueOrDefault("Pending"));
+    }
+
+    private static string EnsureRequiredDatabase(AppDbContext context, string operation)
+    {
+        var databaseName = context.Database.GetDbConnection().Database;
+        if (!string.Equals(databaseName, RequiredDatabaseName, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                $"{operation} refused: expected database '{RequiredDatabaseName}', " +
+                $"but the configured database is '{databaseName}'.");
+        }
+
+        return databaseName;
+    }
+
+    private static DateTime GetWeightedCreatedAt(
+        DateTime now,
+        int itemIndex,
+        IReadOnlyList<int> recentMonthlyCounts)
+    {
+        var currentMonthStart = new DateTime(now.Year, now.Month, 1);
+        var cursor = 0;
+        for (var monthIndex = 0; monthIndex < recentMonthlyCounts.Count; monthIndex++)
+        {
+            var monthCount = recentMonthlyCounts[monthIndex];
+            if (itemIndex < cursor + monthCount)
+            {
+                var targetMonth = currentMonthStart.AddMonths(
+                    monthIndex - recentMonthlyCounts.Count + 1);
+                var daysInMonth = DateTime.DaysInMonth(
+                    targetMonth.Year,
+                    targetMonth.Month);
+                var dayIndex = (itemIndex * 7 + monthIndex * 3) % daysInMonth;
+                var createdAt = targetMonth
+                    .AddDays(dayIndex)
+                    .AddMinutes((itemIndex * 37 + monthIndex * 53) % 1440);
+                return createdAt <= now
+                    ? createdAt
+                    : now.AddMinutes(-(itemIndex % 600 + 1));
+            }
+
+            cursor += monthCount;
+        }
+
+        var olderIndex = itemIndex - cursor;
+        return currentMonthStart
+            .AddMonths(-6)
+            .AddDays(-((olderIndex * 11) % 540 + 1))
+            .AddMinutes((olderIndex * 29) % 1440);
+    }
+
+    private static int GetWeightedRestaurantIndex(
+        int itemIndex,
+        int restaurantCount,
+        IReadOnlyList<int> popularCounts)
+    {
+        if (PopularRestaurantIndexes.Any(index => index >= restaurantCount))
+        {
+            throw new InvalidOperationException(
+                "Formal dashboard distribution does not contain enough restaurants.");
+        }
+
+        var cursor = 0;
+        for (var index = 0; index < popularCounts.Count; index++)
+        {
+            if (itemIndex < cursor + popularCounts[index])
+            {
+                return PopularRestaurantIndexes[index];
+            }
+
+            cursor += popularCounts[index];
+        }
+
+        const int generalRestaurantStartIndex = 40;
+        return generalRestaurantStartIndex +
+            ((itemIndex - cursor) * 37 %
+             (restaurantCount - generalRestaurantStartIndex));
+    }
+
+    private static int GetReviewRating(int reviewIndex, int restaurantIndex)
+    {
+        var popularIndex = Array.IndexOf(
+            PopularRestaurantIndexes,
+            restaurantIndex);
+        if (popularIndex < 0)
+        {
+            return reviewIndex % 5 + 1;
+        }
+
+        var baseRating = PopularRestaurantBaseRatings[popularIndex];
+        return reviewIndex % 6 == 0
+            ? Math.Max(1, baseRating - 1)
+            : baseRating;
     }
 
     // Table identifiers cannot be SQL parameters. Both lists are private compile-time allowlists,
@@ -331,7 +575,10 @@ public static class FormalDemoDataSeeder
         var users = new List<Member>(799);
         for (var index = 1; index <= 799; index++)
         {
-            var createdAt = now.AddDays(-(index % 720)).AddMinutes(-(index % 1440));
+            var createdAt = GetWeightedCreatedAt(
+                now,
+                index - 1,
+                MemberRecentMonthlyCounts);
             var levelIndex = index % levels.Count;
             var member = new Member
             {
@@ -475,7 +722,10 @@ public static class FormalDemoDataSeeder
             var ownerId = isApprovedTarget
                 ? approvedRestaurantOwners[index]
                 : users[(index * 7 + 40) % users.Count].MemberID;
-            var createdAt = now.AddDays(-(index % 700 + 10));
+            var createdAt = GetWeightedCreatedAt(
+                now,
+                index,
+                RestaurantRecentMonthlyCounts);
 
             restaurants.Add(new Restaurant
             {
@@ -620,17 +870,51 @@ public static class FormalDemoDataSeeder
         context.Images.AddRange(images);
         await context.SaveChangesAsync();
 
-        var avatarMemberIds = users.Skip(40).Take(40).Select(member => member.MemberID).ToArray();
-        var avatarMembers = await context.Members
-            .Where(member => avatarMemberIds.Contains(member.MemberID))
-            .OrderBy(member => member.MemberID)
-            .ToListAsync();
-        for (var index = 0; index < avatarMembers.Count; index++)
-        {
-            avatarMembers[index].AvatarImageID = images[550 + index].ImageID;
-        }
-        await context.SaveChangesAsync();
+        await AssignMemberAvatarsAsync(
+            context,
+            users,
+            images.Where(image => image.ImageType == "MemberAvatar").ToArray());
         return images;
+    }
+
+    private static async Task AssignMemberAvatarsAsync(
+        AppDbContext context,
+        IReadOnlyList<Member> users,
+        IReadOnlyList<Image> avatarImages)
+    {
+        var availableAvatarImages = avatarImages
+            .Where(image => !image.IsDeleted)
+            .OrderBy(image => image.ImageID)
+            .ToArray();
+        if (availableAvatarImages.Length == 0)
+        {
+            throw new InvalidOperationException(
+                "Formal member-avatar assignment requires at least one active MemberAvatar image.");
+        }
+
+        foreach (var user in users)
+        {
+            user.AvatarImageID = null;
+        }
+
+        var membersWithCustomAvatars = users
+            .Skip(40)
+            .Take(ExpectedCustomMemberAvatarCount)
+            .ToArray();
+        if (membersWithCustomAvatars.Length != ExpectedCustomMemberAvatarCount)
+        {
+            throw new InvalidOperationException(
+                $"Formal member-avatar assignment expected {ExpectedCustomMemberAvatarCount} eligible members, " +
+                $"found {membersWithCustomAvatars.Length}.");
+        }
+
+        for (var index = 0; index < membersWithCustomAvatars.Length; index++)
+        {
+            membersWithCustomAvatars[index].AvatarImageID =
+                availableAvatarImages[index % availableAvatarImages.Length].ImageID;
+        }
+
+        await context.SaveChangesAsync();
     }
 
     private static async Task SeedRestaurantImagesAsync(
@@ -685,19 +969,26 @@ public static class FormalDemoDataSeeder
         {
             var isApprovedTarget = index < approvedReviewOwners.Length;
             var isDeleted = isApprovedTarget || (!isApprovedTarget && index % 29 == 0);
+            var restaurantIndex = GetWeightedRestaurantIndex(
+                index,
+                restaurants.Count,
+                PopularRestaurantReviewCounts);
             reviews.Add(new Review
             {
                 MemberID = isApprovedTarget
                     ? approvedReviewOwners[index]
                     : users[(index * 13 + 60) % users.Count].MemberID,
-                RestaurantID = restaurants[(index * 17) % restaurants.Count].RestaurantID,
-                Rating = index % 5 + 1,
+                RestaurantID = restaurants[restaurantIndex].RestaurantID,
+                Rating = GetReviewRating(index, restaurantIndex),
                 Content = $"{ReviewTexts[index % ReviewTexts.Length]}（用餐紀錄 {index + 1:D4}）",
                 IsDeleted = isDeleted,
                 DeletedAt = isDeleted ? now.AddDays(-(index % 20 + 1)) : null,
                 DeletedBy = isDeleted ? adminId : null,
                 Status = index % 9 == 0 ? "PendingReview" : "Active",
-                CreatedAt = now.AddDays(-(index % 700 + 1)),
+                CreatedAt = GetWeightedCreatedAt(
+                    now,
+                    index,
+                    ReviewRecentMonthlyCounts),
                 UpdatedAt = index % 4 == 0 ? now.AddDays(-(index % 60)) : null
             });
         }
@@ -761,13 +1052,18 @@ public static class FormalDemoDataSeeder
         {
             for (var offset = 0; offset < 2; offset++)
             {
-                var deleted = (index * 2 + offset) % 31 == 0;
+                var favoriteIndex = index * 2 + offset;
+                var deleted = favoriteIndex % 31 == 0;
+                var restaurantIndex = GetWeightedRestaurantIndex(
+                    favoriteIndex,
+                    restaurants.Count,
+                    PopularRestaurantFavoriteCounts);
                 favorites.Add(new Favorite
                 {
                     MemberID = folders[index].MemberID,
-                    RestaurantID = restaurants[(index * 7 + offset * 19) % restaurants.Count].RestaurantID,
+                    RestaurantID = restaurants[restaurantIndex].RestaurantID,
                     FavoriteFolderID = folders[index].FavoriteFolderID,
-                    CreatedAt = now.AddDays(-(index % 400 + offset + 1)),
+                    CreatedAt = now.AddDays(-(favoriteIndex % 400 + 1)),
                     UpdatedAt = now.AddDays(-(index % 25)),
                     IsDeleted = deleted,
                     DeletedAt = deleted ? now.AddDays(-(index % 20 + 1)) : null,
@@ -807,7 +1103,7 @@ public static class FormalDemoDataSeeder
 
         for (var index = 0; index < 300; index++)
         {
-            var status = index < 100 ? "Approved" : index < 200 ? "Rejected" : "Pending";
+            var status = index < 100 ? "Approved" : index < 170 ? "Rejected" : "Pending";
             var targetType = index % 3;
             int ownerId;
             int? restaurantId = null;
@@ -859,7 +1155,10 @@ public static class FormalDemoDataSeeder
             }
             var handled = status != "Pending";
             var deleted = index % 37 == 0;
-            var createdAt = now.AddDays(-(index % 600 + 1));
+            var createdAt = GetWeightedCreatedAt(
+                now,
+                index,
+                ReportRecentMonthlyCounts);
             reports.Add(new Report
             {
                 ReporterMemberID = reporter.MemberID,
@@ -1158,12 +1457,21 @@ public static class FormalDemoDataSeeder
             throw new InvalidOperationException("Formal administrator verification failed.");
         }
 
+        var customMemberAvatarCount = await context.Members.CountAsync(
+            member => member.AvatarImageID != null);
+        if (customMemberAvatarCount != ExpectedCustomMemberAvatarCount)
+        {
+            throw new InvalidOperationException(
+                $"Formal member-avatar verification failed: expected {ExpectedCustomMemberAvatarCount}, " +
+                $"found {customMemberAvatarCount}.");
+        }
+
         var reportStatusCounts = await context.Reports
             .GroupBy(report => report.Status)
             .ToDictionaryAsync(group => group.Key, group => group.Count());
-        if (reportStatusCounts.GetValueOrDefault("Pending") != 100 ||
+        if (reportStatusCounts.GetValueOrDefault("Pending") != 130 ||
             reportStatusCounts.GetValueOrDefault("Approved") != 100 ||
-            reportStatusCounts.GetValueOrDefault("Rejected") != 100)
+            reportStatusCounts.GetValueOrDefault("Rejected") != 70)
         {
             throw new InvalidOperationException("Report status coverage verification failed.");
         }

@@ -198,21 +198,6 @@ public static class SeedData
             }
         }
 
-        await SeedImageAsync(
-            context,
-            admin.MemberID,
-            "/uploads/MemberAvatar/avatar24-01.jpg",
-            "MemberAvatar",
-            now);
-        await context.SaveChangesAsync();
-
-        var avatar = await context.Images.SingleAsync(
-            image => image.ImageURL == "/uploads/MemberAvatar/avatar24-01.jpg");
-        if (admin.AvatarImageID is null)
-        {
-            admin.AvatarImageID = avatar.ImageID;
-        }
-
         await context.SaveChangesAsync();
     }
 

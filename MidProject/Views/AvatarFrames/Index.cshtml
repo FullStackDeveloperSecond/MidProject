@@ -65,7 +65,7 @@ else { foreach (var frame in Model.Frames) { <tr><td><div class="d-flex align-it
                 <li class="page-item @(Model.CurrentPage <= 1 ? "disabled" : "")">
                     <a class="page-link" href="@Url.Action("Index", new { keyword = Model.Keyword, rarity = Model.Rarity, isActive = Model.IsActive, sortBy = Model.SortBy, page = Math.Max(1, Model.CurrentPage - 1) })">上一頁</a>
                 </li>
-                @for (var p = 1; p <= Model.TotalPages; p++)
+                @foreach (var p in PaginationWindow.GetPageNumbers(Model.CurrentPage, Model.TotalPages))
                 {
                     <li class="page-item @(p == Model.CurrentPage ? "active" : "")"><a class="page-link" href="@Url.Action("Index", new { keyword = Model.Keyword, rarity = Model.Rarity, isActive = Model.IsActive, sortBy = Model.SortBy, page = p })">@p</a></li>
                 }

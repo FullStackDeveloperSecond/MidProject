@@ -152,7 +152,7 @@
                 <li class="page-item @(Model.CurrentPage <= 1 ? "disabled" : "")">
                     <a class="page-link" href="@Url.Action("Deleted", new { Search = Model.Filter.Search, City = Model.Filter.City, Reason = Model.Filter.Reason, Page = Math.Max(1, Model.CurrentPage - 1) })">上一頁</a>
                 </li>
-                @for (var pageNumber = 1; pageNumber <= Model.TotalPages; pageNumber++)
+                @foreach (var pageNumber in PaginationWindow.GetPageNumbers(Model.CurrentPage, Model.TotalPages))
                 {
                     <li class="page-item @(pageNumber == Model.CurrentPage ? "active" : "")">
                         <a class="page-link" href="@Url.Action("Deleted", new { Search = Model.Filter.Search, City = Model.Filter.City, Reason = Model.Filter.Reason, Page = pageNumber })">@pageNumber</a>

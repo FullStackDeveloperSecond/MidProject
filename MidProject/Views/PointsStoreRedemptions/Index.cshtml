@@ -95,14 +95,20 @@
     <tbody>
         @foreach (var r in Model.Redemptions)
         {
+            var memberAvatarUrl = string.IsNullOrWhiteSpace(r.MemberAvatarUrl)
+                ? MemberAvatarPresentation.DefaultImageUrl
+                : r.MemberAvatarUrl;
             <tr>
                 <td>@r.RedeemedAt.ToString("yyyy-MM-dd HH:mm")</td>
                 <td>
                     <div class="d-flex align-items-center gap-2">
-                        @if (!string.IsNullOrEmpty(r.MemberAvatarUrl))
-                        {
-                            <img src="@r.MemberAvatarUrl" width="28" height="28" class="rounded-circle" />
-                        }
+                        <img src="@memberAvatarUrl"
+                             width="28"
+                             height="28"
+                             class="rounded-circle"
+                             style="object-fit:cover;"
+                             alt="@r.MemberName 的頭像"
+                             onerror="this.onerror=null;this.src='@MemberAvatarPresentation.DefaultImageUrl';" />
                         <span>@r.MemberName</span>
                     </div>
                 </td>
@@ -141,7 +147,7 @@
                 <li class="page-item @(Model.CurrentPage <= 1 ? "disabled" : "")">
                     <a class="page-link" href="@Url.Action("Index", new { page = Math.Max(1, Model.CurrentPage - 1), keyword = Model.Keyword, frameFilter = Model.FrameFilter, startDate = Model.StartDate, endDate = Model.EndDate })">上一頁</a>
                 </li>
-                @for (int i = 1; i <= Model.TotalPages; i++)
+                @foreach (var i in PaginationWindow.GetPageNumbers(Model.CurrentPage, Model.TotalPages))
                 {
                     <li class="page-item @(i == Model.CurrentPage ? "active" : "")"><a class="page-link" href="@Url.Action("Index", new { page = i, keyword = Model.Keyword, frameFilter = Model.FrameFilter, startDate = Model.StartDate, endDate = Model.EndDate })">@i</a></li>
                 }

@@ -261,7 +261,7 @@
                 <li class="page-item @(Model.Page <= 1 ? "disabled" : "")">
                     <a class="page-link" href="@PageUrl(Model.Page - 1)">上一頁</a>
                 </li>
-                @for (var p = 1; p <= Model.TotalPages; p++)
+                @foreach (var p in PaginationWindow.GetPageNumbers(Model.Page, Model.TotalPages))
                 {
                     <li class="page-item @(p == Model.Page ? "active" : "")">
                         <a class="page-link" href="@PageUrl(p)">@p</a>
