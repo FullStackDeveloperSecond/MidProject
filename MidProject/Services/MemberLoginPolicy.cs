@@ -20,16 +20,27 @@ public static class MemberLoginPolicy
         member.LoginLockoutEndAt.HasValue &&
         member.LoginLockoutEndAt.Value <= now;
 
-    // 帳號本身是否允許嘗試登入（跟密碼是否正確無關）。回傳 null 代表合格；
-    // 有值代表應該顯示的拒絕訊息。
     public static string? CheckEligibility(Member member)
     {
-        // 這個網站是後台管理系統，只給 Admin 用；一般 User 角色的會員帳號（例如公開註冊產生的）
-        // 一律擋在登入這關，不像過去那樣還放行、事後才在每個功能各自被 [Authorize(Roles="Admin")] 擋下。
+        var accountStateError = CheckAccountState(member);
+        if (accountStateError != null)
+        {
+            return accountStateError;
+        }
+
+        // 後台角色限制必須在密碼驗證成功後才套用；否則一般會員輸入錯誤密碼時
+        // 會在角色檢查提前返回，FailedLoginCount 永遠不會累計。
         if (member.Role != "Admin")
         {
             return "此系統僅供管理員登入使用。";
         }
+
+        return null;
+    }
+
+    // 帳號本身是否允許嘗試登入（跟角色及密碼是否正確無關）。
+    public static string? CheckAccountState(Member member)
+    {
         if (member.Status == "Suspended")
         {
             return "帳號目前為停權狀態，請聯繫管理員。";
@@ -46,6 +57,7 @@ public static class MemberLoginPolicy
         {
             return "帳號已停用，請聯繫管理員。";
         }
+
         return null;
     }
 

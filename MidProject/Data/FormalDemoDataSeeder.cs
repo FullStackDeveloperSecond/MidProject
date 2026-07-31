@@ -27,11 +27,14 @@ public static class FormalDemoDataSeeder
     private const int ExpectedRecordCount = 10_000;
     private const int ExpectedPhysicalImageCount = 120;
     private const int ExpectedCustomMemberAvatarCount = 560;
+    private const int ExpectedApprovedReportCount = 100;
+    private const int ExpectedPendingReportCount = 20;
 
     private static readonly int[] MemberRecentMonthlyCounts = [28, 44, 67, 31, 82, 56];
     private static readonly int[] RestaurantRecentMonthlyCounts = [8, 19, 12, 34, 15, 27];
     private static readonly int[] ReviewRecentMonthlyCounts = [35, 68, 51, 120, 83, 144];
     private static readonly int[] ReportRecentMonthlyCounts = [11, 24, 9, 36, 18, 42];
+    private static readonly int[] PendingReport2026MonthlyCounts = [1, 4, 2, 7, 1, 5];
     private static readonly int[] PopularRestaurantIndexes = [100, 101, 103, 104, 105, 106, 107, 108];
     private static readonly int[] PopularRestaurantFavoriteCounts = [118, 92, 70, 52, 38, 27, 18, 11];
     private static readonly int[] PopularRestaurantReviewCounts = [148, 121, 96, 74, 57, 41, 29, 19];
@@ -233,6 +236,10 @@ public static class FormalDemoDataSeeder
             context,
             "Formal dashboard-distribution refresh");
         var now = clock.GetNow();
+        var adminId = await context.Members
+            .Where(member => member.Email == AdminEmail && member.Role == "Admin")
+            .Select(member => member.MemberID)
+            .SingleAsync();
 
         var users = await context.Members
             .Where(member => member.Role == "User")
@@ -290,17 +297,28 @@ public static class FormalDemoDataSeeder
             favorites[index].RestaurantID = restaurants[restaurantIndex].RestaurantID;
         }
 
+        var pendingReportStartIndex = reports.Count - ExpectedPendingReportCount;
+        if (pendingReportStartIndex <= ExpectedApprovedReportCount)
+        {
+            throw new InvalidOperationException(
+                "Formal dashboard distribution does not contain enough reports.");
+        }
+
         for (var index = 0; index < reports.Count; index++)
         {
-            var status = index < 100
+            var status = index < ExpectedApprovedReportCount
                 ? "Approved"
-                : index < 170
+                : index < pendingReportStartIndex
                     ? "Rejected"
                     : "Pending";
-            var createdAt = GetWeightedCreatedAt(
-                now,
-                index,
-                ReportRecentMonthlyCounts);
+            var createdAt = status == "Pending"
+                ? GetPendingReport2026CreatedAt(
+                    index - pendingReportStartIndex,
+                    now)
+                : GetWeightedCreatedAt(
+                    now,
+                    index,
+                    ReportRecentMonthlyCounts);
             reports[index].Status = status;
             reports[index].CreatedAt = createdAt;
 
@@ -309,11 +327,18 @@ public static class FormalDemoDataSeeder
                 reports[index].HandledAt = null;
                 reports[index].HandledByMemberID = null;
                 reports[index].AdminNote = null;
+                reports[index].IsDeleted = false;
+                reports[index].DeletedAt = null;
+                reports[index].DeletedBy = null;
             }
             else
             {
                 var handledAt = createdAt.AddHours(index % 72 + 1);
                 reports[index].HandledAt = handledAt <= now ? handledAt : now;
+                reports[index].HandledByMemberID = adminId;
+                reports[index].AdminNote = status == "Approved"
+                    ? "查核後確認違規。"
+                    : "查核後未發現違規。";
             }
         }
 
@@ -382,6 +407,42 @@ public static class FormalDemoDataSeeder
             .AddMonths(-6)
             .AddDays(-((olderIndex * 11) % 540 + 1))
             .AddMinutes((olderIndex * 29) % 1440);
+    }
+
+    private static DateTime GetPendingReport2026CreatedAt(
+        int pendingIndex,
+        DateTime now)
+    {
+        if (pendingIndex is < 0 or >= ExpectedPendingReportCount)
+        {
+            throw new ArgumentOutOfRangeException(nameof(pendingIndex));
+        }
+
+        var cursor = 0;
+        for (var monthIndex = 0;
+             monthIndex < PendingReport2026MonthlyCounts.Length;
+             monthIndex++)
+        {
+            var monthCount = PendingReport2026MonthlyCounts[monthIndex];
+            if (pendingIndex < cursor + monthCount)
+            {
+                var monthStart = new DateTime(2026, 2, 1).AddMonths(monthIndex);
+                var daysInMonth = DateTime.DaysInMonth(
+                    monthStart.Year,
+                    monthStart.Month);
+                var createdAt = monthStart
+                    .AddDays((pendingIndex * 5 + monthIndex * 2) % daysInMonth)
+                    .AddHours((pendingIndex * 7 + monthIndex) % 24);
+                return createdAt <= now
+                    ? createdAt
+                    : now.AddMinutes(-(pendingIndex + 1));
+            }
+
+            cursor += monthCount;
+        }
+
+        throw new InvalidOperationException(
+            "Pending report monthly distribution does not contain 20 records.");
     }
 
     private static int GetWeightedRestaurantIndex(
@@ -1101,9 +1162,14 @@ public static class FormalDemoDataSeeder
         var approvedImageIndex = 0;
         var reports = new List<Report>(300);
 
+        var pendingReportStartIndex = 300 - ExpectedPendingReportCount;
         for (var index = 0; index < 300; index++)
         {
-            var status = index < 100 ? "Approved" : index < 170 ? "Rejected" : "Pending";
+            var status = index < ExpectedApprovedReportCount
+                ? "Approved"
+                : index < pendingReportStartIndex
+                    ? "Rejected"
+                    : "Pending";
             var targetType = index % 3;
             int ownerId;
             int? restaurantId = null;
@@ -1154,11 +1220,15 @@ public static class FormalDemoDataSeeder
                 reporter = users[(index * 19 + 301) % users.Count];
             }
             var handled = status != "Pending";
-            var deleted = index % 37 == 0;
-            var createdAt = GetWeightedCreatedAt(
-                now,
-                index,
-                ReportRecentMonthlyCounts);
+            var deleted = status != "Pending" && index % 37 == 0;
+            var createdAt = status == "Pending"
+                ? GetPendingReport2026CreatedAt(
+                    index - pendingReportStartIndex,
+                    now)
+                : GetWeightedCreatedAt(
+                    now,
+                    index,
+                    ReportRecentMonthlyCounts);
             reports.Add(new Report
             {
                 ReporterMemberID = reporter.MemberID,
@@ -1469,11 +1539,41 @@ public static class FormalDemoDataSeeder
         var reportStatusCounts = await context.Reports
             .GroupBy(report => report.Status)
             .ToDictionaryAsync(group => group.Key, group => group.Count());
-        if (reportStatusCounts.GetValueOrDefault("Pending") != 130 ||
-            reportStatusCounts.GetValueOrDefault("Approved") != 100 ||
-            reportStatusCounts.GetValueOrDefault("Rejected") != 70)
+        if (reportStatusCounts.GetValueOrDefault("Pending") != ExpectedPendingReportCount ||
+            reportStatusCounts.GetValueOrDefault("Approved") != ExpectedApprovedReportCount ||
+            reportStatusCounts.GetValueOrDefault("Rejected") !=
+                300 - ExpectedApprovedReportCount - ExpectedPendingReportCount)
         {
             throw new InvalidOperationException("Report status coverage verification failed.");
+        }
+
+        var pendingReportMonthlyCounts = await context.Reports
+            .Where(report =>
+                report.Status == "Pending" &&
+                !report.IsDeleted &&
+                report.CreatedAt.Year == 2026)
+            .GroupBy(report => report.CreatedAt.Month)
+            .ToDictionaryAsync(group => group.Key, group => group.Count());
+        var pendingReportDistributionIsValid =
+            PendingReport2026MonthlyCounts
+                .Select((count, index) => new { Month = index + 2, Count = count })
+                .All(expected =>
+                    pendingReportMonthlyCounts.GetValueOrDefault(expected.Month) ==
+                    expected.Count) &&
+            pendingReportMonthlyCounts.Values.Sum() == ExpectedPendingReportCount;
+        if (!pendingReportDistributionIsValid)
+        {
+            throw new InvalidOperationException(
+                "Pending report 2026 monthly distribution verification failed.");
+        }
+
+        var pendingReportsOutside2026 = await context.Reports.CountAsync(report =>
+            report.Status == "Pending" &&
+            report.CreatedAt.Year != 2026);
+        if (pendingReportsOutside2026 != 0)
+        {
+            throw new InvalidOperationException(
+                $"Pending report year verification failed: {pendingReportsOutside2026} rows are outside 2026.");
         }
 
         var invalidTargets = await context.Reports.CountAsync(report =>

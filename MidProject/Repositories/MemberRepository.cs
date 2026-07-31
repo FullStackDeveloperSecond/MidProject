@@ -89,8 +89,20 @@ public sealed class MemberRepository : IMemberRepository
         {
             "lv_asc" => query.OrderBy(m => m.UserLevel.MinExp),
             "lv_desc" => query.OrderByDescending(m => m.UserLevel.MinExp),
-            "status_asc" => query.OrderBy(m => m.Status),
-            "status_desc" => query.OrderByDescending(m => m.Status),
+            "status_asc" => query
+                .OrderBy(m => m.Status == "Normal" ? 1
+                    : m.Status == "Warning" ? 2
+                    : m.Status == "Muted" ? 3
+                    : m.Status == "Suspended" ? 4
+                    : 5)
+                .ThenBy(m => m.MemberID),
+            "status_desc" => query
+                .OrderByDescending(m => m.Status == "Normal" ? 1
+                    : m.Status == "Warning" ? 2
+                    : m.Status == "Muted" ? 3
+                    : m.Status == "Suspended" ? 4
+                    : 5)
+                .ThenBy(m => m.MemberID),
             "created_asc" => query.OrderBy(m => m.CreatedAt).ThenBy(m => m.MemberID),
             "created_desc" => query.OrderByDescending(m => m.CreatedAt).ThenByDescending(m => m.MemberID),
             _ => query.OrderByDescending(m => m.CreatedAt) // 預設新到舊

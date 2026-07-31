@@ -65,26 +65,17 @@ public class AccountController : Controller
         var now = _clock.GetNow();
         if (MemberLoginPolicy.HasExpiredLoginLockout(admin, now))
         {
-            await _context.Members
-                .Where(m => m.MemberID == admin.MemberID &&
-                            m.LoginLockoutEndAt != null &&
-                            m.LoginLockoutEndAt <= now)
-                .ExecuteUpdateAsync(s => s
-                    .SetProperty(m => m.FailedLoginCount, 0)
-                    .SetProperty(m => m.IsLocked, false)
-                    .SetProperty(m => m.LoginLockoutEndAt, (DateTime?)null));
-
             admin.FailedLoginCount = 0;
             admin.IsLocked = false;
             admin.LoginLockoutEndAt = null;
+            admin.UpdatedAt = now;
+            await _context.SaveChangesAsync();
         }
 
-        // 8. 帳號資格檢查：鎖定／停用／停權／刪除的帳號一律拒絕登入。
-        // 必須先取得帳號再交給 policy，否則 Suspended 通常同時 IsDeleted=true，
-        // 會在這裡被誤判為查無帳號，永遠無法顯示正確的停權訊息。
-        // 規則本身抽到 MemberLoginPolicy（純函式，無 DbContext/HttpContext 依賴），方便單元測試。
-        var eligibilityError = MemberLoginPolicy.CheckEligibility(admin);
-        if (eligibilityError != null)
+        // 先攔截鎖定、停用、停權與刪除狀態，但角色限制延後到密碼驗證成功後。
+        // 這可確保一般會員輸入錯誤密碼時也會寫入 FailedLoginCount。
+        var accountStateError = MemberLoginPolicy.CheckAccountState(admin);
+        if (accountStateError != null)
         {
             ModelState.AddModelError(
                 "",
@@ -99,42 +90,42 @@ public class AccountController : Controller
 
         if (!isPasswordValid)
         {
-            // 8. 連續密碼錯誤達 3 次進入短期鎖定；到期後自動解除，也可由管理員提前解鎖。
-            // 必須讓 SQL Server 直接以資料庫中的目前值遞增，不能先在記憶體算好固定值再覆寫；
-            // 否則多個並行的錯誤密碼請求可能都讀到相同次數，造成實際嘗試次數被少算。
-            await _context.Members.Where(m => m.MemberID == admin.MemberID)
-                .ExecuteUpdateAsync(s => s
-                    .SetProperty(m => m.FailedLoginCount, m => m.FailedLoginCount + 1));
-
-            var failedLoginCount = await _context.Members
-                .AsNoTracking()
-                .Where(m => m.MemberID == admin.MemberID)
-                .Select(m => m.FailedLoginCount)
-                .SingleAsync();
-
+            // 每次錯誤都透過追蹤實體與 SaveChanges 寫入 Members.FailedLoginCount；
+            // 第三次同一筆更新會一併寫入鎖定狀態與到期時間。
+            var (failedLoginCount, shouldLock) =
+                MemberLoginPolicy.RecordFailedAttempt(admin.FailedLoginCount);
+            admin.FailedLoginCount = failedLoginCount;
+            admin.UpdatedAt = now;
             var loginError = GenericLoginError;
-            if (failedLoginCount >= MemberLoginPolicy.MaxFailedAttempts)
+            if (shouldLock)
             {
                 var lockoutEnd = now.Add(MemberLoginPolicy.LoginLockoutDuration);
-                await _context.Members.Where(m => m.MemberID == admin.MemberID)
-                    .ExecuteUpdateAsync(s => s
-                        .SetProperty(m => m.IsLocked, true)
-                        .SetProperty(m => m.LoginLockoutEndAt, lockoutEnd));
-
+                admin.IsLocked = true;
+                admin.LoginLockoutEndAt = lockoutEnd;
                 loginError = MemberLoginPolicy.GetLockoutMessage(lockoutEnd);
             }
 
+            await _context.SaveChangesAsync();
             ModelState.AddModelError("", loginError);
+            return View();
+        }
+
+        // 密碼正確後才判斷是否具有後台角色，避免角色檢查略過錯誤密碼累計。
+        var eligibilityError = MemberLoginPolicy.CheckEligibility(admin);
+        if (eligibilityError != null)
+        {
+            ModelState.AddModelError("", GenericLoginError);
             return View();
         }
 
         // 登入成功：重置失敗次數
         if (admin.FailedLoginCount != 0)
         {
-            await _context.Members.Where(m => m.MemberID == admin.MemberID)
-                .ExecuteUpdateAsync(s => s
-                    .SetProperty(m => m.FailedLoginCount, 0)
-                    .SetProperty(m => m.LoginLockoutEndAt, (DateTime?)null));
+            admin.FailedLoginCount = 0;
+            admin.IsLocked = false;
+            admin.LoginLockoutEndAt = null;
+            admin.UpdatedAt = now;
+            await _context.SaveChangesAsync();
         }
 
         // 驗證通過！建立使用者的身份憑證 (Claims)
